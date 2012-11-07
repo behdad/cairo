@@ -151,7 +151,7 @@ static const cairo_device_backend_t _cairo_xlib_device_backend = {
 
 static void _cairo_xlib_display_select_compositor (cairo_xlib_display_t *display)
 {
-#if 1
+#if 0
     if (display->render_major > 0 || display->render_minor >= 4)
 	display->compositor = _cairo_xlib_traps_compositor_get ();
     else if (display->render_major > 0 || display->render_minor >= 0)

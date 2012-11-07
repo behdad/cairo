@@ -1179,10 +1179,12 @@ composite_glyphs (void				*_dst,
 
     TRACE ((stderr, "%s\n", __FUNCTION__));
 
-    if (info->num_glyphs == 1)
+    /* XXX */
+    if (0 && info->num_glyphs == 1)
 	return composite_one_glyph(_dst, op, _src, src_x, src_y, dst_x, dst_y, info);
 
-    if (info->use_mask)
+    /* XXX */
+    if (0 && info->use_mask)
 	return composite_glyphs_via_mask(_dst, op, _src, src_x, src_y, dst_x, dst_y, info);
 
     op = _pixman_operator (op);
@@ -1222,12 +1224,21 @@ composite_glyphs (void				*_dst,
 	    y = _cairo_lround (info->glyphs[i].y -
 			       glyph_surface->base.device_transform.y0);
 
-	    pixman_image_composite32 (op, src, glyph_surface->pixman_image, dst,
-                                      x + src_x,  y + src_y,
-                                      0, 0,
-                                      x - dst_x, y - dst_y,
-				      glyph_surface->width,
-				      glyph_surface->height);
+	    if (glyph_surface->format != CAIRO_FORMAT_ARGB32 ||
+		pixman_image_get_component_alpha (glyph_surface->pixman_image))
+	      pixman_image_composite32 (op, src, glyph_surface->pixman_image, dst,
+					x + src_x,  y + src_y,
+					0, 0,
+					x - dst_x, y - dst_y,
+					glyph_surface->width,
+					glyph_surface->height);
+	    else /* Color glyph. */
+	      pixman_image_composite32 (op, glyph_surface->pixman_image, NULL, dst,
+					0, 0,
+					x + src_x,  y + src_y,
+					x - dst_x, y - dst_y,
+					glyph_surface->width,
+					glyph_surface->height);
 	}
     }
 

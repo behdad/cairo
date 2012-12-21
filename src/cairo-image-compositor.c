@@ -808,7 +808,7 @@ check_composite_glyphs (const cairo_composite_rectangles_t *extents,
     return CAIRO_STATUS_SUCCESS;
 }
 
-#if HAS_PIXMAN_GLYPHS
+#if 0 && HAS_PIXMAN_GLYPHS
 static pixman_glyph_cache_t *global_glyph_cache;
 
 static inline pixman_glyph_cache_t *

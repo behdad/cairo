@@ -29,6 +29,8 @@
  *      Alexandros Frantzis <alexandros.frantzis@linaro.org>
  */
 
+#include <errno.h>
+
 #include "cairoint.h"
 #include "cairo-gl-private.h"
 
@@ -69,6 +71,26 @@ _cairo_gl_get_flavor (void)
 	flavor = CAIRO_GL_FLAVOR_DESKTOP;
 
     return flavor;
+}
+
+long
+_cairo_gl_get_vbo_size (void)
+{
+    static long vbo_size = -1;
+
+    if (vbo_size < 0) {
+        const char *env = getenv ("CAIRO_GL_VBO_SIZE");
+        if (env == NULL) {
+            vbo_size = CAIRO_GL_VBO_SIZE_DEFAULT;
+	} else {
+	    errno = 0;
+	    vbo_size = strtol (env, NULL, 10);
+	    assert (errno == 0);
+	    assert (vbo_size > 0);
+	}
+    }
+
+    return vbo_size;
 }
 
 cairo_bool_t

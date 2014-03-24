@@ -871,6 +871,9 @@ _cairo_intern_string (const char **str_inout, int len);
 cairo_private void
 _cairo_intern_string_reset_static_data (void);
 
+cairo_private const char *
+cairo_get_locale_decimal_point (void);
+
 /* cairo-path-fixed.c */
 cairo_private cairo_path_fixed_t *
 _cairo_path_fixed_create (void);

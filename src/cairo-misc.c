@@ -759,6 +759,24 @@ _cairo_half_from_float (float f)
     }
 }
 
+#ifndef __BIONIC__
+# include <locale.h>
+
+const char *
+cairo_get_locale_decimal_point (void)
+{
+    struct lconv *locale_data = localeconv ();
+    return locale_data->decimal_point;
+}
+
+#else
+/* Android's Bionic libc doesn't provide decimal_point */
+const char *
+cairo_get_locale_decimal_point (void)
+{
+    return '.';
+}
+#endif
 
 #ifdef _WIN32
 

@@ -53,7 +53,6 @@
 #include "cairo-output-stream-private.h"
 
 #include <ctype.h>
-#include <locale.h>
 
 #define TYPE1_STACKSIZE 24 /* Defined in Type 1 Font Format */
 
@@ -309,12 +308,10 @@ cairo_type1_font_subset_get_matrix (cairo_type1_font_subset_t *font,
     const char *start, *end, *segment_end;
     int ret, s_max, i, j;
     char *s;
-    struct lconv *locale_data;
     const char *decimal_point;
     int decimal_point_len;
 
-    locale_data = localeconv ();
-    decimal_point = locale_data->decimal_point;
+    decimal_point = cairo_get_locale_decimal_point ();
     decimal_point_len = strlen (decimal_point);
 
     assert (decimal_point_len != 0);

@@ -295,7 +295,6 @@ decode_nibble (int n, char *buf)
 static unsigned char *
 decode_real (unsigned char *p, double *real)
 {
-    struct lconv *locale_data;
     const char *decimal_point;
     int decimal_point_len;
     int n;
@@ -305,8 +304,7 @@ decode_real (unsigned char *p, double *real)
     char *buf = buffer;
     char *buf_end = buffer + sizeof (buffer);
 
-    locale_data = localeconv ();
-    decimal_point = locale_data->decimal_point;
+    decimal_point = cairo_get_locale_decimal_point ();
     decimal_point_len = strlen (decimal_point);
 
     assert (decimal_point_len != 0);

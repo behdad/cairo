@@ -111,11 +111,9 @@ format_to_sk_config (cairo_format_t format,
     case CAIRO_FORMAT_A8:
 	config = SkBitmap::kA8_Config;
 	break;
-    case CAIRO_FORMAT_A1:
-	config = SkBitmap::kA1_Config;
-	break;
     case CAIRO_FORMAT_RGB30:
     case CAIRO_FORMAT_INVALID:
+    case CAIRO_FORMAT_A1:
     default:
 	return false;
     }

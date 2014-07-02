@@ -267,6 +267,21 @@ enum {
 
 cairo_private extern const cairo_surface_backend_t _cairo_xcb_surface_backend;
 
+/**
+ * _cairo_surface_is_xcb:
+ * @surface: a #cairo_surface_t
+ *
+ * Checks if a surface is an #cairo_xcb_surface_t
+ *
+ * Return value: %TRUE if the surface is an xcb surface
+ **/
+static inline cairo_bool_t
+_cairo_surface_is_xcb (const cairo_surface_t *surface)
+{
+    /* _cairo_surface_nil sets a NULL backend so be safe */
+    return surface->backend && surface->backend->type == CAIRO_SURFACE_TYPE_XCB;
+}
+
 cairo_private cairo_xcb_connection_t *
 _cairo_xcb_connection_get (xcb_connection_t *connection);
 

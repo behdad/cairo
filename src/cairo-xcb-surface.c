@@ -1432,7 +1432,7 @@ cairo_xcb_surface_set_size (cairo_surface_t *abstract_surface,
     }
 
 
-    if (abstract_surface->type != CAIRO_SURFACE_TYPE_XCB) {
+    if ( !_cairo_surface_is_xcb(abstract_surface)) {
 	_cairo_surface_set_error (abstract_surface,
 				  _cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
 	return;
@@ -1486,7 +1486,7 @@ cairo_xcb_surface_set_drawable (cairo_surface_t *abstract_surface,
     }
 
 
-    if (abstract_surface->type != CAIRO_SURFACE_TYPE_XCB) {
+    if ( !_cairo_surface_is_xcb(abstract_surface)) {
 	_cairo_surface_set_error (abstract_surface,
 				  _cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
 	return;

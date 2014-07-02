@@ -1154,7 +1154,7 @@ _cairo_xcb_surface_picture (cairo_xcb_surface_t *target,
 
     if (source->type == CAIRO_SURFACE_TYPE_XCB)
     {
-	if (source->backend->type == CAIRO_SURFACE_TYPE_XCB) {
+	if (_cairo_surface_is_xcb(source)) {
 	    cairo_xcb_surface_t *xcb = (cairo_xcb_surface_t *) source;
 	    if (xcb->screen == target->screen && xcb->fallback == NULL) {
 		picture = _copy_to_picture ((cairo_xcb_surface_t *) source);

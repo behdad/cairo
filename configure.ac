@@ -191,6 +191,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(qt, Qt, no, [
 		    [qt_REQUIRES=""
 		     use_qt="no (requires Qt4 development libraries)"
 		     ])
+  qt_NONPKGCONFIG_LIBS="-lstdc++"
 ])
 
 dnl ===========================================================================

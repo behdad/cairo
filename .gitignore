@@ -8,7 +8,6 @@ Makefile.in
 aclocal.m4
 autom4te.cache
 autoscan.log
-build/gtk-doc.m4
 config.cache
 config.h
 config.h.in

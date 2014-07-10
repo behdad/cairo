@@ -85,13 +85,20 @@
 # define CAIRO_INT_STATUS_SUCCESS ((cairo_int_status_t) CAIRO_STATUS_SUCCESS)
 #endif
 
-#define CAIRO_MAYBE_UNSUPPORTED CAIRO_INT_STATUS_UNSUPPORTED
-//#define CAIRO_MAYBE_UNSUPPORTED _skia_unsupported ()
+#define DEBUG_SKIA 0
 
-static cairo_int_status_t _skia_unsupported () {
-    printf ("unsupported!\n");
-    return CAIRO_INT_STATUS_UNSUPPORTED;
-}
+#if DEBUG_SKIA
+#define UNSUPPORTED(reason) ({ \
+    fprintf (stderr, \
+	     "cairo-skia : hit unsupported operation in %s(), line %d: %s\n", \
+	     __FUNCTION__, __LINE__, reason); \
+    return CAIRO_INT_STATUS_UNSUPPORTED; \
+})
+#else
+#define UNSUPPORTED(reason) ({ \
+    return CAIRO_INT_STATUS_UNSUPPORTED; \
+})#endif
+
 
 typedef struct cairo_skia_surface {
     cairo_surface_t base;
@@ -563,8 +570,7 @@ _cairo_skia_surface_create_similar (void *asurface,
     if (! format_to_sk_config (_cairo_format_from_content (content),
 			       config, opaque))
     {
-	_skia_unsupported ();
-	return NULL;
+	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_INVALID_FORMAT));
     }
 
     return &_cairo_skia_surface_create_internal (config, opaque,
@@ -802,7 +808,7 @@ _cairo_skia_surface_paint (void *asurface,
 	shader = pattern_to_sk_shader (surface, source, &image, &image_extra);
 
     if (!bitmap && !shader)
-	return CAIRO_MAYBE_UNSUPPORTED;
+	return UNSUPPORTED("pattern to bitmap and shader conversion");
 
     SkPaint paint;
     paint.setFilterBitmap (pattern_filter_to_sk (source));
@@ -859,7 +865,7 @@ _cairo_skia_surface_stroke (void *asurface,
 	SkShader *shader = pattern_to_sk_shader (surface,
 						 source, &image, &image_extra);
 	if (shader == NULL)
-	    return CAIRO_MAYBE_UNSUPPORTED;
+	    return UNSUPPORTED("pattern to shader conversion");
 
 	paint.setShader (shader);
 	shader->unref ();
@@ -962,7 +968,7 @@ _cairo_skia_surface_fill (void *asurface,
 	SkShader *shader = pattern_to_sk_shader (surface,
 						 source, &image, &image_extra);
 	if (shader == NULL)
-	    return CAIRO_MAYBE_UNSUPPORTED;
+	    return UNSUPPORTED("pattern to shader conversion");
 
 	paint.setShader (shader);
 	shader->unref ();

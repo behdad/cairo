@@ -865,6 +865,8 @@ util/cairo-trace/cairo-trace
 doc/Makefile
 doc/public/Makefile
 ])
+AC_CONFIG_COMMANDS([cairo-trace],
+		   [chmod a+x util/cairo-trace/cairo-trace])
 
 AC_OUTPUT
 CAIRO_REPORT

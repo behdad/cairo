@@ -4331,13 +4331,24 @@ cairo_ft_font_face_create_for_pattern (FcPattern *pattern)
 
 	obj = _get_object (FONT_FACE, ret);
 	if (obj->unknown) {
-		FcChar8 *parsed;
+		FcPattern *copy;
+		FcChar8 *unparsed;
 
-		parsed = DLCALL (FcNameUnparse, pattern);
+		copy = DLCALL (FcPatternDuplicate, pattern);
+		if (copy)
+		{
+			DLCALL (FcPatternDel, copy, FC_LANG);
+			DLCALL (FcPatternDel, copy, FC_CHARSET);
+			DLCALL (FcPatternDel, copy, FC_CAPABILITY);
+		}
+		else
+			copy = pattern;
+
+		unparsed = DLCALL (FcNameUnparse, copy);
 		_trace_printf ("dict\n"
 			       "  /type 42 set\n"
 			       "  /pattern ");
-		_emit_string_literal ((char *) parsed, -1);
+		_emit_string_literal ((char *) unparsed, -1);
 		_trace_printf (" set\n"
 			       "  font %% f%ld\n",
 			       font_face_id);
@@ -4345,7 +4356,9 @@ cairo_ft_font_face_create_for_pattern (FcPattern *pattern)
 		_push_operand (FONT_FACE, ret);
 		dump_stack(__func__);
 
-		free (parsed);
+		if (copy != pattern)
+			DLCALL (FcPatternDestroy, copy);
+		free (unparsed);
 	}
 	_write_unlock ();
     }

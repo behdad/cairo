@@ -1946,6 +1946,18 @@ _ft_create_for_pattern (csi_t *ctx,
     }
 
     pattern = FcNameParse (bytes);
+    if (!pattern)
+    {
+      /* Fontconfig's representation of charset changed mid 2014;
+       * We used to record charset before that.  Remove everything
+       * after charset if that's present, and try again.  */
+      char *s = strstr ((char *) bytes, ":charset=");
+      if (s)
+      {
+	*s = '\0';
+	pattern = FcNameParse (bytes);
+      }
+    }
     if (bytes != tmpl.bytes)
 	_csi_free (ctx, bytes);
 

@@ -853,14 +853,14 @@ cairo_boilerplate_open_any2ppm (const char   *filename,
     }
 
     *close_cb = fclose;
-    return fdopen (sk, "r");
+    return fdopen (sk, "rb");
 
 POPEN:
 #endif
 
     *close_cb = pclose;
     sprintf (command, "%s %s %d", any2ppm, filename, page);
-    return popen (command, "r");
+    return popen (command, "rb");
 }
 
 static cairo_bool_t

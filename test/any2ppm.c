@@ -81,8 +81,11 @@
 
 #include <errno.h>
 
-#if HAVE_UNISTD_H && HAVE_FCNTL_H && HAVE_SIGNAL_H && HAVE_SYS_STAT_H && HAVE_SYS_SOCKET_H && HAVE_SYS_POLL_H && HAVE_SYS_UN_H
+#if HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+
+#if HAVE_UNISTD_H && HAVE_SIGNAL_H && HAVE_SYS_STAT_H && HAVE_SYS_SOCKET_H && HAVE_SYS_POLL_H && HAVE_SYS_UN_H
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -872,6 +875,10 @@ main (int argc, char **argv)
 
 #if CAIRO_CAN_TEST_SVG_SURFACE
     rsvg_set_default_dpi (72.0);
+#endif
+
+#if defined(_WIN32) && !defined (__CYGWIN__)
+    _setmode (1, _O_BINARY);
 #endif
 
     if (argc == 1)

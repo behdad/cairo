@@ -522,6 +522,28 @@ _cairo_boilerplate_register_backend (const cairo_boilerplate_target_t *targets,
 }
 
 static cairo_bool_t
+_cairo_boilerplate_target_format_matches_name (const cairo_boilerplate_target_t *target,
+					const char *tcontent_name,
+					const char *tcontent_end)
+{
+	char const *content_name;
+	const char *content_end = tcontent_end;
+	size_t content_len;
+
+	content_name = _cairo_boilerplate_content_visible_name (target->content);
+	if (tcontent_end)
+		content_len = content_end - tcontent_name;
+	else
+		content_len = strlen(tcontent_name);
+	if (strlen(content_name) != content_len)
+		return FALSE;
+	if (0 == strncmp (content_name, tcontent_name, content_len))
+		return TRUE;
+
+	return FALSE;
+}
+
+static cairo_bool_t
 _cairo_boilerplate_target_matches_name (const cairo_boilerplate_target_t *target,
 					const char			 *tname,
 					const char			 *end)
@@ -597,13 +619,38 @@ cairo_boilerplate_get_targets (int	    *pnum_targets,
 		 list != NULL;
 		 list = list->next)
 	    {
-		const cairo_boilerplate_target_t *target = list->target;
-		if (_cairo_boilerplate_target_matches_name (target, tname, end)) {
-		    /* realloc isn't exactly the best thing here, but meh. */
-		    targets_to_test = xrealloc (targets_to_test, sizeof(cairo_boilerplate_target_t *) * (num_targets+1));
-		    targets_to_test[num_targets++] = target;
-		    found = 1;
-		}
+		    const cairo_boilerplate_target_t *target = list->target;
+		    const char *tcontent_name;
+		    const char *tcontent_end;
+		    if (_cairo_boilerplate_target_matches_name (target, tname, end)) {
+			    if ((tcontent_name = getenv ("CAIRO_TEST_TARGET_FORMAT")) != NULL && *tcontent_name) {
+				    while(tcontent_name) {
+					    tcontent_end = strpbrk (tcontent_name, " \t\r\n;:,");
+					    if (tcontent_end == tcontent_name) {
+						    tcontent_name = tcontent_end + 1;
+						    continue;
+					    }
+					    if(_cairo_boilerplate_target_format_matches_name (target,
+								    tcontent_name, tcontent_end)) {
+						    /* realloc isn't exactly the best thing here, but meh. */
+						    targets_to_test = xrealloc (targets_to_test,
+								    sizeof(cairo_boilerplate_target_t *) * (num_targets+1));
+						    targets_to_test[num_targets++] = target;
+						    found = 1;
+					    }
+
+					    if (tcontent_end)
+						    tcontent_end++;
+					    tcontent_name = tcontent_end;
+				    }
+			    } else {
+				    /* realloc isn't exactly the best thing here, but meh. */
+				    targets_to_test = xrealloc (targets_to_test,
+						    sizeof(cairo_boilerplate_target_t *) * (num_targets+1));
+				    targets_to_test[num_targets++] = target;
+				    found = 1;
+			    }
+		    }
 	    }
 
 	    if (!found) {

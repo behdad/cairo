@@ -291,7 +291,7 @@ _cairo_xlib_device_create (Display *dpy)
      *
      *    1. The original bug that led to the buggy_repeat
      *    workaround. This was a bug that Owen Taylor investigated,
-     *    understood well, and characterized against carious X
+     *    understood well, and characterized against various X
      *    servers. Confirmed X servers with this bug include:
      *
      *		"XFree86" <= 40500000

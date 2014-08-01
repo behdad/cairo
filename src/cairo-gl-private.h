@@ -95,7 +95,7 @@
  * but larger means hogging more memory and can cause trouble for drivers
  * (especially on embedded devices). Use the CAIRO_GL_VBO_SIZE environment
  * variable to set this to a different size. */
-#define CAIRO_GL_VBO_SIZE_DEFAULT (16*1024)
+#define CAIRO_GL_VBO_SIZE_DEFAULT (1024*1024)
 
 typedef struct _cairo_gl_surface cairo_gl_surface_t;
 

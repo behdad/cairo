@@ -875,7 +875,8 @@ _cairo_gl_composite_prepare_buffer (cairo_gl_context_t *ctx,
 	ctx->primitive_type = primitive_type;
     }
 
-    if (ctx->vb_offset + n_vertices * ctx->vertex_size > _cairo_gl_get_vbo_size())
+    assert(ctx->vbo_size > 0);
+    if (ctx->vb_offset + n_vertices * ctx->vertex_size > ctx->vbo_size)
 	_cairo_gl_composite_flush (ctx);
 }
 

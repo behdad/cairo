@@ -362,6 +362,7 @@ struct _cairo_gl_context {
     cairo_gl_operand_t operands[2];
     cairo_bool_t spans;
 
+    unsigned int vbo_size;
     unsigned int vb_offset;
     unsigned int vertex_size;
     cairo_region_t *clip_region;
@@ -703,7 +704,7 @@ _cairo_gl_get_version (void);
 cairo_private cairo_gl_flavor_t
 _cairo_gl_get_flavor (void);
 
-cairo_private long
+cairo_private unsigned long
 _cairo_gl_get_vbo_size (void);
 
 cairo_private cairo_bool_t

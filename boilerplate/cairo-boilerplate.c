@@ -683,20 +683,62 @@ cairo_boilerplate_get_targets (int	    *pnum_targets,
 	    tname = end;
 	}
     } else {
-	/* check all compiled in targets */
-	num_targets = 0;
-	for (list = cairo_boilerplate_targets; list != NULL; list = list->next)
-	    num_targets++;
+	    int found = 0;
+	    int not_found_targets = 0;
+	    num_targets = 0;
+	    targets_to_test = xmalloc (sizeof(cairo_boilerplate_target_t*) * num_targets);
+	    for (list = cairo_boilerplate_targets; list != NULL; list = list->next)
+	    {
+		    const cairo_boilerplate_target_t *target = list->target;
+		    const char *tcontent_name;
+		    const char *tcontent_end;
+		    if ((tcontent_name = getenv ("CAIRO_TEST_TARGET_FORMAT")) != NULL && *tcontent_name) {
+			    while(tcontent_name) {
+				    tcontent_end = strpbrk (tcontent_name, " \t\r\n;:,");
+				    if (tcontent_end == tcontent_name) {
+					    tcontent_name = tcontent_end + 1;
+					    continue;
+				    }
+				    if (_cairo_boilerplate_target_format_matches_name (target,
+							    tcontent_name, tcontent_end)) {
+					    /* realloc isn't exactly the best thing here, but meh. */
+					    targets_to_test = xrealloc (targets_to_test,
+							    sizeof(cairo_boilerplate_target_t *) * (num_targets+1));
+					    targets_to_test[num_targets++] = target;
+					    found =1;
+				    }
+				    else
+				    {
+					    not_found_targets++;
+				    }
 
-	targets_to_test = xmalloc (sizeof(cairo_boilerplate_target_t*) * num_targets);
-	num_targets = 0;
-	for (list = cairo_boilerplate_targets;
-	     list != NULL;
-	     list = list->next)
-	{
-	    const cairo_boilerplate_target_t *target = list->target;
-	    targets_to_test[num_targets++] = target;
-	}
+				    if (tcontent_end)
+					    tcontent_end++;
+
+				    tcontent_name = tcontent_end;
+			    }
+		    }
+		    else
+		    {
+			    num_targets++;
+		    }
+	    }
+	    if (!found)
+	    {
+		    /* check all compiled in targets */
+		    num_targets = num_targets + not_found_targets;
+		    targets_to_test = xrealloc (targets_to_test,
+				    sizeof(cairo_boilerplate_target_t*) * num_targets);
+		    num_targets = 0;
+		    for (list = cairo_boilerplate_targets;
+				    list != NULL;
+				    list = list->next)
+		    {
+			    const cairo_boilerplate_target_t *target = list->target;
+			    targets_to_test[num_targets++] = target;
+		    }
+	    }
+
     }
 
     /* exclude targets as specified by the user */

@@ -41,13 +41,20 @@ There are some mechanisms to limit the tests run during "make test".
 These come very handy when doing development, but should not be used
 to circumvent the "pass" requirements listed below.
 
-To limit the backends that the tests are run against, use the
-TARGETS make variable, that can also be passed to make.
-It should contain a (space-, comma-, etc-separated) list of backends to test.
-To limit the tests run, use the CAIRO_TESTS environment variable, which
-should be a space-separated list of tests to run.  For example:
+make's TARGETS environment variable can be used to limit the backends when
+running the tests. It should contain a (space-, comma-separated) list of
+backends. CAIRO_TESTS environment variable, which is a comma-, space-seperated
+lists, can be used to limit the tests run.
+For example:
 
   CAIRO_TESTS="zero-alpha" make test TARGETS=image,ps
+
+make's FORMAT variable can also be used to limit the content formats when
+running the tests. It should contain a (space-, comma-separated) list of
+content formats to test.
+For example:
+
+  CAIRO_TESTS="zero-alpha" make test TARGETS=image,ps FORMAT="rgb,rgba"
 
 Another very handy mechanism when trying to fix bugs is:
 

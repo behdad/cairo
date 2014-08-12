@@ -414,8 +414,7 @@ _pattern_is_supported (uint32_t flags,
 	cairo_filter_t filter;
 
 	filter = pattern->filter;
-	if (_cairo_matrix_has_unity_scale (&pattern->matrix) &&
-	    _cairo_matrix_is_integer_translation (&pattern->matrix, NULL, NULL))
+	if (_cairo_matrix_is_pixel_exact (&pattern->matrix))
 	{
 	    filter = CAIRO_FILTER_NEAREST;
 	}
@@ -1033,9 +1032,7 @@ _cairo_xcb_surface_setup_surface_picture(cairo_xcb_picture_t *picture,
 
     filter = pattern->base.filter;
     if (filter != CAIRO_FILTER_NEAREST &&
-	_cairo_matrix_has_unity_scale (&pattern->base.matrix) &&
-	_cairo_fixed_is_integer (_cairo_fixed_from_double (pattern->base.matrix.x0)) &&
-	_cairo_fixed_is_integer (_cairo_fixed_from_double (pattern->base.matrix.y0)))
+        _cairo_matrix_is_pixel_exact (&pattern->base.matrix))
     {
 	filter = CAIRO_FILTER_NEAREST;
     }

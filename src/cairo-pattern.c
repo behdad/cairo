@@ -3363,6 +3363,7 @@ _cairo_pattern_analyze_filter (const cairo_pattern_t	*pattern,
     case CAIRO_FILTER_GOOD:
     case CAIRO_FILTER_BEST:
     case CAIRO_FILTER_BILINEAR:
+    case CAIRO_FILTER_FAST:
 	/* If source pixels map 1:1 onto destination pixels, we do
 	 * not need to filter (and do not want to filter, since it
 	 * will cause blurriness)
@@ -3381,7 +3382,6 @@ _cairo_pattern_analyze_filter (const cairo_pattern_t	*pattern,
 	}
 	break;
 
-    case CAIRO_FILTER_FAST:
     case CAIRO_FILTER_NEAREST:
     case CAIRO_FILTER_GAUSSIAN:
     default:

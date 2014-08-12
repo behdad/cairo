@@ -32,7 +32,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cairo.h>
+
+#if CAIRO_HAS_PDF_SURFACE
 #include <cairo-pdf.h>
+#endif
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -280,9 +283,11 @@ generate_reference (double ppi_x, double ppi_y, const char *filename)
 
 	options = cairo_font_options_create ();
 
+#if CAIRO_HAS_PDF_SURFACE
 	pdf = cairo_pdf_surface_create ("tmp.pdf", 1, 1);
 	cairo_surface_get_font_options (pdf, options);
 	cairo_surface_destroy (pdf);
+#endif
 
 	cairo_set_font_options (cr, options);
 	cairo_font_options_destroy (options);

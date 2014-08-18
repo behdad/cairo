@@ -1578,14 +1578,18 @@ _cairo_win32_printing_surface_show_glyphs (void                 *abstract_surfac
 	 * CAIRO_INT_STATUS_UNSUPPORTED and a fallback image will be
 	 * used.
 	 */
+        _cairo_scaled_font_freeze_cache (scaled_font);
 	for (i = 0; i < num_glyphs; i++) {
 	    status = _cairo_scaled_glyph_lookup (scaled_font,
 						 glyphs[i].index,
 						 CAIRO_SCALED_GLYPH_INFO_PATH,
 						 &scaled_glyph);
 	    if (status)
-		return status;
+                break;
 	}
+        _cairo_scaled_font_thaw_cache (scaled_font);
+        if (status)
+            return status;
 
 	return _cairo_win32_printing_surface_analyze_operation (surface, op, source);
     }
@@ -1623,6 +1627,7 @@ _cairo_win32_printing_surface_show_glyphs (void                 *abstract_surfac
     old_has_ctm = surface->has_ctm;
     surface->has_ctm = TRUE;
     surface->path_empty = TRUE;
+    _cairo_scaled_font_freeze_cache (scaled_font);
     BeginPath (surface->win32.dc);
     for (i = 0; i < num_glyphs; i++) {
 	status = _cairo_scaled_glyph_lookup (scaled_font,
@@ -1636,6 +1641,7 @@ _cairo_win32_printing_surface_show_glyphs (void                 *abstract_surfac
 	status = _cairo_win32_printing_surface_emit_path (surface, scaled_glyph->path);
     }
     EndPath (surface->win32.dc);
+    _cairo_scaled_font_thaw_cache (scaled_font);
     surface->ctm = old_ctm;
     surface->has_ctm = old_has_ctm;
     if (status == CAIRO_STATUS_SUCCESS && surface->path_empty == FALSE) {

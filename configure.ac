@@ -378,6 +378,10 @@ CAIRO_ENABLE_SURFACE_BACKEND(glesv2, OpenGLESv2, no, [
     glesv2_LIBS="$glesv2_LIBS -ldl"
   fi
 
+  if test "x$use_glesv2" = "xyes" -a "x$use_gl" = "xyes"; then
+      AC_MSG_ERROR([use either --enable-gl=yes or --enable-glesv2=yes. Not both at the same time.])
+  fi
+
   need_egl_functions=yes
 ])
 

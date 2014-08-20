@@ -3911,7 +3911,7 @@ _cairo_mesh_pattern_equal (const cairo_mesh_pattern_t *a,
 
     for (i = 0; i < num_patches_a; i++) {
 	patch_a = _cairo_array_index_const (&a->patches, i);
-	patch_b = _cairo_array_index_const (&a->patches, i);
+	patch_b = _cairo_array_index_const (&b->patches, i);
 	if (memcmp (patch_a, patch_b, sizeof(cairo_mesh_patch_t)) != 0)
 	    return FALSE;
     }

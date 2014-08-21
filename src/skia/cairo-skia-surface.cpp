@@ -241,8 +241,10 @@ _cairo_skia_surface_create_internal (SkBitmap::Config config,
     pixman_image = pixman_image_create_bits (pixman_format,
 					     width, height,
 					     (uint32_t *) data, stride);
-    if (unlikely (pixman_image == NULL))
+    if (unlikely (pixman_image == NULL)) {
+	free (surface);
 	return (cairo_skia_surface_t *) _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
+    }
 
     _cairo_surface_init (&surface->image.base,
 			 &cairo_skia_surface_backend,

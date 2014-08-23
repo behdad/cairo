@@ -2902,7 +2902,7 @@ _boxes_for_traps (cairo_boxes_t *boxes,
 		  cairo_traps_t *traps,
 		  cairo_antialias_t antialias)
 {
-    int i;
+    int i, j;
 
     _cairo_boxes_init (boxes);
 
@@ -2912,17 +2912,21 @@ _boxes_for_traps (cairo_boxes_t *boxes,
     boxes->chunks.size  = traps->num_traps;
 
     if (antialias != CAIRO_ANTIALIAS_NONE) {
-	for (i = 0; i < traps->num_traps; i++) {
+	for (i = j = 0; i < traps->num_traps; i++) {
 	    /* Note the traps and boxes alias so we need to take the local copies first. */
 	    cairo_fixed_t x1 = traps->traps[i].left.p1.x;
 	    cairo_fixed_t x2 = traps->traps[i].right.p1.x;
 	    cairo_fixed_t y1 = traps->traps[i].top;
 	    cairo_fixed_t y2 = traps->traps[i].bottom;
 
-	    boxes->chunks.base[i].p1.x = x1;
-	    boxes->chunks.base[i].p1.y = y1;
-	    boxes->chunks.base[i].p2.x = x2;
-	    boxes->chunks.base[i].p2.y = y2;
+	    if (x1 == x2 || y1 == y2)
+		    continue;
+
+	    boxes->chunks.base[j].p1.x = x1;
+	    boxes->chunks.base[j].p1.y = y1;
+	    boxes->chunks.base[j].p2.x = x2;
+	    boxes->chunks.base[j].p2.y = y2;
+	    j++;
 
 	    if (boxes->is_pixel_aligned) {
 		boxes->is_pixel_aligned =
@@ -2933,7 +2937,7 @@ _boxes_for_traps (cairo_boxes_t *boxes,
     } else {
 	boxes->is_pixel_aligned = TRUE;
 
-	for (i = 0; i < traps->num_traps; i++) {
+	for (i = j = 0; i < traps->num_traps; i++) {
 	    /* Note the traps and boxes alias so we need to take the local copies first. */
 	    cairo_fixed_t x1 = traps->traps[i].left.p1.x;
 	    cairo_fixed_t x2 = traps->traps[i].right.p1.x;
@@ -2941,10 +2945,13 @@ _boxes_for_traps (cairo_boxes_t *boxes,
 	    cairo_fixed_t y2 = traps->traps[i].bottom;
 
 	    /* round down here to match Pixman's behavior when using traps. */
-	    boxes->chunks.base[i].p1.x = _cairo_fixed_round_down (x1);
-	    boxes->chunks.base[i].p1.y = _cairo_fixed_round_down (y1);
-	    boxes->chunks.base[i].p2.x = _cairo_fixed_round_down (x2);
-	    boxes->chunks.base[i].p2.y = _cairo_fixed_round_down (y2);
+	    boxes->chunks.base[j].p1.x = _cairo_fixed_round_down (x1);
+	    boxes->chunks.base[j].p1.y = _cairo_fixed_round_down (y1);
+	    boxes->chunks.base[j].p2.x = _cairo_fixed_round_down (x2);
+	    boxes->chunks.base[j].p2.y = _cairo_fixed_round_down (y2);
+
+	    j += (boxes->chunks.base[j].p1.x != boxes->chunks.base[j].p2.x &&
+		  boxes->chunks.base[j].p1.y != boxes->chunks.base[j].p2.y);
 	}
     }
 }

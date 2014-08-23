@@ -37,6 +37,7 @@
 #include "cairo-clip-inline.h"
 #include "cairo-clip-private.h"
 #include "cairo-composite-rectangles-private.h"
+#include "cairo-image-surface-inline.h"
 #include "cairo-image-surface-private.h"
 #include "cairo-list-inline.h"
 #include "cairo-region-private.h"
@@ -2786,7 +2787,7 @@ _upload_image_inplace (cairo_xcb_surface_t *surface,
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
     pattern = (const cairo_surface_pattern_t *) source;
-    if (pattern->surface->type != CAIRO_SURFACE_TYPE_IMAGE)
+    if (! _cairo_surface_is_image (pattern->surface))
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
     /* Have we already upload this image to a pixmap? */

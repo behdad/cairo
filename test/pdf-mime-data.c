@@ -50,7 +50,7 @@ read_file (const cairo_test_context_t *ctx,
     FILE *fp;
 
     fp = fopen (file, "rb");
-    if (file == NULL) {
+    if (fp == NULL) {
 	char filename[4096];
 
 	/* try again with srcdir */
@@ -61,8 +61,11 @@ read_file (const cairo_test_context_t *ctx,
     if (fp == NULL) {
 	switch (errno) {
 	case ENOMEM:
+	    cairo_test_log (ctx, "Could not create file handle for %s due to \
+				lack of memory\n", file);
 	    return CAIRO_TEST_NO_MEMORY;
 	default:
+	    cairo_test_log (ctx, "Could not get the file handle for %s\n", file);
 	    return CAIRO_TEST_FAILURE;
 	}
     }
@@ -71,11 +74,19 @@ read_file (const cairo_test_context_t *ctx,
     *len = ftell(fp);
     fseek (fp, 0, SEEK_SET);
     *data = malloc (*len);
-    if (*data == NULL)
+    if (*data == NULL) {
+	fclose(fp);
+	cairo_test_log (ctx, "Could not allocate memory for buffer to read \
+				from file %s\n", file);
 	return CAIRO_TEST_NO_MEMORY;
+    }
 
-    if (fread(*data, *len, 1, fp) != 1)
+    if (fread(*data, *len, 1, fp) != 1) {
+	free (data);
+	fclose(fp);
+	cairo_test_log (ctx, "Could not read data from file %s\n", file);
 	return CAIRO_TEST_FAILURE;
+    }
 
     fclose(fp);
     return CAIRO_TEST_SUCCESS;
@@ -104,8 +115,6 @@ preamble (cairo_test_context_t *ctx)
     image = cairo_image_surface_create_from_png (IMAGE_FILE ".png");
     test_status = read_file (ctx, IMAGE_FILE ".jpg", &data, &len);
     if (test_status) {
-	cairo_test_log (ctx, "Could not read input jpeg file %s\n", IMAGE_FILE ".jpg");
-	free(data);
 	return test_status;
     }
 
@@ -149,17 +158,11 @@ preamble (cairo_test_context_t *ctx)
 
     test_status = read_file (ctx, IMAGE_FILE ".jpg", &data, &len);
     if (test_status) {
-	cairo_test_log (ctx, "Could not read input jpeg file %s\n", IMAGE_FILE ".jpg");
-	free(data);
 	return test_status;
     }
 
     test_status = read_file (ctx, CAIRO_TEST_OUTPUT_DIR "/" BASENAME "-000.jpg", &out_data, &out_len);
     if (test_status) {
-	free (data);
-	cairo_test_log (ctx,
-			"Could not read input jpeg file %s\n",
-			CAIRO_TEST_OUTPUT_DIR "/" BASENAME "-000.jpg");
 	return test_status;
     }
 

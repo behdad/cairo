@@ -75,6 +75,7 @@ typedef struct _cairo_xcb_surface cairo_xcb_surface_t;
 typedef struct _cairo_xcb_picture cairo_xcb_picture_t;
 typedef struct _cairo_xcb_shm_mem_pool cairo_xcb_shm_mem_pool_t;
 typedef struct _cairo_xcb_shm_info cairo_xcb_shm_info_t;
+typedef struct _cairo_xcb_resources cairo_xcb_resources_t;
 
 struct _cairo_xcb_shm_info {
     cairo_xcb_connection_t *connection;
@@ -199,6 +200,9 @@ struct _cairo_xcb_screen {
     cairo_list_t link;
     cairo_list_t surfaces;
     cairo_list_t pictures;
+
+    cairo_bool_t has_font_options;
+    cairo_font_options_t font_options;
 };
 
 struct _cairo_xcb_connection {
@@ -234,6 +238,14 @@ struct _cairo_xcb_connection {
     cairo_list_t fonts;
 
     cairo_list_t link;
+};
+
+struct _cairo_xcb_resources {
+    cairo_bool_t xft_antialias;
+    int xft_lcdfilter;
+    cairo_bool_t xft_hinting;
+    int xft_hintstyle;
+    int xft_rgba;
 };
 
 enum {
@@ -356,6 +368,9 @@ _cairo_xcb_screen_get_gc (cairo_xcb_screen_t *screen,
 
 cairo_private void
 _cairo_xcb_screen_put_gc (cairo_xcb_screen_t *screen, int depth, xcb_gcontext_t gc);
+
+cairo_private cairo_font_options_t *
+_cairo_xcb_screen_get_font_options (cairo_xcb_screen_t *screen);
 
 cairo_private cairo_status_t
 _cairo_xcb_screen_store_linear_picture (cairo_xcb_screen_t *screen,
@@ -772,5 +787,9 @@ slim_hidden_proto (cairo_xcb_device_debug_get_precision);
 slim_hidden_proto_no_warn (cairo_xcb_device_debug_set_precision);
 slim_hidden_proto_no_warn (cairo_xcb_device_debug_cap_xrender_version);
 #endif
+
+cairo_private void
+_cairo_xcb_resources_get (cairo_xcb_screen_t *screen,
+			  cairo_xcb_resources_t *resources);
 
 #endif /* CAIRO_XCB_PRIVATE_H */

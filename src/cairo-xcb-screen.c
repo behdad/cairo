@@ -35,6 +35,96 @@
 #include "cairo-xcb-private.h"
 #include "cairo-list-inline.h"
 
+#include "cairo-fontconfig-private.h"
+
+static void
+_cairo_xcb_init_screen_font_options (cairo_xcb_screen_t *screen)
+{
+    cairo_xcb_resources_t res;
+    cairo_antialias_t antialias;
+    cairo_subpixel_order_t subpixel_order;
+    cairo_lcd_filter_t lcd_filter;
+    cairo_hint_style_t hint_style;
+
+    _cairo_xcb_resources_get (screen, &res);
+
+    /* the rest of the code in this function is copied from
+       _cairo_xlib_init_screen_font_options in cairo-xlib-screen.c */
+
+    if (res.xft_hinting) {
+	switch (res.xft_hintstyle) {
+	case FC_HINT_NONE:
+	    hint_style = CAIRO_HINT_STYLE_NONE;
+	    break;
+	case FC_HINT_SLIGHT:
+	    hint_style = CAIRO_HINT_STYLE_SLIGHT;
+	    break;
+	case FC_HINT_MEDIUM:
+	    hint_style = CAIRO_HINT_STYLE_MEDIUM;
+	    break;
+	case FC_HINT_FULL:
+	    hint_style = CAIRO_HINT_STYLE_FULL;
+	    break;
+	default:
+	    hint_style = CAIRO_HINT_STYLE_DEFAULT;
+	}
+    } else {
+	hint_style = CAIRO_HINT_STYLE_NONE;
+    }
+
+    switch (res.xft_rgba) {
+    case FC_RGBA_RGB:
+	subpixel_order = CAIRO_SUBPIXEL_ORDER_RGB;
+	break;
+    case FC_RGBA_BGR:
+	subpixel_order = CAIRO_SUBPIXEL_ORDER_BGR;
+	break;
+    case FC_RGBA_VRGB:
+	subpixel_order = CAIRO_SUBPIXEL_ORDER_VRGB;
+	break;
+    case FC_RGBA_VBGR:
+	subpixel_order = CAIRO_SUBPIXEL_ORDER_VBGR;
+	break;
+    case FC_RGBA_UNKNOWN:
+    case FC_RGBA_NONE:
+    default:
+	subpixel_order = CAIRO_SUBPIXEL_ORDER_DEFAULT;
+    }
+
+    switch (res.xft_lcdfilter) {
+    case FC_LCD_NONE:
+	lcd_filter = CAIRO_LCD_FILTER_NONE;
+	break;
+    case FC_LCD_DEFAULT:
+	lcd_filter = CAIRO_LCD_FILTER_FIR5;
+	break;
+    case FC_LCD_LIGHT:
+	lcd_filter = CAIRO_LCD_FILTER_FIR3;
+	break;
+    case FC_LCD_LEGACY:
+	lcd_filter = CAIRO_LCD_FILTER_INTRA_PIXEL;
+	break;
+    default:
+	lcd_filter = CAIRO_LCD_FILTER_DEFAULT;
+	break;
+    }
+
+    if (res.xft_antialias) {
+	if (subpixel_order == CAIRO_SUBPIXEL_ORDER_DEFAULT)
+	    antialias = CAIRO_ANTIALIAS_GRAY;
+	else
+	    antialias = CAIRO_ANTIALIAS_SUBPIXEL;
+    } else {
+	antialias = CAIRO_ANTIALIAS_NONE;
+    }
+
+    cairo_font_options_set_hint_style (&screen->font_options, hint_style);
+    cairo_font_options_set_antialias (&screen->font_options, antialias);
+    cairo_font_options_set_subpixel_order (&screen->font_options, subpixel_order);
+    _cairo_font_options_set_lcd_filter (&screen->font_options, lcd_filter);
+    cairo_font_options_set_hint_metrics (&screen->font_options, CAIRO_HINT_METRICS_ON);
+}
+
 struct pattern_cache_entry {
     cairo_cache_entry_t key;
     cairo_xcb_screen_t *screen;
@@ -361,4 +451,22 @@ _cairo_xcb_screen_lookup_radial_picture (cairo_xcb_screen_t *screen,
 	picture = cairo_surface_reference (entry->picture);
 
     return picture;
+}
+
+cairo_font_options_t *
+_cairo_xcb_screen_get_font_options (cairo_xcb_screen_t *screen)
+{
+    if (! screen->has_font_options) {
+	_cairo_font_options_init_default (&screen->font_options);
+	_cairo_font_options_set_round_glyph_positions (&screen->font_options, CAIRO_ROUND_GLYPH_POS_ON);
+
+	if (! _cairo_xcb_connection_acquire (screen->connection)) {
+	    _cairo_xcb_init_screen_font_options (screen);
+	    _cairo_xcb_connection_release (screen->connection);
+	}
+
+	screen->has_font_options = TRUE;
+    }
+
+    return &screen->font_options;
 }

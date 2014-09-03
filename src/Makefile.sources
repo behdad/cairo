@@ -334,6 +334,7 @@ cairo_xcb_sources = \
 		    cairo-xcb-surface.c \
 		    cairo-xcb-surface-core.c \
 		    cairo-xcb-surface-render.c \
+		    cairo-xcb-resources.c \
 		    $(NULL)
 
 cairo_qt_headers = cairo-qt.h

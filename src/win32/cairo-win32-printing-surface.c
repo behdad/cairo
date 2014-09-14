@@ -726,6 +726,7 @@ _cairo_win32_printing_surface_paint_image_pattern (cairo_win32_printing_surface_
     /* _cairo_pattern_set_matrix guarantees invertibility */
     assert (status == CAIRO_STATUS_SUCCESS);
 
+    cairo_matrix_multiply (&m, &m, &surface->ctm);
     cairo_matrix_multiply (&m, &m, &surface->gdi_ctm);
     SaveDC (surface->win32.dc);
     _cairo_matrix_to_win32_xform (&m, &xform);

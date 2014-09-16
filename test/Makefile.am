@@ -20,6 +20,10 @@ if CAIRO_HAS_GL_SURFACE
 test_sources += $(gl_surface_test_sources)
 endif
 
+if CAIRO_HAS_EGL_FUNCTIONS
+test_sources += $(egl_surface_test_sources)
+endif
+
 # Need to add quartz-surface-source
 if CAIRO_HAS_QUARTZ_SURFACE
 test_sources += $(quartz_surface_test_sources)

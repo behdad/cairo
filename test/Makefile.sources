@@ -401,6 +401,9 @@ gl_surface_test_sources = \
 	gl-oversized-surface.c \
 	gl-surface-source.c
 
+egl_surface_test_sources = \
+       egl-oversized-surface.c
+
 quartz_surface_test_sources = quartz-surface-source.c
 
 pdf_surface_test_sources = \

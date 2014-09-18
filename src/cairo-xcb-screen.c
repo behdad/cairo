@@ -242,6 +242,7 @@ _cairo_xcb_screen_get (xcb_connection_t *xcb_connection,
 
     screen->connection = connection;
     screen->xcb_screen = xcb_screen;
+    screen->has_font_options = FALSE;
 
     _cairo_freelist_init (&screen->pattern_cache_entry_freelist,
 			  sizeof (struct pattern_cache_entry));
@@ -460,7 +461,12 @@ _cairo_xcb_screen_get_font_options (cairo_xcb_screen_t *screen)
 	_cairo_font_options_init_default (&screen->font_options);
 	_cairo_font_options_set_round_glyph_positions (&screen->font_options, CAIRO_ROUND_GLYPH_POS_ON);
 
-	if (! _cairo_xcb_connection_acquire (screen->connection)) {
+	/* XXX: This is disabled because something seems to be merging
+	   font options incorrectly for xcb.  This effectively reverts
+	   the changes brought in git e691d242, and restores ~150 tests
+	   to resume passing.  See mailing list archives for Sep 17,
+	   2014 for more discussion. */
+	if (0 && ! _cairo_xcb_connection_acquire (screen->connection)) {
 	    _cairo_xcb_init_screen_font_options (screen);
 	    _cairo_xcb_connection_release (screen->connection);
 	}

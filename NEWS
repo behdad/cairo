@@ -9,7 +9,6 @@ a highly demanded rehaul of our image downscaling functionality, which
 solves a serious problem experienced by Inkscape users when shrinking
 embedded bitmaps in SVG files.
 
-While not as exciting in terms of new fe
 
 Features
 --------

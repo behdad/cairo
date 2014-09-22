@@ -2789,7 +2789,7 @@ cairo_cogl_device_create (CoglContext *cogl_context)
 
 ERROR:
     g_free (dev);
-    return NULL;
+    return _cairo_device_create_in_error (CAIRO_STATUS_DEVICE_ERROR);
 }
 slim_hidden_def (cairo_cogl_device_create);
 

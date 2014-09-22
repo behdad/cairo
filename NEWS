@@ -4,10 +4,12 @@ Hard to believe it's been over a year since our last release, but it's
 not for lack of activity.  This release includes contributions of a wide
 assortment of bug fixes, build system improvements, warnings cleanups,
 codebase refactoring, test suite repairs, and static analysis work.
+
 This release is lighter on features (compared with 1.12.10) but includes
 a highly demanded rehaul of our image downscaling functionality, which
 solves a serious problem experienced by Inkscape users when shrinking
-embedded bitmaps in SVG files.
+embedded bitmaps in SVG files.  The new scaling algorithms are used by
+the image backend and by other backends as needed for fallbacks.
 
 
 Features

@@ -188,7 +188,7 @@ cairo_surface_t *
 cairo_win32_surface_get_image (cairo_surface_t *surface)
 {
     if (surface->backend->type != CAIRO_SURFACE_TYPE_WIN32)
-	return NULL;
+        return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
 
     GdiFlush();
     return to_win32_display_surface(surface)->image;

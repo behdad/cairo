@@ -1688,7 +1688,7 @@ cairo_qt_surface_get_image (cairo_surface_t *surface)
     cairo_qt_surface_t *qs = (cairo_qt_surface_t*) surface;
 
     if (surface->type != CAIRO_SURFACE_TYPE_QT)
-        return NULL;
+        return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
 
     return qs->image_equiv;
 }

@@ -249,9 +249,11 @@ join (struct stroker *stroker,
 	     in->dev_slope.y * out->dev_slope.y) < stroker->spline_cusp_tolerance)
 	{
 	    int start, stop;
-	    cairo_point_t tri[3];
+	    cairo_point_t tri[3], edges[4];
 	    cairo_pen_t *pen = &stroker->pen;
 
+	    edges[0] = in->cw;
+	    edges[1] = in->ccw;
 	    tri[0] = in->point;
 	    tri[1] = *inpt;
 	    if (clockwise) {
@@ -261,8 +263,13 @@ join (struct stroker *stroker,
 		while (start != stop) {
 		    tri[2] = in->point;
 		    translate_point (&tri[2], &pen->vertices[start].point);
-		    _cairo_traps_tessellate_triangle (stroker->traps, tri);
+		    edges[2] = in->point;
+		    edges[3] = tri[2];
+		    _cairo_traps_tessellate_triangle_with_edges (stroker->traps,
+								 tri, edges);
 		    tri[1] = tri[2];
+		    edges[0] = edges[2];
+		    edges[1] = edges[3];
 
 		    if (start-- == 0)
 			start += pen->num_vertices;
@@ -274,17 +281,29 @@ join (struct stroker *stroker,
 		while (start != stop) {
 		    tri[2] = in->point;
 		    translate_point (&tri[2], &pen->vertices[start].point);
-		    _cairo_traps_tessellate_triangle (stroker->traps, tri);
+		    edges[2] = in->point;
+		    edges[3] = tri[2];
+		    _cairo_traps_tessellate_triangle_with_edges (stroker->traps,
+								 tri, edges);
 		    tri[1] = tri[2];
+		    edges[0] = edges[2];
+		    edges[1] = edges[3];
 
 		    if (++start == pen->num_vertices)
 			start = 0;
 		}
 	    }
 	    tri[2] = *outpt;
-	    _cairo_traps_tessellate_triangle (stroker->traps, tri);
-	    break;
+	    edges[2] = out->cw;
+	    edges[3] = out->ccw;
+	    _cairo_traps_tessellate_triangle_with_edges (stroker->traps,
+							 tri, edges);
+	} else {
+	    cairo_point_t t[] = { in->point, *inpt, *outpt };
+	    cairo_point_t e[] = { in->cw, in->ccw, out->cw, out->ccw };
+	    _cairo_traps_tessellate_triangle_with_edges (stroker->traps, t, e);
 	}
+	break;
 
     case CAIRO_LINE_JOIN_MITER:
     default: {
@@ -442,12 +461,9 @@ join (struct stroker *stroker,
     }
 
     case CAIRO_LINE_JOIN_BEVEL: {
-	cairo_point_t tri[3];
-	tri[0] = in->point;
-	tri[1] = *inpt;
-	tri[2] = *outpt;
-
-	_cairo_traps_tessellate_triangle (stroker->traps, tri);
+	cairo_point_t t[] = { in->point, *inpt, *outpt };
+	cairo_point_t e[] = { in->cw, in->ccw, out->cw, out->ccw };
+	_cairo_traps_tessellate_triangle_with_edges (stroker->traps, t, e);
 	break;
     }
     }
@@ -460,7 +476,7 @@ add_cap (struct stroker *stroker, cairo_stroke_face_t *f)
     case CAIRO_LINE_CAP_ROUND: {
 	int start, stop;
 	cairo_slope_t in_slope, out_slope;
-	cairo_point_t tri[3];
+	cairo_point_t tri[3], edges[4];
 	cairo_pen_t *pen = &stroker->pen;
 
 	in_slope = f->dev_vector;
@@ -468,19 +484,29 @@ add_cap (struct stroker *stroker, cairo_stroke_face_t *f)
 	out_slope.dy = -in_slope.dy;
 	_cairo_pen_find_active_cw_vertices (pen, &in_slope, &out_slope,
 					    &start, &stop);
+	edges[0] = f->cw;
+	edges[1] = f->ccw;
 	tri[0] = f->point;
 	tri[1] = f->cw;
 	while (start != stop) {
 	    tri[2] = f->point;
 	    translate_point (&tri[2], &pen->vertices[start].point);
-	    _cairo_traps_tessellate_triangle (stroker->traps, tri);
+	    edges[2] = f->point;
+	    edges[3] = tri[2];
+	    _cairo_traps_tessellate_triangle_with_edges (stroker->traps,
+							 tri, edges);
 
 	    tri[1] = tri[2];
+	    edges[0] = edges[2];
+	    edges[1] = edges[3];
 	    if (++start == pen->num_vertices)
 		start = 0;
 	}
 	tri[2] = f->ccw;
-	_cairo_traps_tessellate_triangle (stroker->traps, tri);
+	edges[2] = f->cw;
+	edges[3] = f->ccw;
+	_cairo_traps_tessellate_triangle_with_edges (stroker->traps,
+						     tri, edges);
 	break;
     }
 
@@ -932,7 +958,6 @@ spline_to (void *closure,
 	cairo_point_t rectangle[4];
 
 	compute_face (&stroker->current_face.point, tangent, stroker, &face);
-
 	join (stroker, &stroker->current_face, &face);
 
 	rectangle[0] = face.cw;

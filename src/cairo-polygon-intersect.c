@@ -728,7 +728,7 @@ _cairo_bo_edge_contains_intersect_point (cairo_bo_edge_t		*edge,
 
 	top_x = _line_compute_intersection_x_for_y (&edge->edge.line,
 						    edge->edge.top);
-	return _cairo_bo_intersect_ordinate_32_compare (point->x, top_x) > 0;
+	return _cairo_bo_intersect_ordinate_32_compare (point->x, top_x) >= 0;
     } else { /* cmp_bottom == 0 */
 	cairo_fixed_t bot_x;
 

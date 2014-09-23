@@ -76,7 +76,7 @@ struct _cairo_bo_edge {
 #define PQ_LEFT_CHILD_INDEX(i) ((i) << 1)
 
 typedef enum {
-    CAIRO_BO_EVENT_TYPE_STOP,
+    CAIRO_BO_EVENT_TYPE_STOP = -1,
     CAIRO_BO_EVENT_TYPE_INTERSECTION,
     CAIRO_BO_EVENT_TYPE_START
 } cairo_bo_event_type_t;
@@ -783,7 +783,7 @@ cairo_bo_event_compare (const cairo_bo_event_t *a,
     if (cmp)
 	return cmp;
 
-    return a - b;
+    return a < b ? -1 : a == b ? 0 : 1;
 }
 
 static inline void

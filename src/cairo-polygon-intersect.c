@@ -605,24 +605,14 @@ intersect_lines (cairo_bo_edge_t		*a,
     R = det32_64 (dx2, dy2,
 		  b->edge.line.p1.x - a->edge.line.p1.x,
 		  b->edge.line.p1.y - a->edge.line.p1.y);
-    if (_cairo_int64_negative (den_det)) {
-	if (_cairo_int64_ge (den_det, R))
-	    return FALSE;
-    } else {
 	if (_cairo_int64_le (den_det, R))
 	    return FALSE;
-    }
 
     R = det32_64 (dy1, dx1,
 		  a->edge.line.p1.y - b->edge.line.p1.y,
 		  a->edge.line.p1.x - b->edge.line.p1.x);
-    if (_cairo_int64_negative (den_det)) {
-	if (_cairo_int64_ge (den_det, R))
-	    return FALSE;
-    } else {
 	if (_cairo_int64_le (den_det, R))
 	    return FALSE;
-    }
 
     /* We now know that the two lines should intersect within range. */
 
@@ -686,54 +676,8 @@ static cairo_bool_t
 _cairo_bo_edge_contains_intersect_point (cairo_bo_edge_t		*edge,
 					 cairo_bo_intersect_point_t	*point)
 {
-    int cmp_top, cmp_bottom;
-
-    /* XXX: When running the actual algorithm, we don't actually need to
-     * compare against edge->top at all here, since any intersection above
-     * top is eliminated early via a slope comparison. We're leaving these
-     * here for now only for the sake of the quadratic-time intersection
-     * finder which needs them.
-     */
-
-    cmp_top = _cairo_bo_intersect_ordinate_32_compare (point->y,
-						       edge->edge.top);
-    cmp_bottom = _cairo_bo_intersect_ordinate_32_compare (point->y,
-							  edge->edge.bottom);
-
-    if (cmp_top < 0 || cmp_bottom > 0)
-    {
-	return FALSE;
-    }
-
-    if (cmp_top > 0 && cmp_bottom < 0)
-    {
-	return TRUE;
-    }
-
-    /* At this stage, the point lies on the same y value as either
-     * edge->top or edge->bottom, so we have to examine the x value in
-     * order to properly determine containment. */
-
-    /* If the y value of the point is the same as the y value of the
-     * top of the edge, then the x value of the point must be greater
-     * to be considered as inside the edge. Similarly, if the y value
-     * of the point is the same as the y value of the bottom of the
-     * edge, then the x value of the point must be less to be
-     * considered as inside. */
-
-    if (cmp_top == 0) {
-	cairo_fixed_t top_x;
-
-	top_x = _line_compute_intersection_x_for_y (&edge->edge.line,
-						    edge->edge.top);
-	return _cairo_bo_intersect_ordinate_32_compare (point->x, top_x) >= 0;
-    } else { /* cmp_bottom == 0 */
-	cairo_fixed_t bot_x;
-
-	bot_x = _line_compute_intersection_x_for_y (&edge->edge.line,
-						    edge->edge.bottom);
-	return _cairo_bo_intersect_ordinate_32_compare (point->x, bot_x) < 0;
-    }
+    return _cairo_bo_intersect_ordinate_32_compare (point->y,
+						    edge->edge.bottom) < 0;
 }
 
 /* Compute the intersection of two edges. The result is provided as a

@@ -15,27 +15,26 @@ the image backend and by other backends as needed for fallbacks.
 Features
 --------
 
-  Use Pixman's convolution filters for image downscaling, such as for
-  raster images in Inkscape SVG documents.  This improves image quality
-  when viewing large images on low resolution devices, as firefox and
-  chromium already do.
+  Filtering improvements for the image backend, in particular
+  down-scaling of images produces filtered images that depend on all the
+  pixels of the source. When using the image backend you get the
+  following settings:
 
-    Filter generator:
-    - Single filter, no "reconstruction" and "sample" filter
-    - Filters for derivative < 1 work
-    - Fixed IMPULSE and BOX
-    - Added TENT, CATMULL_ROM, NOTCH. Remove LANZCOS2.
-    - Renamed CUBIC to MITCHELL
+  CAIRO_FILTER_GOOD: uses a box filter for scales less than .75 in
+    either direction. For scales larger than this, the same filter as
+    CAIRO_FILTER_BILINEAR is used.
 
-    Cairo's filter settings:
-    - CAIRO_FILTER_GOOD: uses BOX filter for scales less than .75 in
-      either direction. Uses PIXMAN_FILTER_GOOD (ie BILINEAR) otherwise.
-    - CAIRO_FILTER_BEST: uses CATMULL filter always. Upscaling more than
-      2x will produce anti-aliased square pixels, similar to OS/X.
-    - CAIRO_FILTER_GAUSSIAN: this obsolete value is used to test other
-      filters.  The program must declare and poke the filter into the
-      static variable ikernel. This should be removed for production
-      code.
+  CAIRO_FILTER_BEST: uses a Catmull-Rom filter always. When upscaling
+    more than 2x this will produce anti-aliased square pixels, similar
+    to OS/X.
+
+  CAIRO_FILTER_GAUSSIAN: uses PIXMAN_FILTER_BEST, which in current
+    pixman is the same as BILINEAR. (This is subject to change in the
+    future).
+
+  Note that other backends, in particular xlib/xcb, do not implement
+  these filtering fixes yet, however other actions may cause them to use
+  an image fallback which will cause these filters to be used.
 
   Improve handling of device transformation and scaling, allowing Cairo
   to now support scaling at a device level, permitting easier, more
@@ -58,6 +57,9 @@ Features
   seems to have caused much trouble for unclear benefit, and most
   distros are reverting or disabling it anyway.
 
+  Optimize VBO size on GL to 1M and to 16k for EGL.  This improves
+  (theoretical) performance for desktop GLX use cases while avoiding
+  hitting VBO memory size limitations on embedded devices.
 
 API Changes
 -----------
@@ -168,6 +170,10 @@ Bug fixes
   builds.
 
   Fix image scale on Win32 when GDI scale is not identity.
+
+  Fix float endian configure test when using clang -O4
+
+  Fix compilation with Android bionic libc
 
   Various cleanups and fixes to warnings, documentation, tests, and
   build system.  Improve error handling and return value checks.

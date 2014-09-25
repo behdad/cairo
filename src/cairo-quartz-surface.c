@@ -2195,6 +2195,20 @@ _cairo_quartz_surface_clipper_intersect_clip_path (cairo_surface_clipper_t *clip
     return CAIRO_STATUS_SUCCESS;
 }
 
+/**
+ * _cairo_surface_is_quartz:
+ * @surface: a #cairo_surface_t
+ *
+ * Checks if a surface is a #cairo_quartz_surface_t
+ *
+ * Return value: True if the surface is an quartz surface
+ **/
+inline cairo_bool_t
+_cairo_surface_is_quartz (cairo_surface_t *surface)
+{
+    return surface->backend == &cairo_quartz_surface_backend;
+}
+
 // XXXtodo implement show_page; need to figure out how to handle begin/end
 
 static const struct _cairo_surface_backend cairo_quartz_surface_backend = {

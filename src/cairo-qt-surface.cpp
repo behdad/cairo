@@ -1660,13 +1660,30 @@ cairo_qt_surface_create_with_qpixmap (cairo_content_t content,
     return &qs->base;
 }
 
+/**
+ * _cairo_surface_is_qt:
+ * @surface: a #cairo_surface_t
+ *
+ * Checks if a surface is a #cairo_qt_surface_t
+ *
+ * Return value: True if the surface is an qt surface
+ **/
+static inline cairo_bool_t
+_cairo_surface_is_qt (cairo_surface_t *surface)
+{
+    return surface->backend == &cairo_qt_surface_backend;
+}
+
 QPainter *
 cairo_qt_surface_get_qpainter (cairo_surface_t *surface)
 {
     cairo_qt_surface_t *qs = (cairo_qt_surface_t*) surface;
 
-    if (surface->type != CAIRO_SURFACE_TYPE_QT)
+    /* Throw an error for a non-qt surface */
+    if (! _cairo_surface_is_qt (surface)) {
+        _cairo_error_throw (CAIRO_STATUS_SURFACE_TYPE_MISMATCH);
         return NULL;
+    }
 
     return qs->p;
 }
@@ -1676,8 +1693,11 @@ cairo_qt_surface_get_qimage (cairo_surface_t *surface)
 {
     cairo_qt_surface_t *qs = (cairo_qt_surface_t*) surface;
 
-    if (surface->type != CAIRO_SURFACE_TYPE_QT)
+    /* Throw an error for a non-qt surface */
+    if (! _cairo_surface_is_qt (surface)) {
+        _cairo_error_throw (CAIRO_STATUS_SURFACE_TYPE_MISMATCH);
         return NULL;
+    }
 
     return qs->image;
 }
@@ -1687,8 +1707,10 @@ cairo_qt_surface_get_image (cairo_surface_t *surface)
 {
     cairo_qt_surface_t *qs = (cairo_qt_surface_t*) surface;
 
-    if (surface->type != CAIRO_SURFACE_TYPE_QT)
+    /* Throw an error for a non-qt surface */
+    if (! _cairo_surface_is_qt (surface)) {
         return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
+    }
 
     return qs->image_equiv;
 }

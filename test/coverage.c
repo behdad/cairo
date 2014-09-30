@@ -409,45 +409,45 @@ row_triangles (cairo_t *cr, int width, int height)
 CAIRO_TEST (coverage_rectangles,
 	    "Check the fidelity of the rasterisation.",
 	    NULL, /* keywords */
-	    "target=raster slow", /* requirements */
+	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,
 	    NULL, rectangles)
 
 CAIRO_TEST (coverage_rhombus,
 	    "Check the fidelity of the rasterisation.",
 	    NULL, /* keywords */
-	    "target=raster slow", /* requirements */
+	    "target=raster", /* requirements */
 	    2*WIDTH, 2*WIDTH,
 	    NULL, rhombus)
 
 CAIRO_TEST (coverage_intersecting_quads,
 	    "Check the fidelity of the rasterisation.",
 	    NULL, /* keywords */
-	    "target=raster slow", /* requirements */
+	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,
 	    NULL, intersecting_quads)
 
 CAIRO_TEST (coverage_intersecting_triangles,
 	    "Check the fidelity of the rasterisation.",
 	    NULL, /* keywords */
-	    "target=raster slow", /* requirements */
+	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,
 	    NULL, intersecting_triangles)
 CAIRO_TEST (coverage_row_triangles,
 	    "Check the fidelity of the rasterisation.",
 	    NULL, /* keywords */
-	    "target=raster slow", /* requirements */
+	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,
 	    NULL, row_triangles)
 CAIRO_TEST (coverage_column_triangles,
 	    "Check the fidelity of the rasterisation.",
 	    NULL, /* keywords */
-	    "target=raster slow", /* requirements */
+	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,
 	    NULL, column_triangles)
 CAIRO_TEST (coverage_triangles,
 	    "Check the fidelity of the rasterisation.",
 	    NULL, /* keywords */
-	    "target=raster slow", /* requirements */
+	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,
 	    NULL, triangles)

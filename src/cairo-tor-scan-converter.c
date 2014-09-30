@@ -458,21 +458,6 @@ struct glitter_scan_converter {
     grid_scaled_y_t ymin, ymax;
 };
 
-/* Compute the floored division a/b. Assumes / and % perform symmetric
- * division. */
-inline static struct quorem
-floored_divrem(int a, int b)
-{
-    struct quorem qr;
-    qr.quo = a/b;
-    qr.rem = a%b;
-    if ((a^b)<0 && qr.rem) {
-	qr.quo -= 1;
-	qr.rem += b;
-    }
-    return qr;
-}
-
 static struct _pool_chunk *
 _pool_chunk_init(
     struct _pool_chunk *p,
@@ -804,21 +789,12 @@ cell_list_render_edge(struct cell_list *cells,
 		      struct edge *edge,
 		      int sign)
 {
-    grid_scaled_y_t y1, y2, dy;
-    grid_scaled_x_t dx;
-    int ix1, ix2;
     grid_scaled_x_t fx1, fx2;
+    int ix1, ix2;
 
-    int x1, x2;
-
-    /* XXX review for loss of precision from dropping x.rem in our stepper */
-
-    x1 = edge->cell;
+    GRID_X_TO_INT_FRAC(edge->cell, ix1, fx1);
     full_step (edge);
-    x2 = edge->cell;
-
-    GRID_X_TO_INT_FRAC(x1, ix1, fx1);
-    GRID_X_TO_INT_FRAC(x2, ix2, fx2);
+    GRID_X_TO_INT_FRAC(edge->cell, ix2, fx2);
 
     /* Edge is entirely within a column? */
     if (ix1 == ix2) {
@@ -831,26 +807,31 @@ cell_list_render_edge(struct cell_list *cells,
     }
 
     /* Orient the edge left-to-right. */
-    dx = x2 - x1;
-    if (dx >= 0) {
-	y1 = 0;
-	y2 = GRID_Y;
-    } else {
-	int tmp;
-	tmp = ix1; ix1 = ix2; ix2 = tmp;
-	tmp = fx1; fx1 = fx2; fx2 = tmp;
-	dx = -dx;
-	sign = -sign;
-	y1 = GRID_Y;
-	y2 = 0;
+    if (ix2 < ix1) {
+	int t;
+
+	t = ix1;
+	ix1 = ix2;
+	ix2 = t;
+
+	t = fx1;
+	fx1 = fx2;
+	fx2 = t;
     }
-    dy = y2 - y1;
 
     /* Add coverage for all pixels [ix1,ix2] on this row crossed
      * by the edge. */
     {
 	struct cell_pair pair;
-	struct quorem y = floored_divrem((GRID_X - fx1)*dy, dx);
+	struct quorem y;
+	int32_t dx;
+	int y_last;
+
+	dx = (ix2 - ix1) * GRID_X + (fx2 - fx1);
+	assert (dx > 0);
+
+	y.quo = (GRID_X - fx1) * GRID_Y / dx;
+	y.rem = (GRID_X - fx1) * GRID_Y % dx;
 
 	/* When rendering a previous edge on the active list we may
 	 * advance the cell list cursor past the leftmost pixel of the
@@ -875,26 +856,27 @@ cell_list_render_edge(struct cell_list *cells,
 	pair = cell_list_find_pair(cells, ix1, ix1+1);
 	pair.cell1->uncovered_area += sign*y.quo*(GRID_X + fx1);
 	pair.cell1->covered_height += sign*y.quo;
-	y.quo += y1;
+	y_last = y.quo;
 
 	if (ix1+1 < ix2) {
-	    struct quorem dydx_full = floored_divrem(GRID_X*dy, dx);
 	    struct cell *cell = pair.cell2;
+	    struct quorem dydx_full;
+
+	    dydx_full.quo = GRID_Y * GRID_X / dx;
+	    dydx_full.rem = GRID_Y * GRID_X % dx;
 
 	    ++ix1;
 	    do {
-		grid_scaled_y_t y_skip = dydx_full.quo;
+		y.quo += dydx_full.quo;
 		y.rem += dydx_full.rem;
 		if (y.rem >= dx) {
-		    ++y_skip;
+		    y.quo++;
 		    y.rem -= dx;
 		}
 
-		y.quo += y_skip;
-
-		y_skip *= sign;
-		cell->uncovered_area += y_skip*GRID_X;
-		cell->covered_height += y_skip;
+		cell->uncovered_area += sign*(y.quo - y_last)*GRID_X;
+		cell->covered_height += sign*(y.quo - y_last);
+		y_last = y.quo;
 
 		++ix1;
 		cell = cell_list_find(cells, ix1);
@@ -902,8 +884,8 @@ cell_list_render_edge(struct cell_list *cells,
 
 	    pair.cell2 = cell;
 	}
-	pair.cell2->uncovered_area += sign*(y2 - y.quo)*fx2;
-	pair.cell2->covered_height += sign*(y2 - y.quo);
+	pair.cell2->uncovered_area += sign*(GRID_Y - y_last)*fx2;
+	pair.cell2->covered_height += sign*(GRID_Y - y_last);
     }
 }
 

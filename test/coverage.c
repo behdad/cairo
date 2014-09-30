@@ -299,7 +299,7 @@ abutting (cairo_t *cr, int width, int height)
 #if GENERATE_REFERENCE
     cairo_paint (cr);
 #else
-    cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+    cairo_set_operator (cr, CAIRO_OPERATOR_ADD);
 
     for (y = 0; y < 16; y++) {
 	for (x = 0; x < 16; x++) {

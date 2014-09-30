@@ -262,7 +262,7 @@ typedef int grid_scaled_y_t;
 
 struct quorem {
     int32_t quo;
-    int32_t rem;
+    int64_t rem;
 };
 
 /* Header for a chunk of memory in a memory pool. */
@@ -308,6 +308,9 @@ struct edge {
     /* Next in y-bucket or active list. */
     struct edge *next, *prev;
 
+    /* The clipped y of the top of the edge. */
+    grid_scaled_y_t ytop;
+
     /* Number of subsample rows remaining to scan convert of this
      * edge. */
     grid_scaled_y_t height_left;
@@ -315,7 +318,7 @@ struct edge {
     /* Original sign of the edge: +1 for downwards, -1 for upwards
      * edges.  */
     int dir;
-    int vertical;
+    int cell;
 
     /* Current x coordinate while the edge is on the active
      * list. Initialised to the x coordinate of the top of the
@@ -332,11 +335,8 @@ struct edge {
      * full row's worth of subsample rows at a time. */
     struct quorem dxdy_full;
 
-    /* The clipped y of the top of the edge. */
-    grid_scaled_y_t ytop;
-
     /* y2-y1 after orienting the edge downwards.  */
-    grid_scaled_y_t dy;
+    int64_t dy;
 };
 
 #define EDGE_Y_BUCKET_INDEX(y, ymin) (((y) - (ymin))/GRID_Y)
@@ -467,22 +467,6 @@ floored_divrem(int a, int b)
     qr.quo = a/b;
     qr.rem = a%b;
     if ((a^b)<0 && qr.rem) {
-	qr.quo -= 1;
-	qr.rem += b;
-    }
-    return qr;
-}
-
-/* Compute the floored division (x*a)/b. Assumes / and % perform symmetric
- * division. */
-static struct quorem
-floored_muldivrem(int x, int a, int b)
-{
-    struct quorem qr;
-    long long xa = (long long)x*a;
-    qr.quo = xa/b;
-    qr.rem = xa%b;
-    if ((xa>=0) != (b>=0) && qr.rem) {
 	qr.quo -= 1;
 	qr.rem += b;
     }
@@ -778,6 +762,26 @@ cell_list_add_subspan(struct cell_list *cells,
     }
 }
 
+inline static void full_step (struct edge *e)
+{
+    if (e->dy == 0)
+	return;
+
+    e->x.quo += e->dxdy_full.quo;
+    e->x.rem += e->dxdy_full.rem;
+    if (e->x.rem < 0) {
+	e->x.quo--;
+	e->x.rem += e->dy;
+    } else if (e->x.rem >= e->dy) {
+	++e->x.quo;
+	e->x.rem -= e->dy;
+    }
+    assert (e->x.rem >= 0 && e->x.rem < e->dy);
+
+    e->cell = e->x.quo + (e->x.rem >= e->dy/2);
+}
+
+
 /* Adds the analytical coverage of an edge crossing the current pixel
  * row to the coverage cells and advances the edge's x position to the
  * following row.
@@ -805,22 +809,16 @@ cell_list_render_edge(struct cell_list *cells,
     int ix1, ix2;
     grid_scaled_x_t fx1, fx2;
 
-    struct quorem x1 = edge->x;
-    struct quorem x2 = x1;
+    int x1, x2;
 
-    if (! edge->vertical) {
-	x2.quo += edge->dxdy_full.quo;
-	x2.rem += edge->dxdy_full.rem;
-	if (x2.rem >= 0) {
-	    ++x2.quo;
-	    x2.rem -= edge->dy;
-	}
+    /* XXX review for loss of precision from dropping x.rem in our stepper */
 
-	edge->x = x2;
-    }
+    x1 = edge->cell;
+    full_step (edge);
+    x2 = edge->cell;
 
-    GRID_X_TO_INT_FRAC(x1.quo, ix1, fx1);
-    GRID_X_TO_INT_FRAC(x2.quo, ix2, fx2);
+    GRID_X_TO_INT_FRAC(x1, ix1, fx1);
+    GRID_X_TO_INT_FRAC(x2, ix2, fx2);
 
     /* Edge is entirely within a column? */
     if (ix1 == ix2) {
@@ -833,7 +831,7 @@ cell_list_render_edge(struct cell_list *cells,
     }
 
     /* Orient the edge left-to-right. */
-    dx = x2.quo - x1.quo;
+    dx = x2 - x1;
     if (dx >= 0) {
 	y1 = 0;
 	y2 = GRID_Y;
@@ -976,78 +974,19 @@ _polygon_insert_edge_into_its_y_bucket(struct polygon *polygon,
     *ptail = e;
 }
 
-inline static void
-polygon_add_edge (struct polygon *polygon,
-		  const cairo_edge_t *edge)
-{
-    struct edge *e;
-    grid_scaled_x_t dx;
-    grid_scaled_y_t dy;
-    grid_scaled_y_t ytop, ybot;
-    grid_scaled_y_t ymin = polygon->ymin;
-    grid_scaled_y_t ymax = polygon->ymax;
-
-    if (unlikely (edge->top >= ymax || edge->bottom <= ymin))
-	return;
-
-    e = pool_alloc (polygon->edge_pool.base, sizeof (struct edge));
-
-    dx = edge->line.p2.x - edge->line.p1.x;
-    dy = edge->line.p2.y - edge->line.p1.y;
-    e->dy = dy;
-    e->dir = edge->dir;
-
-    ytop = edge->top >= ymin ? edge->top : ymin;
-    ybot = edge->bottom <= ymax ? edge->bottom : ymax;
-    e->ytop = ytop;
-    e->height_left = ybot - ytop;
-
-    if (dx == 0) {
-	e->vertical = TRUE;
-	e->x.quo = edge->line.p1.x;
-	e->x.rem = 0;
-	e->dxdy.quo = 0;
-	e->dxdy.rem = 0;
-	e->dxdy_full.quo = 0;
-	e->dxdy_full.rem = 0;
-    } else {
-	e->vertical = FALSE;
-	e->dxdy = floored_divrem (dx, dy);
-	if (ytop == edge->line.p1.y) {
-	    e->x.quo = edge->line.p1.x;
-	    e->x.rem = 0;
-	} else {
-	    e->x = floored_muldivrem (ytop - edge->line.p1.y, dx, dy);
-	    e->x.quo += edge->line.p1.x;
-	}
-
-	if (e->height_left >= GRID_Y) {
-	    e->dxdy_full = floored_muldivrem (GRID_Y, dx, dy);
-	} else {
-	    e->dxdy_full.quo = 0;
-	    e->dxdy_full.rem = 0;
-	}
-    }
-
-    _polygon_insert_edge_into_its_y_bucket (polygon, e);
-
-    e->x.rem -= dy;		/* Bias the remainder for faster
-				 * edge advancement. */
-}
-
 static void
 active_list_reset (struct active_list *active)
 {
-    active->head.vertical = 1;
     active->head.height_left = INT_MAX;
-    active->head.x.quo = INT_MIN;
+    active->head.dy = 0;
+    active->head.cell = INT_MIN;
     active->head.prev = NULL;
     active->head.next = &active->tail;
     active->tail.prev = &active->head;
     active->tail.next = NULL;
-    active->tail.x.quo = INT_MAX;
+    active->tail.cell = INT_MAX;
     active->tail.height_left = INT_MAX;
-    active->tail.vertical = 1;
+    active->tail.dy = 0;
     active->min_height = 0;
     active->is_vertical = 1;
 }
@@ -1084,7 +1023,7 @@ merge_sorted_edges (struct edge *head_a, struct edge *head_b)
 
     prev = head_a->prev;
     next = &head;
-    if (head_a->x.quo <= head_b->x.quo) {
+    if (head_a->cell <= head_b->cell) {
 	head = head_a;
     } else {
 	head = head_b;
@@ -1093,8 +1032,8 @@ merge_sorted_edges (struct edge *head_a, struct edge *head_b)
     }
 
     do {
-	x = head_b->x.quo;
-	while (head_a != NULL && head_a->x.quo <= x) {
+	x = head_b->cell;
+	while (head_a != NULL && head_a->cell <= x) {
 	    prev = head_a;
 	    next = &head_a->next;
 	    head_a = head_a->next;
@@ -1106,8 +1045,8 @@ merge_sorted_edges (struct edge *head_a, struct edge *head_b)
 	    return head;
 
 start_with_b:
-	x = head_a->x.quo;
-	while (head_b != NULL && head_b->x.quo <= x) {
+	x = head_a->cell;
+	while (head_b != NULL && head_b->cell <= x) {
 	    prev = head_b;
 	    next = &head_b->next;
 	    head_b = head_b->next;
@@ -1153,7 +1092,7 @@ sort_edges (struct edge *list,
     }
 
     remaining = head_other->next;
-    if (list->x.quo <= head_other->x.quo) {
+    if (list->cell <= head_other->cell) {
 	*head_out = list;
 	head_other->next = NULL;
     } else {
@@ -1197,7 +1136,7 @@ can_do_full_row (struct active_list *active)
 	while (NULL != e) {
 	    if (e->height_left < min_height)
 		min_height = e->height_left;
-	    is_vertical &= e->vertical;
+	    is_vertical &= e->dy == 0;
 	    e = e->next;
 	}
 
@@ -1210,19 +1149,27 @@ can_do_full_row (struct active_list *active)
 
     /* Check for intersections as no edges end during the next row. */
     for (e = active->head.next; e != &active->tail; e = e->next) {
-	struct quorem x = e->x;
+	int cell;
 
-	if (! e->vertical) {
+	if (e->dy) {
+	    struct quorem x = e->x;
 	    x.quo += e->dxdy_full.quo;
 	    x.rem += e->dxdy_full.rem;
-	    if (x.rem >= 0)
-		++x.quo;
-	}
+	    if (x.rem < 0) {
+		x.quo--;
+		x.rem += e->dy;
+	    } else if (x.rem >= e->dy) {
+		x.quo++;
+		x.rem -= e->dy;
+	    }
+	    cell = x.quo + (x.rem >= e->dy/2);
+	} else
+	    cell = e->cell;
 
-	if (x.quo < prev_x)
+	if (cell < prev_x)
 	    return 0;
 
-	prev_x = x.quo;
+	prev_x = cell;
     }
 
     return 1;
@@ -1256,12 +1203,31 @@ polygon_fill_buckets (struct active_list *active,
 	buckets[suby] = edge;
 	if (edge->height_left < min_height)
 	    min_height = edge->height_left;
-	is_vertical &= edge->vertical;
+	is_vertical &= edge->dy == 0;
 	edge = next;
     }
 
     active->is_vertical = is_vertical;
     active->min_height = min_height;
+}
+
+static void step (struct edge *edge)
+{
+    if (edge->dy == 0)
+	return;
+
+    edge->x.quo += edge->dxdy.quo;
+    edge->x.rem += edge->dxdy.rem;
+    if (edge->x.rem < 0) {
+	--edge->x.quo;
+	edge->x.rem += edge->dy;
+    } else if (edge->x.rem >= edge->dy) {
+	++edge->x.quo;
+	edge->x.rem -= edge->dy;
+    }
+    assert (edge->x.rem >= 0 && edge->x.rem < edge->dy);
+
+    edge->cell = edge->x.quo + (edge->x.rem >= edge->dy/2);
 }
 
 inline static void
@@ -1277,29 +1243,24 @@ sub_row (struct active_list *active,
 
     while (&active->tail != edge) {
 	struct edge *next = edge->next;
-	int xend = edge->x.quo;
+	int xend = edge->cell;
 
 	if (--edge->height_left) {
-	    edge->x.quo += edge->dxdy.quo;
-	    edge->x.rem += edge->dxdy.rem;
-	    if (edge->x.rem >= 0) {
-		++edge->x.quo;
-		edge->x.rem -= edge->dy;
-	    }
+	    step (edge);
 
-	    if (edge->x.quo < prev_x) {
+	    if (edge->cell < prev_x) {
 		struct edge *pos = edge->prev;
 		pos->next = next;
 		next->prev = pos;
 		do {
 		    pos = pos->prev;
-		} while (edge->x.quo < pos->x.quo);
+		} while (edge->cell < pos->cell);
 		pos->next->prev = edge;
 		edge->next = pos->next;
 		edge->prev = pos;
 		pos->next = edge;
 	    } else
-		prev_x = edge->x.quo;
+		prev_x = edge->cell;
 	    active->min_height = -1;
 	} else {
 	    edge->prev->next = next;
@@ -1308,7 +1269,7 @@ sub_row (struct active_list *active,
 
 	winding += edge->dir;
 	if ((winding & mask) == 0) {
-	    if (next->x.quo != xend) {
+	    if (next->cell != xend) {
 		cell_list_add_subspan (coverages, xstart, xend);
 		xstart = INT_MIN;
 	    }
@@ -1326,18 +1287,6 @@ inline static void dec (struct active_list *a, struct edge *e, int h)
 	e->prev->next = e->next;
 	e->next->prev = e->prev;
 	a->min_height = -1;
-    }
-}
-
-inline static void full_step (struct edge *e)
-{
-    if (! e->vertical) {
-	e->x.quo += e->dxdy_full.quo;
-	e->x.rem += e->dxdy_full.rem;
-	if (e->x.rem >= 0) {
-	    ++e->x.quo;
-	    e->x.rem -= e->dy;
-	}
     }
 }
 
@@ -1360,7 +1309,7 @@ full_row (struct active_list *active,
 	    dec (active, right, GRID_Y);
 
 	    winding += right->dir;
-	    if ((winding & mask) == 0 && right->next->x.quo != right->x.quo)
+	    if ((winding & mask) == 0 && right->next->cell != right->cell)
 		break;
 
 	    full_step (right);
@@ -1482,9 +1431,95 @@ glitter_scan_converter_reset(
 
 #define INPUT_TO_GRID_general(in, out, grid_scale) do {		\
     long long tmp__ = (long long)(grid_scale) * (in);	\
+    tmp__ += 1 << (GLITTER_INPUT_BITS-1);			\
     tmp__ >>= GLITTER_INPUT_BITS;				\
     (out) = tmp__;						\
 } while (0)
+
+inline static void
+polygon_add_edge (struct polygon *polygon,
+		  const cairo_edge_t *edge)
+{
+    struct edge *e;
+    grid_scaled_y_t ytop, ybot;
+    const cairo_point_t *p1, *p2;
+
+    INPUT_TO_GRID_Y (edge->top, ytop);
+    if (ytop < polygon->ymin)
+	    ytop = polygon->ymin;
+
+    INPUT_TO_GRID_Y (edge->bottom, ybot);
+    if (ybot > polygon->ymax)
+	    ybot = polygon->ymax;
+
+    if (ybot <= ytop)
+	    return;
+
+    e = pool_alloc (polygon->edge_pool.base, sizeof (struct edge));
+
+    e->ytop = ytop;
+    e->height_left = ybot - ytop;
+    if (edge->line.p2.y > edge->line.p1.y) {
+	    e->dir = edge->dir;
+	    p1 = &edge->line.p1;
+	    p2 = &edge->line.p2;
+    } else {
+	    e->dir = -edge->dir;
+	    p1 = &edge->line.p2;
+	    p2 = &edge->line.p1;
+    }
+
+    if (p2->x == p1->x) {
+	e->cell = p1->x;
+	e->x.quo = e->x.rem = 0;
+	e->dxdy.quo = e->dxdy.rem = 0;
+	e->dxdy_full.quo = e->dxdy_full.rem = 0;
+	e->dy = 0;
+    } else {
+	int64_t Ex, Ey, tmp;
+
+	Ex = (int64_t)(p2->x - p1->x) * GRID_X;
+	Ey = (int64_t)(p2->y - p1->y) * GRID_Y * (2 << GLITTER_INPUT_BITS);
+
+	e->dxdy.quo = Ex * (2 << GLITTER_INPUT_BITS) / Ey;
+	e->dxdy.rem = Ex * (2 << GLITTER_INPUT_BITS) % Ey;
+
+	tmp = (int64_t)(2*ytop + 1) << GLITTER_INPUT_BITS;
+	tmp -= (int64_t)p1->y * GRID_Y * 2;
+	tmp *= Ex;
+	e->x.quo = tmp / Ey;
+	e->x.rem = tmp % Ey;
+
+#if GRID_X_BITS == GLITTER_INPUT_BITS
+	e->x.quo += p1->x;
+#else
+	tmp = (int64_t)p1->x * GRID_X;
+	e->x.quo += tmp >> GLITTER_INPUT_BITS;
+	e->x.rem += ((tmp & ((1 << GLITTER_INPUT_BITS) - 1)) * Ey) / (1 << GLITTER_INPUT_BITS);
+#endif
+
+	if (e->x.rem < 0) {
+		e->x.quo--;
+		e->x.rem += Ey;
+	} else  if (e->x.rem >= Ey) {
+		e->x.quo++;
+		e->x.rem -= Ey;
+	}
+	assert (e->x.rem >= 0 && e->x.rem < Ey);
+
+	if (e->height_left >= GRID_Y) {
+	    tmp = Ex * (2 * GRID_Y << GLITTER_INPUT_BITS);
+	    e->dxdy_full.quo = tmp / Ey;
+	    e->dxdy_full.rem = tmp % Ey;
+	} else
+	    e->dxdy_full.quo = e->dxdy_full.rem = 0;
+
+	e->cell = e->x.quo + (e->x.rem >= Ey/2);
+	e->dy = Ey;
+    }
+
+    _polygon_insert_edge_into_its_y_bucket (polygon, e);
+}
 
 /* Add a new polygon edge from pixel (x1,y1) to (x2,y2) to the scan
  * converter.  The coordinates represent pixel positions scaled by
@@ -1495,25 +1530,7 @@ I void
 glitter_scan_converter_add_edge (glitter_scan_converter_t *converter,
 				 const cairo_edge_t *edge)
 {
-    cairo_edge_t e;
-
-    INPUT_TO_GRID_Y (edge->top, e.top);
-    INPUT_TO_GRID_Y (edge->bottom, e.bottom);
-    if (e.top >= e.bottom)
-	return;
-
-    /* XXX: possible overflows if GRID_X/Y > 2**GLITTER_INPUT_BITS */
-    INPUT_TO_GRID_Y (edge->line.p1.y, e.line.p1.y);
-    INPUT_TO_GRID_Y (edge->line.p2.y, e.line.p2.y);
-    if (e.line.p1.y == e.line.p2.y)
-	e.line.p2.y++; /* little fudge to prevent a div-by-zero */
-
-    INPUT_TO_GRID_X (edge->line.p1.x, e.line.p1.x);
-    INPUT_TO_GRID_X (edge->line.p2.x, e.line.p2.x);
-
-    e.dir = edge->dir;
-
-    polygon_add_edge (converter->polygon, &e);
+    polygon_add_edge (converter->polygon, edge);
 }
 
 static void

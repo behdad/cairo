@@ -357,9 +357,61 @@ record_replay (cairo_t *cr, cairo_t *(*func)(cairo_t *), int width, int height)
     int x, y;
 
 #if GENERATE_REF
-    cairo_scale (cr, -1, -1);
-    cairo_translate (cr, -width, -height);
-    func(cr);
+    {
+	cairo_surface_t *image;
+	uint8_t *data, *tmp;
+	int stride, bpp;
+
+	surface = cairo_get_target (cr);
+
+	func(cr);
+
+	image = cairo_surface_map_to_image (surface, NULL);
+
+	switch (cairo_image_surface_get_format (image)) {
+	case CAIRO_FORMAT_ARGB32:
+	case CAIRO_FORMAT_RGB24:
+	case CAIRO_FORMAT_RGB30:
+	    bpp=4;
+	    break;
+	case CAIRO_FORMAT_RGB16_565:
+	    bpp=2;
+	    break;
+	case CAIRO_FORMAT_A8:
+	    bpp=1;
+	    break;
+	case CAIRO_FORMAT_A1:
+	case CAIRO_FORMAT_INVALID:
+	default:
+	    return CAIRO_TEST_FAILURE;
+	}
+
+	data = cairo_image_surface_get_data (image);
+	stride = cairo_image_surface_get_stride (image);
+
+	tmp = malloc (stride);
+	if (tmp == NULL)
+	    return CAIRO_TEST_FAILURE;
+
+	for (y = 0; y < height; y++) {
+	    uint8_t *row = data + y * stride;
+	    for (x = 0; x < width/2; x++) {
+		memcpy (tmp, row + bpp * x, bpp);
+		memcpy (row + bpp * x, row + bpp * (width - x - 1), bpp);
+		memcpy (row + bpp * (width - x - 1), tmp, bpp);
+	    }
+	}
+
+	for (y = 0; y < height/2; y++) {
+	    memcpy (tmp, data + y * stride, stride);
+	    memcpy (data + y * stride, data + (height - y - 1) * stride, stride);
+	    memcpy (data + (height - y - 1) * stride, tmp, stride);
+	}
+
+	free (tmp);
+
+	cairo_surface_unmap_image (surface, image);
+    }
 #else
     surface = record_get (func (record_create (cr)));
 

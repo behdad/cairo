@@ -287,6 +287,53 @@ triangles (cairo_t *cr, int width, int height)
 }
 
 static cairo_test_status_t
+abutting (cairo_t *cr, int width, int height)
+{
+    int x, y;
+
+    cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
+    cairo_paint (cr);
+
+    cairo_set_source_rgba (cr, 1.0, 1.0, 1.0, 0.75);
+
+#if GENERATE_REFERENCE
+    cairo_paint (cr);
+#else
+    cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+
+    for (y = 0; y < 16; y++) {
+	for (x = 0; x < 16; x++) {
+	    double theta = (y * 16 + x) * M_PI / 512;
+	    double cx = 16 * cos (theta) + x * 16;
+	    double cy = 16 * sin (theta) + y * 16;
+
+	    cairo_move_to (cr, x * 16, y * 16);
+	    cairo_line_to (cr, cx, cy);
+	    cairo_line_to (cr, (x + 1) * 16, y * 16);
+	    cairo_fill (cr);
+
+	    cairo_move_to (cr, (x + 1) * 16, y * 16);
+	    cairo_line_to (cr, cx, cy);
+	    cairo_line_to (cr, (x + 1) * 16, (y + 1) * 16);
+	    cairo_fill (cr);
+
+	    cairo_move_to (cr, (x + 1) * 16, (y + 1) * 16);
+	    cairo_line_to (cr, cx, cy);
+	    cairo_line_to (cr, x * 16, (y + 1) * 16);
+	    cairo_fill (cr);
+
+	    cairo_move_to (cr, x * 16, (y + 1) * 16);
+	    cairo_line_to (cr, cx, cy);
+	    cairo_line_to (cr, x * 16, y * 16);
+	    cairo_fill (cr);
+	}
+    }
+#endif
+
+    return CAIRO_TEST_SUCCESS;
+}
+
+static cairo_test_status_t
 column_triangles (cairo_t *cr, int width, int height)
 {
     int x, y, i, channel;
@@ -451,3 +498,9 @@ CAIRO_TEST (coverage_triangles,
 	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,
 	    NULL, triangles)
+CAIRO_TEST (coverage_abutting,
+	    "Check the fidelity of the rasterisation.",
+	    NULL, /* keywords */
+	    "target=raster", /* requirements */
+	    16*16, 16*16,
+	    NULL, abutting)

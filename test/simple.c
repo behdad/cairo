@@ -54,8 +54,6 @@ static int pfrac (int v)
     return v & ((1 << CAIRO_FIXED_FRAC_BITS) - 1);
 }
 
-#define BIAS 1024
-
 static void add_edge (struct coverage *coverage,
 		      int x1, int y1, int x2, int y2,
 		      int sign)
@@ -98,9 +96,11 @@ static void add_edge (struct coverage *coverage,
 	int x = xq + (xr >= dy/2);
 
 	if (x < 256*coverage->width) {
-		int i = pfloor (y) * coverage->width + pfloor (x);
-		if (x > 0)
+		int i = pfloor (y) * coverage->width;
+		if (x > 0) {
+			i += pfloor (x);
 			coverage->cells[i].uncovered_area += sign * pfrac(x);
+		}
 		coverage->cells[i].covered_height += sign;
 	}
 

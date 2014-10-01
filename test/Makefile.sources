@@ -311,6 +311,7 @@ test_sources = \
 	show-text-current-point.c			\
 	shape-general-convex.c				\
 	shape-sierpinski.c				\
+	simple.c					\
 	skew-extreme.c					\
 	smask.c						\
 	smask-fill.c					\

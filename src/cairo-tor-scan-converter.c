@@ -761,7 +761,6 @@ inline static void full_step (struct edge *e)
 	++e->x.quo;
 	e->x.rem -= e->dy;
     }
-    assert (e->x.rem >= 0 && e->x.rem < e->dy);
 
     e->cell = e->x.quo + (e->x.rem >= e->dy/2);
 }
@@ -789,12 +788,41 @@ cell_list_render_edge(struct cell_list *cells,
 		      struct edge *edge,
 		      int sign)
 {
+    struct quorem x1, x2;
     grid_scaled_x_t fx1, fx2;
     int ix1, ix2;
 
-    GRID_X_TO_INT_FRAC(edge->cell, ix1, fx1);
+    x1 = edge->x;
     full_step (edge);
-    GRID_X_TO_INT_FRAC(edge->cell, ix2, fx2);
+    x2 = edge->x;
+
+    /* Step back from the sample location (half-subrow) to the pixel origin */
+    if (edge->dy) {
+	x1.quo -= edge->dxdy.quo / 2;
+	x1.rem -= edge->dxdy.rem / 2;
+	if (x1.rem < 0) {
+	    --x1.quo;
+	    x1.rem += edge->dy;
+	} else if (x1.rem >= edge->dy) {
+	    ++x1.quo;
+	    x1.rem -= edge->dy;
+	}
+
+	x2.quo -= edge->dxdy.quo / 2;
+	x2.rem -= edge->dxdy.rem / 2;
+	if (x2.rem < 0) {
+	    --x2.quo;
+	    x2.rem += edge->dy;
+	} else if (x2.rem >= edge->dy) {
+	    ++x2.quo;
+	    x2.rem -= edge->dy;
+	}
+    }
+
+    GRID_X_TO_INT_FRAC(x1.quo, ix1, fx1);
+    GRID_X_TO_INT_FRAC(x2.quo, ix2, fx2);
+
+    cell_list_maybe_rewind(cells, MIN(ix1, ix2));
 
     /* Edge is entirely within a column? */
     if (ix1 == ix2) {
@@ -808,6 +836,7 @@ cell_list_render_edge(struct cell_list *cells,
 
     /* Orient the edge left-to-right. */
     if (ix2 < ix1) {
+	struct quorem tx;
 	int t;
 
 	t = ix1;
@@ -817,6 +846,10 @@ cell_list_render_edge(struct cell_list *cells,
 	t = fx1;
 	fx1 = fx2;
 	fx2 = t;
+
+	tx = x1;
+	x1 = x2;
+	x2 = tx;
     }
 
     /* Add coverage for all pixels [ix1,ix2] on this row crossed
@@ -824,14 +857,17 @@ cell_list_render_edge(struct cell_list *cells,
     {
 	struct cell_pair pair;
 	struct quorem y;
-	int32_t dx;
+	int64_t tmp, dx;
 	int y_last;
 
-	dx = (ix2 - ix1) * GRID_X + (fx2 - fx1);
-	assert (dx > 0);
+	dx = (x2.quo - x1.quo) * edge->dy + (x2.rem - x1.rem);
 
-	y.quo = (GRID_X - fx1) * GRID_Y / dx;
-	y.rem = (GRID_X - fx1) * GRID_Y % dx;
+	tmp = (ix1 + 1) * GRID_X * edge->dy;
+	tmp -= x1.quo * edge->dy + x1.rem;
+	tmp *= GRID_Y;
+
+	y.quo = tmp / dx;
+	y.rem = tmp % dx;
 
 	/* When rendering a previous edge on the active list we may
 	 * advance the cell list cursor past the leftmost pixel of the
@@ -847,11 +883,7 @@ cell_list_render_edge(struct cell_list *cells,
 	 *
 	 * The left edge touches cells past the starting cell of the
 	 * right edge.  Fortunately such cases are rare.
-	 *
-	 * The rewinding is never necessary if the current edge stays
-	 * within a single column because we've checked before calling
-	 * this function that the active list order won't change. */
-	cell_list_maybe_rewind(cells, ix1);
+	 */
 
 	pair = cell_list_find_pair(cells, ix1, ix1+1);
 	pair.cell1->uncovered_area += sign*y.quo*(GRID_X + fx1);
@@ -862,8 +894,8 @@ cell_list_render_edge(struct cell_list *cells,
 	    struct cell *cell = pair.cell2;
 	    struct quorem dydx_full;
 
-	    dydx_full.quo = GRID_Y * GRID_X / dx;
-	    dydx_full.rem = GRID_Y * GRID_X % dx;
+	    dydx_full.quo = GRID_Y * GRID_X * edge->dy / dx;
+	    dydx_full.rem = GRID_Y * GRID_X * edge->dy % dx;
 
 	    ++ix1;
 	    do {
@@ -1207,7 +1239,6 @@ static void step (struct edge *edge)
 	++edge->x.quo;
 	edge->x.rem -= edge->dy;
     }
-    assert (edge->x.rem >= 0 && edge->x.rem < edge->dy);
 
     edge->cell = edge->x.quo + (edge->x.rem >= edge->dy/2);
 }
@@ -1453,7 +1484,8 @@ polygon_add_edge (struct polygon *polygon,
 
     if (p2->x == p1->x) {
 	e->cell = p1->x;
-	e->x.quo = e->x.rem = 0;
+	e->x.quo = p1->x;
+	e->x.rem = 0;
 	e->dxdy.quo = e->dxdy.rem = 0;
 	e->dxdy_full.quo = e->dxdy_full.rem = 0;
 	e->dy = 0;
@@ -1487,7 +1519,6 @@ polygon_add_edge (struct polygon *polygon,
 		e->x.quo++;
 		e->x.rem -= Ey;
 	}
-	assert (e->x.rem >= 0 && e->x.rem < Ey);
 
 	if (e->height_left >= GRID_Y) {
 	    tmp = Ex * (2 * GRID_Y << GLITTER_INPUT_BITS);

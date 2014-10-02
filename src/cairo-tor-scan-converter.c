@@ -1167,8 +1167,8 @@ can_do_full_row (struct active_list *active)
 
 	if (e->dy) {
 	    struct quorem x = e->x;
-	    x.quo += e->dxdy_full.quo;
-	    x.rem += e->dxdy_full.rem;
+	    x.quo += e->dxdy_full.quo - e->dxdy.quo/2;
+	    x.rem += e->dxdy_full.rem - e->dxdy.rem/2;
 	    if (x.rem < 0) {
 		x.quo--;
 		x.rem += e->dy;
@@ -1198,7 +1198,7 @@ active_list_merge_edges_from_bucket(struct active_list *active,
     active->head.next = merge_unsorted_edges (active->head.next, edges);
 }
 
-inline static void
+inline static int
 polygon_fill_buckets (struct active_list *active,
 		      struct edge *edge,
 		      int y,
@@ -1206,6 +1206,7 @@ polygon_fill_buckets (struct active_list *active,
 {
     grid_scaled_y_t min_height = active->min_height;
     int is_vertical = active->is_vertical;
+    int max_suby = 0;
 
     while (edge) {
 	struct edge *next = edge->next;
@@ -1219,10 +1220,14 @@ polygon_fill_buckets (struct active_list *active,
 	    min_height = edge->height_left;
 	is_vertical &= edge->dy == 0;
 	edge = next;
+	if (suby > max_suby)
+		max_suby = suby;
     }
 
     active->is_vertical = is_vertical;
     active->min_height = min_height;
+
+    return max_suby;
 }
 
 static void step (struct edge *edge)
@@ -1729,7 +1734,15 @@ glitter_scan_converter_render(glitter_scan_converter_t *converter,
 
 	/* Determine if we can ignore this row or use the full pixel
 	 * stepper. */
-	if (! polygon->y_buckets[i]) {
+	if (polygon_fill_buckets (active,
+				  polygon->y_buckets[i],
+				  (i+ymin_i)*GRID_Y,
+				  buckets) == 0) {
+	    if (buckets[0]) {
+		active_list_merge_edges_from_bucket (active, buckets[0]);
+		buckets[0] = NULL;
+	    }
+
 	    if (active->head.next == &active->tail) {
 		active->min_height = INT_MAX;
 		active->is_vertical = 1;
@@ -1759,18 +1772,12 @@ glitter_scan_converter_render(glitter_scan_converter_t *converter,
 	} else {
 	    int sub;
 
-	    polygon_fill_buckets (active,
-				  polygon->y_buckets[i],
-				  (i+ymin_i)*GRID_Y,
-				  buckets);
-
 	    /* Subsample this row. */
 	    for (sub = 0; sub < GRID_Y; sub++) {
 		if (buckets[sub]) {
 		    active_list_merge_edges_from_bucket (active, buckets[sub]);
 		    buckets[sub] = NULL;
 		}
-
 		sub_row (active, coverages, winding_mask);
 	    }
 	}

@@ -436,6 +436,84 @@ record_replay (cairo_t *cr, cairo_t *(*func)(cairo_t *), int width, int height)
 }
 
 static cairo_test_status_t
+record_whole_replay (cairo_t *cr, cairo_t *(*func)(cairo_t *), int width, int height)
+{
+    cairo_surface_t *surface;
+
+#if GENERATE_REF
+    {
+	cairo_surface_t *image;
+	uint8_t *data, *tmp;
+	int stride, bpp;
+	int x, y;
+
+	surface = cairo_get_target (cr);
+
+	func(cr);
+
+	image = cairo_surface_map_to_image (surface, NULL);
+
+	switch (cairo_image_surface_get_format (image)) {
+	case CAIRO_FORMAT_ARGB32:
+	case CAIRO_FORMAT_RGB24:
+	case CAIRO_FORMAT_RGB30:
+	    bpp=4;
+	    break;
+	case CAIRO_FORMAT_RGB16_565:
+	    bpp=2;
+	    break;
+	case CAIRO_FORMAT_A8:
+	    bpp=1;
+	    break;
+	case CAIRO_FORMAT_A1:
+	case CAIRO_FORMAT_INVALID:
+	default:
+	    return CAIRO_TEST_FAILURE;
+	}
+
+	data = cairo_image_surface_get_data (image);
+	stride = cairo_image_surface_get_stride (image);
+
+	tmp = malloc (stride);
+	if (tmp == NULL)
+	    return CAIRO_TEST_FAILURE;
+
+	for (y = 0; y < height; y++) {
+	    uint8_t *row = data + y * stride;
+	    for (x = 0; x < width/2; x++) {
+		memcpy (tmp, row + bpp * x, bpp);
+		memcpy (row + bpp * x, row + bpp * (width - x - 1), bpp);
+		memcpy (row + bpp * (width - x - 1), tmp, bpp);
+	    }
+	}
+
+	for (y = 0; y < height/2; y++) {
+	    memcpy (tmp, data + y * stride, stride);
+	    memcpy (data + y * stride, data + (height - y - 1) * stride, stride);
+	    memcpy (data + (height - y - 1) * stride, tmp, stride);
+	}
+
+	free (tmp);
+
+	cairo_surface_unmap_image (surface, image);
+    }
+#else
+    surface = record_get (func (record_create (cr)));
+
+    cairo_scale (cr, -1, -1);
+    cairo_translate (cr, -width, -height);
+    cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
+    cairo_set_source_surface (cr, surface, 0, 0);
+    cairo_surface_destroy (surface);
+    cairo_pattern_set_extend (cairo_get_source (cr), CAIRO_EXTEND_NONE);
+
+    cairo_paint (cr);
+#endif
+
+    return CAIRO_TEST_SUCCESS;
+}
+
+static cairo_test_status_t
 record_paint (cairo_t *cr, int width, int height)
 {
     return record_replay (cr, paint, width, height);
@@ -488,6 +566,116 @@ record_text_transform (cairo_t *cr, int width, int height)
 {
     return record_replay (cr, text_transform, width, height);
 }
+
+static cairo_test_status_t
+record_whole_paint (cairo_t *cr, int width, int height)
+{
+    return record_whole_replay (cr, paint, width, height);
+}
+
+static cairo_test_status_t
+record_whole_paint_alpha (cairo_t *cr, int width, int height)
+{
+    return record_whole_replay (cr, paint_alpha, width, height);
+}
+
+static cairo_test_status_t
+record_whole_paint_alpha_solid_clip (cairo_t *cr, int width, int height)
+{
+    return record_whole_replay (cr, paint_alpha_solid_clip, width, height);
+}
+
+static cairo_test_status_t
+record_whole_paint_alpha_clip (cairo_t *cr, int width, int height)
+{
+    return record_whole_replay (cr, paint_alpha_clip, width, height);
+}
+
+static cairo_test_status_t
+record_whole_paint_alpha_clip_mask (cairo_t *cr, int width, int height)
+{
+    return record_whole_replay (cr, paint_alpha_clip_mask, width, height);
+}
+
+static cairo_test_status_t
+record_whole_fill_alpha (cairo_t *cr, int width, int height)
+{
+    return record_whole_replay (cr, fill_alpha, width, height);
+}
+
+static cairo_test_status_t
+record_whole_self_intersecting (cairo_t *cr, int width, int height)
+{
+    return record_whole_replay (cr, self_intersecting, width, height);
+}
+
+static cairo_test_status_t
+record_whole_select_font_face (cairo_t *cr, int width, int height)
+{
+    return record_whole_replay (cr, select_font_face, width, height);
+}
+
+static cairo_test_status_t
+record_whole_text_transform (cairo_t *cr, int width, int height)
+{
+    return record_whole_replay (cr, text_transform, width, height);
+}
+
+CAIRO_TEST (recordflip_whole_paint,
+	    "Test replayed calls to cairo_paint",
+	    "paint,record", /* keywords */
+	    NULL, /* requirements */
+	    8, 8,
+	    NULL, record_whole_paint)
+CAIRO_TEST (recordflip_whole_paint_alpha,
+	    "Simple test of cairo_paint_with_alpha",
+	    "record, paint, alpha", /* keywords */
+	    NULL, /* requirements */
+	    32, 32,
+	    NULL, record_whole_paint_alpha)
+CAIRO_TEST (recordflip_whole_paint_alpha_solid_clip,
+	    "Simple test of cairo_paint_with_alpha+unaligned clip",
+	    "record, paint, alpha, clip", /* keywords */
+	    NULL, /* requirements */
+	    32, 32,
+	    NULL, record_whole_paint_alpha_solid_clip)
+CAIRO_TEST (recordflip_whole_paint_alpha_clip,
+	    "Simple test of cairo_paint_with_alpha+unaligned clip",
+	    "record, paint, alpha, clip", /* keywords */
+	    NULL, /* requirements */
+	    32, 32,
+	    NULL, record_whole_paint_alpha_clip)
+CAIRO_TEST (recordflip_whole_paint_alpha_clip_mask,
+	    "Simple test of cairo_paint_with_alpha+triangular clip",
+	    "record, paint, alpha, clip", /* keywords */
+	    NULL, /* requirements */
+	    32, 32,
+	    NULL, record_whole_paint_alpha_clip_mask)
+CAIRO_TEST (recordflip_whole_fill_alpha,
+	    "Tests using set_rgba();fill()",
+	    "record,fill, alpha", /* keywords */
+	    NULL, /* requirements */
+	    (2*SIZE + 4*PAD), (2*SIZE + 4*PAD),
+	    NULL, record_whole_fill_alpha)
+CAIRO_TEST (recordflip_whole_select_font_face,
+	    "Tests using cairo_select_font_face to draw text in different faces",
+	    "record, font", /* keywords */
+	    NULL, /* requirements */
+	    192, (TEXT_SIZE + 4),
+	    NULL, record_whole_select_font_face)
+CAIRO_TEST (recordflip_whole_self_intersecting,
+	    "Test strokes of self-intersecting paths",
+	    "record, stroke, trap", /* keywords */
+	    NULL, /* requirements */
+	    10, 20,
+	    NULL, record_whole_self_intersecting)
+CAIRO_TEST (recordflip_whole_text_transform,
+	    "Test various applications of the font matrix",
+	    "record, text, transform", /* keywords */
+	    NULL, /* requirements */
+	    TT_SIZE, TT_SIZE,
+	    NULL, record_whole_text_transform)
+
 
 CAIRO_TEST (recordflip_paint,
 	    "Test replayed calls to cairo_paint",

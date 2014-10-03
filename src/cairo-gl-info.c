@@ -29,10 +29,10 @@
  *      Alexandros Frantzis <alexandros.frantzis@linaro.org>
  */
 
-#include <errno.h>
-
 #include "cairoint.h"
 #include "cairo-gl-private.h"
+
+#include <errno.h>
 
 int
 _cairo_gl_get_version (void)

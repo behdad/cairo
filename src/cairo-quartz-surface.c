@@ -140,9 +140,6 @@ _cairo_quartz_surface_create_internal (CGContextRef cgContext,
 				       unsigned int width,
 				       unsigned int height);
 
-static cairo_bool_t
-_cairo_surface_is_quartz (const cairo_surface_t *surface);
-
 /* Load all extra symbols */
 static void quartz_ensure_symbols (void)
 {
@@ -2473,7 +2470,7 @@ cairo_quartz_surface_get_cg_context (cairo_surface_t *surface)
  *
  * Return value: True if the surface is an quartz surface
  **/
-static cairo_bool_t
+cairo_bool_t
 _cairo_surface_is_quartz (const cairo_surface_t *surface)
 {
     return surface->backend == &cairo_quartz_surface_backend;

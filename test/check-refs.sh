@@ -5,7 +5,7 @@ cd $(dirname $0)/reference || exit
 pdiff=$1
 [ -n "$pdiff" ] || pdiff=../pdiff/perceptualdiff
 if [ ! -e "${pdiff}" ]; then
-    echo "Error:  requires ${pdiff} executable"
+    echo "Error:  requires pdiff executable"
     exit 128
 fi
 

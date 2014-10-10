@@ -394,11 +394,6 @@ _pattern_is_supported (uint32_t flags,
     if (pattern->type == CAIRO_PATTERN_TYPE_SOLID)
 	return TRUE;
 
-    if (! _cairo_matrix_is_integer_translation (&pattern->matrix, NULL, NULL)) {
-	if ((flags & CAIRO_XCB_RENDER_HAS_PICTURE_TRANSFORM) == 0)
-	    return FALSE;
-    }
-
     switch (pattern->extend) {
     default:
 	ASSERT_NOT_REACHED;
@@ -412,18 +407,22 @@ _pattern_is_supported (uint32_t flags,
     }
 
     if (pattern->type == CAIRO_PATTERN_TYPE_SURFACE) {
-	cairo_filter_t filter;
-
-	filter = pattern->filter;
-	if (_cairo_matrix_is_pixel_exact (&pattern->matrix))
-	{
-	    filter = CAIRO_FILTER_NEAREST;
+	switch (pattern->filter) {
+	case CAIRO_FILTER_FAST:
+	case CAIRO_FILTER_NEAREST:
+	    return (flags & CAIRO_XCB_RENDER_HAS_PICTURE_TRANSFORM) ||
+		_cairo_matrix_is_integer_translation (&pattern->matrix, NULL, NULL);
+	case CAIRO_FILTER_GOOD:
+	    return flags & CAIRO_XCB_RENDER_HAS_FILTER_GOOD;
+	case CAIRO_FILTER_BEST:
+	    return flags & CAIRO_XCB_RENDER_HAS_FILTER_BEST;
+	case CAIRO_FILTER_BILINEAR:
+	case CAIRO_FILTER_GAUSSIAN:
+	default:
+	    return flags & CAIRO_XCB_RENDER_HAS_FILTERS;
 	}
-
-	if (! (filter == CAIRO_FILTER_NEAREST || filter == CAIRO_FILTER_FAST)) {
-	    if ((flags & CAIRO_XCB_RENDER_HAS_FILTERS) == 0)
-		return FALSE;
-	}
+    } else if (pattern->type == CAIRO_PATTERN_TYPE_MESH) {
+	return FALSE;
     } else { /* gradient */
 	if ((flags & CAIRO_XCB_RENDER_HAS_GRADIENTS) == 0)
 	    return FALSE;
@@ -435,9 +434,8 @@ _pattern_is_supported (uint32_t flags,
 	{
 	    return FALSE;
 	}
+	return TRUE;
     }
-
-    return pattern->type != CAIRO_PATTERN_TYPE_MESH;
 }
 
 static void

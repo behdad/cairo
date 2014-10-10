@@ -77,6 +77,8 @@ typedef struct _cairo_xcb_xid {
 
 #define XCB_RENDER_HAS_PICTURE_TRANSFORM(surface)	XCB_RENDER_AT_LEAST((surface), 0, 6)
 #define XCB_RENDER_HAS_FILTERS(surface)			XCB_RENDER_AT_LEAST((surface), 0, 6)
+#define XCB_RENDER_HAS_FILTER_GOOD(surface) FALSE
+#define XCB_RENDER_HAS_FILTER_BEST(surface) FALSE
 
 #define XCB_RENDER_HAS_EXTENDED_REPEAT(surface)	XCB_RENDER_AT_LEAST((surface), 0, 10)
 #define XCB_RENDER_HAS_GRADIENTS(surface)	XCB_RENDER_AT_LEAST((surface), 0, 10)
@@ -389,6 +391,12 @@ _cairo_xcb_connection_query_render (cairo_xcb_connection_t *connection)
 
     if (XCB_RENDER_HAS_FILTERS (version))
 	connection->flags |= CAIRO_XCB_RENDER_HAS_FILTERS;
+
+    if (XCB_RENDER_HAS_FILTER_GOOD (version))
+	connection->flags |= CAIRO_XCB_RENDER_HAS_FILTER_GOOD;
+
+    if (XCB_RENDER_HAS_FILTER_BEST (version))
+	connection->flags |= CAIRO_XCB_RENDER_HAS_FILTER_BEST;
 
     if (XCB_RENDER_HAS_PDF_OPERATORS (version))
 	connection->flags |= CAIRO_XCB_RENDER_HAS_PDF_OPERATORS;
@@ -882,6 +890,8 @@ cairo_xcb_device_debug_cap_xrender_version (cairo_device_t *device,
 			       CAIRO_XCB_RENDER_HAS_COMPOSITE_TRAPEZOIDS |
 			       CAIRO_XCB_RENDER_HAS_PICTURE_TRANSFORM |
 			       CAIRO_XCB_RENDER_HAS_FILTERS |
+			       CAIRO_XCB_RENDER_HAS_FILTER_GOOD |
+			       CAIRO_XCB_RENDER_HAS_FILTER_BEST |
 			       CAIRO_XCB_RENDER_HAS_PDF_OPERATORS |
 			       CAIRO_XCB_RENDER_HAS_EXTENDED_REPEAT |
 			       CAIRO_XCB_RENDER_HAS_GRADIENTS);

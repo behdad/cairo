@@ -373,6 +373,8 @@ _cairo_xlib_font_close (cairo_xlib_font_t *font);
 
 #define CAIRO_RENDER_HAS_PICTURE_TRANSFORM(surface)	CAIRO_RENDER_AT_LEAST((surface), 0, 6)
 #define CAIRO_RENDER_HAS_FILTERS(surface)	CAIRO_RENDER_AT_LEAST((surface), 0, 6)
+#define CAIRO_RENDER_HAS_FILTER_GOOD(surface) FALSE
+#define CAIRO_RENDER_HAS_FILTER_BEST(surface) FALSE
 
 #define CAIRO_RENDER_HAS_EXTENDED_REPEAT(surface)	CAIRO_RENDER_AT_LEAST((surface), 0, 10)
 #define CAIRO_RENDER_HAS_GRADIENTS(surface)	CAIRO_RENDER_AT_LEAST((surface), 0, 10)

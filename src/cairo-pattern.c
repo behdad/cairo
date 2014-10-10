@@ -3339,6 +3339,26 @@ _cairo_pattern_is_clear (const cairo_pattern_t *abstract_pattern)
 }
 
 /**
+ * Will given row of back-translation matrix work with bilinear scale?
+ * This is true for scales larger than 1. Also it was judged acceptable
+ * for scales larger than .75. And if there is integer translation
+ * then a scale of exactly .5 works.
+ */
+static int
+use_bilinear(double x, double y, double t)
+{
+    /* This is the inverse matrix! */
+    double h = x*x + y*y;
+    if (h < 1.0 / (0.75 * 0.75))
+	return TRUE; /* scale > .75 */
+    if ((h > 3.99 && h < 4.01) /* scale is 1/2 */
+	&& !_cairo_fixed_from_double(x*y) /* parallel to an axis */
+	&& _cairo_fixed_is_integer (_cairo_fixed_from_double (t)))
+	return TRUE;
+    return FALSE;
+}
+
+/**
  * _cairo_pattern_analyze_filter:
  * @pattern: surface pattern
  * @pad_out: location to store necessary padding in the source image, or %NULL
@@ -3378,7 +3398,21 @@ _cairo_pattern_analyze_filter (const cairo_pattern_t	*pattern,
 	     * more would be defensive...
 	     */
 	    pad = 0.5;
-	    optimized_filter = pattern->filter;
+	    /* Use BILINEAR for any scale greater than .75 instead
+	     * of GOOD. For scales of 1 and larger this is identical,
+	     * for the smaller sizes it was judged that the artifacts
+	     * were not worse than the artifacts from a box filer.
+	     * BILINEAR can also be used if the scale is exactly .5
+	     * and the translation in that direction is an integer.
+	     */
+	    if (pattern->filter == CAIRO_FILTER_GOOD &&
+		use_bilinear (pattern->matrix.xx, pattern->matrix.xy,
+			      pattern->matrix.x0) &&
+		use_bilinear (pattern->matrix.yx, pattern->matrix.yy,
+			      pattern->matrix.y0))
+		optimized_filter = CAIRO_FILTER_BILINEAR;
+	    else
+		optimized_filter = pattern->filter;
 	}
 	break;
 

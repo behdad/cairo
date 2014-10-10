@@ -941,21 +941,17 @@ _pixman_image_set_properties (pixman_image_t *pixman_image,
 	    pixman_filter = PIXMAN_FILTER_FAST;
 	    break;
 	case CAIRO_FILTER_GOOD:
-	    pixman_filter = PIXMAN_FILTER_GOOD;
-	    if (dx > 1.35 || dy > 1.35) {
-		pixman_filter = PIXMAN_FILTER_SEPARABLE_CONVOLUTION;
-		kernel = KERNEL_BOX;
-		/* Clip the filter size to prevent extreme slowness. This
-		   value could be raised if 2-pass filtering is done */
-		if (dx > 16.0) dx = 16.0;
-		/* Match the bilinear filter for dimension scaling up: */
-		else if (dx < 1.0) dx = 1.0;
-		if (dy > 16.0) dy = 16.0;
-		else if (dy < 1.0) dy = 1.0;
-	    }
+	    pixman_filter = PIXMAN_FILTER_SEPARABLE_CONVOLUTION;
+	    kernel = KERNEL_BOX;
+	    /* Clip the filter size to prevent extreme slowness. This
+	       value could be raised if 2-pass filtering is done */
+	    if (dx > 16.0) dx = 16.0;
+	    if (dy > 16.0) dy = 16.0;
+	    /* Match the bilinear filter for scales > .75: */
+	    if (dx < 1.0/0.75) dx = 1.0;
+	    if (dy < 1.0/0.75) dy = 1.0;
 	    break;
 	case CAIRO_FILTER_BEST:
-	    pixman_filter = PIXMAN_FILTER_BEST;
 	    pixman_filter = PIXMAN_FILTER_SEPARABLE_CONVOLUTION;
 	    kernel = KERNEL_CATMULL_ROM; /* LANCZOS3 is better but not much */
 	    /* Clip the filter size to prevent extreme slowness. This

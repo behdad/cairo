@@ -1093,17 +1093,22 @@ pattern_is_supported (cairo_xlib_display_t *display,
 	    return FALSE;
     }
 
-    if (! CAIRO_RENDER_HAS_PICTURE_TRANSFORM (display)) {
-	if (!_cairo_matrix_is_integer_translation (&pattern->matrix, NULL, NULL))
-	    return FALSE;
+    switch (pattern->filter) {
+    case CAIRO_FILTER_FAST:
+    case CAIRO_FILTER_NEAREST:
+	return CAIRO_RENDER_HAS_PICTURE_TRANSFORM (display) ||
+	    _cairo_matrix_is_integer_translation (&pattern->matrix, NULL, NULL);
+    case CAIRO_FILTER_GOOD:
+	return CAIRO_RENDER_HAS_FILTER_GOOD (display);
+    case CAIRO_FILTER_BEST:
+	return CAIRO_RENDER_HAS_FILTER_BEST (display);
+    case CAIRO_FILTER_BILINEAR:
+    case CAIRO_FILTER_GAUSSIAN:
+    default:
+	return CAIRO_RENDER_HAS_FILTERS (display);
     }
-
-    if (! CAIRO_RENDER_HAS_FILTERS (display)) {
-	    /* No filters implies no transforms, so we optimise away BILINEAR */
-    }
-
-    return TRUE;
 }
+
 cairo_surface_t *
 _cairo_xlib_source_create_for_pattern (cairo_surface_t *_dst,
 				       const cairo_pattern_t *pattern,

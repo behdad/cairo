@@ -284,7 +284,7 @@ _word_wrap_stream_count_string_up_to (word_wrap_stream_t *stream,
 	_cairo_output_stream_write (stream->output, data, count);
 
     if (newline) {
-	_cairo_output_stream_printf (stream->output, "\\\n");
+	_cairo_output_stream_printf (stream->output, ")\n(");
 	stream->column = 0;
     }
 

@@ -1,5 +1,5 @@
-Release 1.??.?? (??)
-====================
+Release 1.14.0 (2014-10-13 Bryce Harrington <bryce@osg.samsung.com>)
+====================================================================
 Hard to believe it's been over a year since our last release, but it's
 not for lack of activity.  This release includes contributions of a wide
 assortment of bug fixes, build system improvements, warnings cleanups,
@@ -32,9 +32,10 @@ Features
     pixman is the same as BILINEAR. (This is subject to change in the
     future).
 
-  Note that other backends, in particular xlib/xcb, do not implement
-  these filtering fixes yet, however other actions may cause them to use
-  an image fallback which will cause these filters to be used.
+  xlib and xcb also use the image fallback for GOOD/BEST filters, but
+  note that other backends do not implement these filtering fixes yet,
+  however other actions may cause them to use an image fallback which
+  will cause these filters to be used.
 
   Improve handling of device transformation and scaling, allowing Cairo
   to now support scaling at a device level, permitting easier, more
@@ -174,6 +175,19 @@ Bug fixes
   Fix float endian configure test when using clang -O4
 
   Fix compilation with Android bionic libc
+
+  Don't try to build util/sphinx on Windows
+
+  Fix loss of precision when emitting joins.  This was caused by
+  discrepancies in line gradients when passing trapezoids around.
+
+  Fix loss of precision and associated rendering issues in
+  cairo-tor-scan-converter from projection onto sample grid.
+
+  Fix pixman oversampling of neighbouring edges within a cell by
+  eliminating self-intersections for the pixman traps compositor.
+
+  Fix multi-line string splitting in PDFs
 
   Various cleanups and fixes to warnings, documentation, tests, and
   build system.  Improve error handling and return value checks.

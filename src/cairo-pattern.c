@@ -28,6 +28,8 @@
  *	    Carl Worth <cworth@cworth.org>
  */
 
+#include "cairoint.h"
+
 #include "cairo-array-private.h"
 #include "cairo-error-private.h"
 #include "cairo-freed-pool-private.h"

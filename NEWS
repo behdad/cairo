@@ -65,9 +65,18 @@ Features
 API Changes
 -----------
 
-  New public functions cairo_surface_set_device_scale and
-  cairo_surface_get_device_scale are available.
+  cairo_surface_set_device_scale, cairo_surface_get_device_scale:
 
+    Sets a scale that is multiplied to the device coordinates
+    determined by the CTM when drawing to @surface. One common use for
+    this is to render to very high resolution display devices at a scale
+    factor, so that code that assumes 1 pixel will be a certain size
+    will still work.
+
+  cairo_egl_device_get_display, cairo_egl_device_get_context:
+
+    Support get/set of EGLContext and EGLDisplay for egl-based cairo
+    devices, similar to GLX.
 
 Dependency Changes
 ------------------

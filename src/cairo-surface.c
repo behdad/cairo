@@ -1663,7 +1663,7 @@ slim_hidden_def (cairo_surface_mark_dirty_rectangle);
  * @x_scale: a scale factor in the X direction
  * @y_scale: a scale factor in the Y direction
  *
- * Sets an scale that is multiplied to the device coordinates determined
+ * Sets a scale that is multiplied to the device coordinates determined
  * by the CTM when drawing to @surface. One common use for this is to
  * render to very high resolution display devices at a scale factor, so
  * that code that assumes 1 pixel will be a certain size will still work.

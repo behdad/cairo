@@ -2677,7 +2677,7 @@ _cairo_pdf_surface_emit_jbig2_image (cairo_pdf_surface_t              *surface,
     unsigned long global_id_length;
     const unsigned char *global_data;
     unsigned long global_data_length;
-    cairo_pdf_jbig2_global_t *global_entry;
+    cairo_pdf_jbig2_global_t *global_entry = NULL; /* hide compiler warning */
     char smask_buf[30];
     char decode_parms_buf[100];
 

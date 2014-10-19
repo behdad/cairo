@@ -1167,8 +1167,8 @@ can_do_full_row (struct active_list *active)
 
 	if (e->dy) {
 	    struct quorem x = e->x;
-	    x.quo += e->dxdy_full.quo - e->dxdy.quo/2;
-	    x.rem += e->dxdy_full.rem - e->dxdy.rem/2;
+	    x.quo += e->dxdy_full.quo;
+	    x.rem += e->dxdy_full.rem;
 	    if (x.rem < 0) {
 		x.quo--;
 		x.rem += e->dy;

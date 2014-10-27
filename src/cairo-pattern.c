@@ -3343,7 +3343,7 @@ _cairo_pattern_is_clear (const cairo_pattern_t *abstract_pattern)
  * This is true for scales larger than 1. Also it was judged acceptable
  * for scales larger than .75. And if there is integer translation
  * then a scale of exactly .5 works.
- */
+ **/
 static int
 use_bilinear(double x, double y, double t)
 {
@@ -3419,7 +3419,7 @@ _cairo_hypot(double x, double y)
 }
 
 /**
- * _cairo_pattern_sampled_area
+ * _cairo_pattern_sampled_area:
  *
  * Return region of @pattern that will be sampled to fill @extents,
  * based on the transformation and filter.

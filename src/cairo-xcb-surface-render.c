@@ -4467,6 +4467,9 @@ _cairo_xcb_surface_add_glyph (cairo_xcb_connection_t *connection,
 	    const uint8_t *d;
 	    uint8_t *new, *n;
 
+	    if (c == 0)
+		break;
+
 	    new = malloc (c);
 	    if (unlikely (new == NULL)) {
 		status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
@@ -4494,6 +4497,9 @@ _cairo_xcb_surface_add_glyph (cairo_xcb_connection_t *connection,
 	    unsigned int c = glyph_surface->stride * glyph_surface->height / 4;
 	    const uint32_t *d;
 	    uint32_t *new, *n;
+
+	    if (c == 0)
+		break;
 
 	    new = malloc (4 * c);
 	    if (unlikely (new == NULL)) {

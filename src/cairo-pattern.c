@@ -3338,12 +3338,12 @@ _cairo_pattern_is_clear (const cairo_pattern_t *abstract_pattern)
     return FALSE;
 }
 
-/**
+/*
  * Will given row of back-translation matrix work with bilinear scale?
  * This is true for scales larger than 1. Also it was judged acceptable
  * for scales larger than .75. And if there is integer translation
  * then a scale of exactly .5 works.
- **/
+ */
 static int
 use_bilinear(double x, double y, double t)
 {

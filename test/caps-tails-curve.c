@@ -100,7 +100,7 @@ draw (cairo_t *cr, int width, int height)
 
     cairo_set_line_width (cr, LINE_WIDTH);
 
-    for (t = 0; t < sizeof(theta)/sizeof (theta[0]); t++) {
+    for (t = 0; t < ARRAY_LENGTH(theta); t++) {
 	cairo_save (cr);
 	cairo_translate (cr, 0, t * (SIZE + PAD) + PAD);
 	draw_caps_joins (cr, theta[t]);

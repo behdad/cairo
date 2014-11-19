@@ -1415,7 +1415,11 @@ _cairo_pdf_operators_emit_cluster (cairo_pdf_operators_t      *pdf_operators,
 	    return status;
     }
 
-    cur_glyph = glyphs;
+    if (cluster_flags & CAIRO_TEXT_CLUSTER_FLAG_BACKWARD)
+	cur_glyph = glyphs + num_glyphs - 1;
+    else
+	cur_glyph = glyphs;
+
     /* XXX
      * If no glyphs, we should put *something* here for the text to be selectable. */
     for (i = 0; i < num_glyphs; i++) {

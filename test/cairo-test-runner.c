@@ -1096,6 +1096,7 @@ main (int argc, char **argv)
 
     _runner_print_results (&runner);
 
+    _list_free (tests);
     free (target_status);
     return _runner_fini (&runner);
 }

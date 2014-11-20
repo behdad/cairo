@@ -203,10 +203,6 @@ test_report_cmp_name (const void *a,
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
-#ifndef ARRAY_LENGTH
-#define ARRAY_LENGTH(__array) ((int) (sizeof (__array) / sizeof (__array[0])))
-#endif
-
 CAIRO_PERF_DECL (fill);
 CAIRO_PERF_DECL (paint);
 CAIRO_PERF_DECL (paint_with_alpha);

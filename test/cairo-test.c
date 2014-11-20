@@ -83,10 +83,6 @@
 #define TRUE !FALSE
 #endif
 
-#ifndef ARRAY_LENGTH
-#define ARRAY_LENGTH(__array) ((int) (sizeof (__array) / sizeof (__array[0])))
-#endif
-
 #if ! HAVE_ALARM || ! defined(SIGALRM)
 #define alarm(X);
 #endif

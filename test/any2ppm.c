@@ -100,7 +100,7 @@
 #endif
 #endif
 
-#define ARRAY_LENGTH(A) (sizeof (A) / sizeof (A[0]))
+#define ARRAY_LENGTH(__array) ((int) (sizeof (__array) / sizeof (__array[0])))
 
 static int
 _cairo_writen (int fd, char *buf, int len)

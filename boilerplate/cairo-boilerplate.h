@@ -94,6 +94,10 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+#ifndef ARRAY_LENGTH
+#define ARRAY_LENGTH(__array) ((int) (sizeof (__array) / sizeof (__array[0])))
+#endif
+
 CAIRO_BEGIN_DECLS
 
 /* A fake format we use for the flattened ARGB output of the PS and

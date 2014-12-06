@@ -181,7 +181,8 @@ struct _cairo_xcb_font {
 struct _cairo_xcb_screen {
     cairo_xcb_connection_t *connection;
 
-    xcb_screen_t	    *xcb_screen;
+    xcb_screen_t	   *xcb_screen;
+    xcb_render_sub_pixel_t  subpixel_order;
 
     xcb_gcontext_t gc[GC_CACHE_SIZE];
     uint8_t gc_depths[GC_CACHE_SIZE];
@@ -223,6 +224,7 @@ struct _cairo_xcb_connection {
     const xcb_setup_t *root;
     const xcb_query_extension_reply_t *render;
     const xcb_query_extension_reply_t *shm;
+    xcb_render_sub_pixel_t *subpixel_orders;
 
     cairo_list_t free_xids;
     cairo_freepool_t xid_pool;

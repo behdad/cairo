@@ -3738,8 +3738,7 @@ cairo_surface_create_similar_image (cairo_surface_t *other,
 	else
 	    _trace_printf ("%d index ",
 			   current_stack_depth - other_obj->operand - 1);
-	_trace_printf ("s%ld //%s %d %d similar-image %% s%ld\n",
-		       _get_surface_id (other),
+	_trace_printf ("//%s %d %d similar-image %% s%ld\n",
 		       _format_to_string (format),
 		       width, height,
 		       new_obj->token);

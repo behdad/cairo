@@ -26,6 +26,7 @@ test_sources = \
 	bilevel-image.c					\
 	bug-40410.c					\
 	bug-51910.c					\
+	bug-75705.c					\
 	bug-84115.c					\
 	bug-bo-rectangular.c				\
 	bug-bo-collins.c				\

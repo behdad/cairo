@@ -23,11 +23,11 @@
  * Author: Carl D. Worth <cworth@cworth.org>
  */
 
+#include "cairo-test.h"
+
 #include <stdio.h>
 #include <cairo.h>
 #include <cairo-ps.h>
-
-#include "cairo-test.h"
 
 /* This test exists to test the various features of cairo-ps.h.
  *

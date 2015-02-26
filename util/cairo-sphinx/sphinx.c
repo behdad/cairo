@@ -35,6 +35,10 @@
 # error "cairo-sphinx needs real pthreads"
 #endif
 
+#ifndef MAP_NORESERVE
+#define MAP_NORESERVE 0
+#endif
+
 #define DATA_SIZE (256 << 20)
 #define SHM_PATH_XXX "/shmem-cairo-sphinx"
 

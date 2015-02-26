@@ -453,7 +453,7 @@ static void send_event(cairo_xlib_display_t *display,
     display->shm->last_event = ev.serial;
 }
 
-static void sync (cairo_xlib_display_t *display)
+static void _cairo_xlib_display_sync (cairo_xlib_display_t *display)
 {
     cairo_xlib_shm_info_t *info;
     struct pqueue *pq = &display->shm->info;
@@ -949,7 +949,7 @@ _cairo_xlib_surface_update_shm (cairo_xlib_surface_t *surface)
 	XChangeGC (display->display, gc, GCSubwindowMode, &gcv);
     }
 
-    sync (display);
+    _cairo_xlib_display_sync (display);
     shm->active = 0;
     shm->idle--;
 

@@ -25,6 +25,8 @@
  * Authors: Carl Worth <cworth@cworth.org>
  */
 
+#define _GETDELIM 1/* for getline() on AIX */
+
 #include "cairo-missing.h"
 #include "cairo-perf.h"
 #include "cairo-stats.h"

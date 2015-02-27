@@ -37,8 +37,8 @@
 #ifndef CAIRO_XLIB_PRIVATE_H
 #define CAIRO_XLIB_PRIVATE_H
 
-#include "cairo-xlib.h"
 #include "cairo-xlib-xrender-private.h"
+#include "cairo-xlib.h"
 
 #include "cairo-compiler-private.h"
 #include "cairo-device-private.h"

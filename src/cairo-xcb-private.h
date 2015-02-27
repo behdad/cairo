@@ -37,9 +37,9 @@
 #ifndef CAIRO_XCB_PRIVATE_H
 #define CAIRO_XCB_PRIVATE_H
 
-#include "cairo-xcb.h"
-
 #include "cairoint.h"
+
+#include "cairo-xcb.h"
 
 #include "cairo-cache-private.h"
 #include "cairo-compiler-private.h"

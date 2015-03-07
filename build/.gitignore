@@ -12,3 +12,5 @@ mkinstalldirs
 libtool.m4
 lt*.m4
 gtk-doc.m4
+test-driver
+

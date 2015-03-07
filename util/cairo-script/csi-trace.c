@@ -2,6 +2,7 @@
 #include <cairo-script-interpreter.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <libgen.h>
 
@@ -22,11 +23,18 @@ main (int argc, char **argv)
 	.surface_create = _script_surface_create,
     };
     int i;
+    char buf[4096];
 
     csi = cairo_script_interpreter_create ();
 
     for (i = 1; i < argc; i++) {
-	char buf[4096];
+        if (strcmp (argv[i], "--version")) {
+            printf ("%s: version %s\n", argv[0], __DATE__);
+	    exit (0);
+        } else if (strcmp (argv[i], "--help")) {
+	    printf ("usage: %s < in > out\n", argv[0]);
+	    exit (0);
+        }
 
 	snprintf (buf, sizeof (buf), "%s.trace", basename (argv[i]));
 	cairo_device_destroy (hooks.closure);

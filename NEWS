@@ -1,3 +1,50 @@
+Release 1.14.2 (2014-03-09 Bryce Harrington <bryce@osg.samsung.com>)
+====================================================================
+
+
+Features
+--------
+None
+
+API Changes
+-----------
+None
+
+Dependency Changes
+------------------
+None
+
+Performance Optimizations
+-------------------------
+ * Improve performance of cpu_to_be32 and be32_to_cpu, making truetype
+   subsetting of large fonts run about 15% faster.
+
+Bug Fixes
+---------
+ * Fix unaligned access on sparc with the compact font format (CFF).
+   Unlike truetype, all data in CFF is not aligned.
+   (Debian bug #712836)
+ * Fix unaligned access on sparc with tor-scan-converter's memory pool.
+ * Fix crash when loading a PDF with a transformed image.
+   (fdo bug #85151)
+ * Fix regression on mingw for bigendian test due to removal of file
+   extension for executables.
+   (fdo bug #85120)
+ * Fix handling of backslash in PDF interpreter
+   (fdo bug #85662)
+ * Fix crash in xlib and xcb renderers when swapping a 0-sized glyph
+ * Fix bug with RTL text in PDF operators
+   (fdo bug #86461)
+ * Fix compilation 'cairo-path-stroke-traps.c' with MSVC8
+   (fdo bug #84908)
+ * Fix crash in _fill_xrgb32_lerp_opaque_spans when a span length is
+   negative.
+ * Fix valgrind error by releasing pattern created by
+   cairo_pattern_create_rgb().
+ * Fix valgrind errors when running cairo-test-suite.
+
+ * Fix various documentation warnings and errors
+
 Release 1.14.0 (2014-10-13 Bryce Harrington <bryce@osg.samsung.com>)
 ====================================================================
 Hard to believe it's been over a year since our last release, but it's

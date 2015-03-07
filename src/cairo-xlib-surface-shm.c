@@ -670,7 +670,6 @@ _cairo_xlib_shm_surface_flush (void *abstract_surface, unsigned flags)
     cairo_xlib_shm_surface_t *shm = abstract_surface;
     cairo_xlib_display_t *display;
     Display *dpy;
-    _XQEvent *qev;
     cairo_status_t status;
 
     if (shm->active == 0)
@@ -695,10 +694,6 @@ _cairo_xlib_shm_surface_flush (void *abstract_surface, unsigned flags)
     while (! seqno_passed (shm->active, LastKnownRequestProcessed (dpy))) {
 	LockDisplay(dpy);
 	_XReadEvents(dpy);
-	while (dpy->head) {
-	    qev = dpy->head;
-	    _XDeq (dpy, NULL, qev);
-	}
 	UnlockDisplay(dpy);
     }
 

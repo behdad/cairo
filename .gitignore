@@ -2,16 +2,15 @@
 .libs
 .perf
 cairo-*.*.*
+manual-*.*.*
 ChangeLog*
 Makefile
 Makefile.in
 aclocal.m4
 autom4te.cache
-autoscan.log
 config.cache
 config.h
 config.h.in
-config.log
 config.status
 configure
 configure.scan
@@ -27,6 +26,7 @@ stamp-h.in
 .*.sw?
 *.la
 *.lo
+*.log
 *.orig
 *.rej
 *-uninstalled.pc

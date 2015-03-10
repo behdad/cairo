@@ -1,10 +1,19 @@
 Release 1.14.2 (2014-03-09 Bryce Harrington <bryce@osg.samsung.com>)
 ====================================================================
+This release provides collected bug fixes, along with one feature
+enhancement for the xcb backend, and a small performance improvement for
+fonts.
 
+The running theme of the bug fixes is platform-specific issues, both
+build and run-time.  Platforms with fixes include Sparc, AIX, Windows
+(mingw), and Windows (MSVC8).  Memory leaks, valgrind issues, and PDF
+issues round out our list.
 
 Features
 --------
-None
+ * Improve xcb's handling of per-screen subpixel ordering.  If no
+   Xft.rgba property is specified, default to the screen's subpixel
+   order.
 
 API Changes
 -----------
@@ -42,7 +51,21 @@ Bug Fixes
  * Fix valgrind error by releasing pattern created by
    cairo_pattern_create_rgb().
  * Fix valgrind errors when running cairo-test-suite.
-
+ * Fix memory leak in recording surface replays
+   (fdo bug #87898)
+ * Fix destruction of fonts in api-special-cases test.
+   (fdo bug #87567)
+ * Fix duplicated surface push on similar-image, preventing trivial GTK3
+   program traces from being replayable, with an error message about
+   invalid values for the size of the input.
+   (fdo bug #73580)
+ * Fix crash when win32 surface's image size does not cover the entire
+   surface.
+   (fdo bug #53121)
+ * Fix crash due to obsolete CGFontGetGlyphPath call
+   (fdo bug #84324)
+ * Fix several build issues on AIX
+   (fdo bugs #89338, #89340, #89356, #89354)
  * Fix various documentation warnings and errors
 
 Release 1.14.0 (2014-10-13 Bryce Harrington <bryce@osg.samsung.com>)

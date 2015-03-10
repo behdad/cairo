@@ -9,6 +9,11 @@ build and run-time.  Platforms with fixes include Sparc, AIX, Windows
 (mingw), and Windows (MSVC8).  Memory leaks, valgrind issues, and PDF
 issues round out our list.
 
+It's come to light that changes in cairo 1.14 resulted in breakage on
+MacOS X 10.4.  We've not yet determined whether to fix up the support,
+or excise the 10.4-specific code and support only OS X 10.5 or newer.
+Meantime, we'll only advertise cairo as working on OS X 10.5.
+
 Features
 --------
  * Improve xcb's handling of per-screen subpixel ordering.  If no

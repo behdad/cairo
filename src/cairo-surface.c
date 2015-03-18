@@ -1554,12 +1554,12 @@ _cairo_surface_flush (cairo_surface_t *surface, unsigned flags)
  * cairo_surface_flush:
  * @surface: a #cairo_surface_t
  *
- * Do any pending drawing for the surface and also restore any
- * temporary modifications cairo has made to the surface's
- * state. This function must be called before switching from
- * drawing on the surface with cairo to drawing on it directly
- * with native APIs. If the surface doesn't support direct access,
- * then this function does nothing.
+ * Do any pending drawing for the surface and also restore any temporary
+ * modifications cairo has made to the surface's state. This function
+ * must be called before switching from drawing on the surface with
+ * cairo to drawing on it directly with native APIs, or accessing its
+ * memory outside of Cairo. If the surface doesn't support direct
+ * access, then this function does nothing.
  *
  * Since: 1.0
  **/

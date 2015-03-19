@@ -520,7 +520,7 @@ Release 1.12.4 (2012-10-05 Chris Wilson <chris@chris-wilson.co.uk>)
 ===================================================================
 More bugs, and more importantly, more fixes. On the cairo-gl side, we
 have refinements to the MSAA compositor which enables hardware
-acceleration of comparitively low-quality antialiasing - which is useful
+acceleration of comparatively low-quality antialiasing - which is useful
 in animations and on very high density screens. For cairo-xlib, we have
 finally enabled SHM transport for image transfers to and from the X
 server. A long standing required feature, SHM transport offers a notable
@@ -1457,7 +1457,7 @@ Optimisations:
   image in the final output. This is unlike previous versions of cairo
   which would generate very large PDF files with multiple copies of
   the same image. Adrian says that the PDF is not quite working as
-  well as it should yet, so we hope for futher improvements before
+  well as it should yet, so we hope for further improvements before
   cairo 1.10.
 
 Bug fixes:
@@ -2209,7 +2209,7 @@ cairo_font_options_set_lcd_filter
 cairo_font_options_get_lcd_filter
 
   These add the possibility to choose between various available LCD subpixel
-  filters.  The available filter values are modeled after what FreeType
+  filters.  The available filter values are modelled after what FreeType
   provides.
 
 
@@ -5834,7 +5834,7 @@ General bug fixes
 	  (Richard Stellingwerff, Owen Taylor)
 
  * 4231
- * 4298 - Accomodate gentoo and Mandriva versions in X server vendor string check
+ * 4298 - Accommodate gentoo and Mandriva versions in X server vendor string check
 	  (Billy Biggs, Frederic Crozat, Owen Taylor)
 
 win32-specific fixes

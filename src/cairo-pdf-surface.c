@@ -136,7 +136,7 @@
  * %CAIRO_MIME_TYPE_JBIG2, %CAIRO_MIME_TYPE_JBIG2_GLOBAL,
  * %CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID.
  *
- * JBIG2 data in PDF must be in the embedded format as descibed in
+ * JBIG2 data in PDF must be in the embedded format as described in
  * ISO/IEC 11544. Image specific JBIG2 data must be in
  * %CAIRO_MIME_TYPE_JBIG2.  Any global segments in the JBIG2 data
  * (segments with page association field set to 0) must be in

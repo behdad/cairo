@@ -508,9 +508,13 @@ _cairo_cgcontext_set_cairo_operator (CGContextRef context, cairo_operator_t op)
 
     /* Quartz doesn't support SATURATE at all. COLOR_DODGE and
      * COLOR_BURN in Quartz follow the ISO32000 definition, but cairo
-     * uses the definition from the Adobe Supplement.
+     * uses the definition from the Adobe Supplement.  Also fallback
+     * on SOFT_LIGHT and HSL_HUE, because their results are
+     * significantly different from those provided by pixman.
      */
     if (op == CAIRO_OPERATOR_SATURATE ||
+	op == CAIRO_OPERATOR_SOFT_LIGHT ||
+	op == CAIRO_OPERATOR_HSL_HUE ||
 	op == CAIRO_OPERATOR_COLOR_DODGE ||
 	op == CAIRO_OPERATOR_COLOR_BURN)
     {

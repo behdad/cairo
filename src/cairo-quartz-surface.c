@@ -605,14 +605,25 @@ _cairo_quartz_cairo_line_join_to_quartz (cairo_line_join_t cjoin)
 static inline CGInterpolationQuality
 _cairo_quartz_filter_to_quartz (cairo_filter_t filter)
 {
+    /* The CGInterpolationQuality enumeration values seem to have the
+     * following meaning:
+     *  - kCGInterpolationNone: nearest neighbor
+     *  - kCGInterpolationLow: bilinear
+     *  - kCGInterpolationHigh: bicubic? Lanczos?
+     */
+
     switch (filter) {
     case CAIRO_FILTER_NEAREST:
     case CAIRO_FILTER_FAST:
 	return kCGInterpolationNone;
 
     case CAIRO_FILTER_BEST:
+	return kCGInterpolationHigh;
+
     case CAIRO_FILTER_GOOD:
     case CAIRO_FILTER_BILINEAR:
+	return kCGInterpolationLow;
+
     case CAIRO_FILTER_GAUSSIAN:
 	return kCGInterpolationDefault;
 

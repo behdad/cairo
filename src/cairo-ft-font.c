@@ -690,7 +690,6 @@ _cairo_ft_unscaled_font_lock_face (cairo_ft_unscaled_font_t *unscaled)
 			 unscaled->filename,
 			 unscaled->id,
 			 &face);
-    printf("HERE %x\n", error);
     if (error)
     {
 	unscaled->lock_count--;

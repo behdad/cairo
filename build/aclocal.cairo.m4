@@ -168,6 +168,13 @@ int atomic_cmpxchg(int i, int j, int k) { return __sync_val_compare_and_swap (&i
 		  cairo_cv_atomic_primitives="Intel"
 		  )
 
+		AC_TRY_LINK([
+int atomic_add(int i) { return __atomic_fetch_add(&i, 1, __ATOMIC_SEQ_CST); }
+int atomic_cmpxchg(int i, int j, int k) { return __atomic_compare_exchange_n(&i, &j, k, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); }
+], [],
+		   cairo_cv_atomic_primitives="cxx11"
+		   )
+
 		if test "x$cairo_cv_atomic_primitives" = "xnone"; then
 			AC_CHECK_HEADER([atomic_ops.h],
 					cairo_cv_atomic_primitives="libatomic-ops")
@@ -178,6 +185,11 @@ int atomic_cmpxchg(int i, int j, int k) { return __sync_val_compare_and_swap (&i
 					cairo_cv_atomic_primitives="OSAtomic")
 		fi
 	])
+	if test "x$cairo_cv_atomic_primitives" = xcxx11; then
+		AC_DEFINE(HAVE_CXX11_ATOMIC_PRIMITIVES, 1,
+			  [Enable if your compiler supports the GCC __atomic_* atomic primitives])
+	fi
+
 	if test "x$cairo_cv_atomic_primitives" = xIntel; then
 		AC_DEFINE(HAVE_INTEL_ATOMIC_PRIMITIVES, 1,
 			  [Enable if your compiler supports the Intel __sync_* atomic primitives])

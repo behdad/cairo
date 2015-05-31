@@ -225,7 +225,7 @@ _cairo_gstate_fini (cairo_gstate_t *gstate)
     cairo_pattern_destroy (gstate->source);
     gstate->source = NULL;
 
-    VG (VALGRIND_MAKE_MEM_NOACCESS (gstate, sizeof (cairo_gstate_t)));
+    VG (VALGRIND_MAKE_MEM_UNDEFINED (gstate, sizeof (cairo_gstate_t)));
 }
 
 /**

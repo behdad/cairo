@@ -1620,7 +1620,8 @@ _translate_string (csi_t *ctx,
 	if (uncompress ((Bytef *) buf, &buf_len,
 			(Bytef *) string->string, string->len) == Z_OK)
 	{
-	    if (buf_len <= 8 + 2*string->len) {
+	    assert(string->len > 0);
+	    if (buf_len <= 8 + 2*((unsigned long)string->len)) {
 		method = NONE;
 		deflate = 0;
 	    } else {

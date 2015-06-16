@@ -37,6 +37,8 @@
  *	Karl Tomlinson <karlt+@karlt.net>, Mozilla Corporation
  */
 
+#include "config.h"
+
 #include "cairo-script-private.h"
 
 #include <stdlib.h>

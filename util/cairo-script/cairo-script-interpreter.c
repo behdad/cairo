@@ -32,6 +32,8 @@
  *	Chris Wilson <chris@chris-wilson.co.uk>
  */
 
+#include "config.h"
+
 #include <cairo.h>
 
 #include "cairo-script-private.h"

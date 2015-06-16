@@ -1,3 +1,6 @@
+
+#include "config.h"
+
 #include <cairo-script.h>
 #include <cairo-script-interpreter.h>
 

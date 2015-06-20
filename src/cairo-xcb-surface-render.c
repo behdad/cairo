@@ -1292,9 +1292,12 @@ _cairo_xcb_surface_picture (cairo_xcb_surface_t *target,
 	    return picture;
     }
 
+    /* XXX: This causes too many problems and bugs, let's skip it for now. */
+#if 0
     _cairo_surface_attach_snapshot (source,
 				    &picture->base,
 				    NULL);
+#endif
 
     _cairo_xcb_surface_setup_surface_picture (picture, pattern, extents);
     return picture;

@@ -1837,7 +1837,7 @@ _emit_path_boxes (cairo_script_surface_t *surface,
 
     if (! _cairo_path_fixed_iter_at_end (&iter)) {
 	_cairo_boxes_fini (&boxes);
-	return FALSE;
+	return CAIRO_STATUS_INVALID_PATH_DATA;
     }
 
     for (chunk = &boxes.chunks; chunk; chunk = chunk->next) {

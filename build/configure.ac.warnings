@@ -12,7 +12,7 @@ dnl MAYBE_WARN in an ignorable way (like adding whitespace)
 
 MAYBE_WARN="-Wall -Wextra \
 -Wmissing-declarations -Werror-implicit-function-declaration \
--Wpointer-arith -Wwrite-strings -Wsign-compare -Wpacked
+-Wpointer-arith -Wwrite-strings -Wsign-compare -Wpacked \
 -Wswitch-enum -Wmissing-format-attribute -Wvolatile-register-var \
 -Wstrict-aliasing=2 -Winit-self -Wunsafe-loop-optimizations \
 -Wno-missing-field-initializers -Wno-unused-parameter \

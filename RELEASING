@@ -61,6 +61,11 @@ Here are the steps to follow to create a new cairo release:
 		find src/ -name '*.h' ! -name '*-private.h' ! -name 'cairoint.h' ! -name 'cairo-*features*.h' | \
 		xargs git diff X.Y.Z.. --
 
+	Produce a complete ChangeLog with all changes, and a
+	ChangeLog.X.Y with just the delta since the last release.
+	Upload both these to the website, and include a link to them in
+	the NEWS announce.
+
 4) Increment cairo_version_{minor|micro} in cairo-version.h:
 
 	If there are backward-incompatible changes in the API, stop

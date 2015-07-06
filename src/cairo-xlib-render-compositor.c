@@ -958,7 +958,7 @@ _cairo_xlib_font_fini (cairo_scaled_font_private_t *abstract_private,
 {
     cairo_xlib_font_t *priv = (cairo_xlib_font_t *) abstract_private;
     cairo_status_t status;
-    cairo_xlib_display_t *display = NULL;
+    cairo_xlib_display_t *display;
     int i;
 
     cairo_list_del (&priv->base.link);
@@ -978,11 +978,7 @@ _cairo_xlib_font_fini (cairo_scaled_font_private_t *abstract_private,
 
     cairo_device_release (&display->base);
 BAIL:
-    if(display)
-	cairo_device_destroy (&display->base);
-    else
-	cairo_device_destroy (priv->device);
-	
+    cairo_device_destroy (&display->base);
     free (priv);
 }
 

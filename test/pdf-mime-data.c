@@ -82,7 +82,7 @@ read_file (const cairo_test_context_t *ctx,
     }
 
     if (fread(*data, *len, 1, fp) != 1) {
-	free (data);
+	free (*data);
 	fclose(fp);
 	cairo_test_log (ctx, "Could not read data from file %s\n", file);
 	return CAIRO_TEST_FAILURE;

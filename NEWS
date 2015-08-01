@@ -1,3 +1,47 @@
+Release Next (DATE Bryce Harrington <bryce@bryceharrington.org>)
+========================================================================
+Documentation and tests
+
+Features
+--------
+Added a cairo API to set up Win32 surfaces for HDC with alpha channels.
+
+API Changes
+-----------
+None
+
+Dependency Changes
+------------------
+None
+
+Performance Optimizations
+-------------------------
+None
+
+Bug Fixes
+---------
+* Avoid appending empty slots to user data arrays.  Fixes a memory
+  consumption regression since commit 9341c254a.
+
+* Return a better error (file-not-found) when setting up pango on
+  devices where the font files don't have read permissions.
+
+* Fix regression in the font size of canvas text in Inkscape when
+  compiled with the Quartz backend.  (Bug #84324)
+
+* Fix incorrect font descriptor conversion when the font matrix yy is
+  negative. (Bug #90538)
+
+* Fix crash when using a complex path for clip and stroke due to
+  discarding the intersection exactly at the top edge.
+  (Bug #74779)
+
+* Fix cairo_get_locale_decimal_point() on Android
+
+* Fix compilation problem on AIX due to conflicting usage of symbol
+  'jmpbuf'.  (Bug #89339)
+
+
 Release 1.14.2 (2015-03-09 Bryce Harrington <bryce@osg.samsung.com>)
 ====================================================================
 This release provides collected bug fixes, along with one feature

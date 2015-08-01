@@ -23,6 +23,7 @@ cairo.def
 *.ilk
 *.exp
 *.lib
+*.trs
 *~
 .*.sw?
 TAGS

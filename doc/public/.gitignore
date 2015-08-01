@@ -18,3 +18,4 @@ tmpl
 version.xml
 *~
 *.bak
+*.trs

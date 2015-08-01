@@ -16,6 +16,7 @@ Makefile.am.features
 *.suo
 *.lib
 *.pdb
+*.trs
 *~
 .*.sw?
 check-link

@@ -1206,10 +1206,12 @@ _cairo_scaled_font_subset_create_glyph_names (cairo_scaled_font_subset_t *subset
 
 	if (utf16_len == 1) {
 	    int ch = _cairo_unicode_to_winansi (utf16[0]);
-	    if (ch > 0 && _cairo_winansi_to_glyphname (ch))
+	    if (ch > 0 && _cairo_winansi_to_glyphname (ch)) {
 		strncpy (buf, _cairo_winansi_to_glyphname (ch), sizeof (buf));
-	    else
+		buf[sizeof (buf)-1] = '\0';
+	    } else {
 		snprintf (buf, sizeof (buf), "uni%04X", (int) utf16[0]);
+	    }
 
 	    _cairo_string_init_key (&key, buf);
 	    entry = _cairo_hash_table_lookup (names, &key.base);

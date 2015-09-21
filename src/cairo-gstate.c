@@ -1228,6 +1228,7 @@ _cairo_gstate_in_stroke (cairo_gstate_t	    *gstate,
     _cairo_path_fixed_approximate_stroke_extents (path,
 						  &gstate->stroke_style,
 						  &gstate->ctm,
+						  gstate->target->is_vector,
 						  &extents);
     if (x < extents.x || x > extents.x + extents.width ||
 	y < extents.y || y > extents.y + extents.height)

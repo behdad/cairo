@@ -2146,7 +2146,8 @@ cairo_win32_printing_surface_create (HDC hdc)
     _cairo_surface_init (&surface->win32.base,
 			 &cairo_win32_printing_surface_backend,
 			 NULL, /* device */
-                         CAIRO_CONTENT_COLOR_ALPHA);
+                         CAIRO_CONTENT_COLOR_ALPHA,
+			 TRUE); /* is_vector */
 
     paginated = _cairo_paginated_surface_create (&surface->win32.base,
 						 CAIRO_CONTENT_COLOR_ALPHA,

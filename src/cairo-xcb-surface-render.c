@@ -122,7 +122,8 @@ _cairo_xcb_picture_create (cairo_xcb_screen_t *screen,
     _cairo_surface_init (&surface->base,
 			 &_cairo_xcb_picture_backend,
 			 &screen->connection->device,
-			 _cairo_content_from_pixman_format (pixman_format));
+			 _cairo_content_from_pixman_format (pixman_format),
+			 FALSE); /* is_vector */
 
     cairo_list_add (&surface->link, &screen->pictures);
 

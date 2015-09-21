@@ -367,7 +367,8 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     _cairo_surface_init (&surface->base,
 			 &cairo_pdf_surface_backend,
 			 NULL, /* device */
-			 CAIRO_CONTENT_COLOR_ALPHA);
+			 CAIRO_CONTENT_COLOR_ALPHA,
+			 TRUE); /* is_vector */
 
     surface->output = output;
     surface->width = width;

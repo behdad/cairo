@@ -1017,7 +1017,8 @@ _cairo_ps_surface_create_for_stream_internal (cairo_output_stream_t *stream,
     _cairo_surface_init (&surface->base,
 			 &cairo_ps_surface_backend,
 			 NULL, /* device */
-			 CAIRO_CONTENT_COLOR_ALPHA);
+			 CAIRO_CONTENT_COLOR_ALPHA,
+			 TRUE); /* is_vector */
 
     surface->final_stream = stream;
 

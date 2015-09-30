@@ -1840,7 +1840,7 @@ cairo_win32_printing_surface_create (HDC hdc)
 				 _cairo_win32_printing_surface_clipper_intersect_clip_path);
 
     surface->win32.format = CAIRO_FORMAT_RGB24;
-    surface->win32.base.content = CAIRO_CONTENT_COLOR_ALPHA;
+    surface->content = CAIRO_CONTENT_COLOR_ALPHA;
 
     surface->win32.dc = hdc;
 

@@ -691,15 +691,15 @@ _put_image_boxes (cairo_xcb_surface_t    *surface,
 			    int y = _cairo_fixed_integer_part (b->p1.y);
 			    int width = _cairo_fixed_integer_part (b->p2.x - b->p1.x);
 			    int height = _cairo_fixed_integer_part (b->p2.y - b->p1.y);
-			    _cairo_xcb_connection_put_image (surface->connection,
-							     surface->drawable, gc,
-							     width, height,
-							     x, y,
-							     image->depth,
-							     image->stride,
-							     image->data +
-							     x * PIXMAN_FORMAT_BPP (image->pixman_format) / 8 +
-							     y * image->stride);
+			    _cairo_xcb_connection_put_subimage (surface->connection,
+								surface->drawable, gc,
+								x, y,
+								width, height,
+								PIXMAN_FORMAT_BPP (image->pixman_format) / 8,
+								image->stride,
+								x, y,
+								image->depth,
+								image->data);
 
 		    }
 	    }

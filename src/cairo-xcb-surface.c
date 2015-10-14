@@ -646,9 +646,8 @@ _put_shm_image_boxes (cairo_xcb_surface_t    *surface,
 						     shm_info->offset);
 	    }
 	}
+	return CAIRO_INT_STATUS_SUCCESS;
     }
-
-    return CAIRO_INT_STATUS_SUCCESS;
 #endif
 
     return CAIRO_INT_STATUS_UNSUPPORTED;

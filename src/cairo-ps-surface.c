@@ -1794,6 +1794,7 @@ _cairo_ps_surface_acquire_source_surface_from_pattern (cairo_ps_surface_t       
 	    return CAIRO_INT_STATUS_UNSUPPORTED;
 	assert (_cairo_surface_is_image (surf));
 	image = (cairo_image_surface_t *) surf;
+	cairo_surface_get_device_offset (surf, x_offset, y_offset);
     } break;
 
     case CAIRO_PATTERN_TYPE_SOLID:

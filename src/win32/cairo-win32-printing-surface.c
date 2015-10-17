@@ -402,7 +402,7 @@ _cairo_win32_printing_surface_paint_recording_pattern (cairo_win32_printing_surf
     cairo_matrix_t old_ctm;
     cairo_bool_t old_has_ctm;
     cairo_rectangle_int_t recording_extents;
-    cairo_status_t status;
+    cairo_int_status_t status;
     cairo_extend_t extend;
     cairo_matrix_t p2d;
     XFORM xform;
@@ -416,7 +416,7 @@ _cairo_win32_printing_surface_paint_recording_pattern (cairo_win32_printing_surf
     p2d = pattern->base.matrix;
     status = cairo_matrix_invert (&p2d);
     /* _cairo_pattern_set_matrix guarantees invertibility */
-    assert (status == CAIRO_STATUS_SUCCESS);
+    assert (status == CAIRO_INT_STATUS_SUCCESS);
 
     old_ctm = surface->ctm;
     old_has_ctm = surface->has_ctm;
@@ -608,7 +608,7 @@ static cairo_status_t
 _cairo_win32_printing_surface_paint_image_pattern (cairo_win32_printing_surface_t   *surface,
 						   cairo_surface_pattern_t *pattern)
 {
-    cairo_status_t status;
+    cairo_int_status_t status;
     cairo_extend_t extend;
     cairo_image_surface_t *image;
     void *image_extra;
@@ -668,10 +668,10 @@ _cairo_win32_printing_surface_paint_image_pattern (cairo_win32_printing_surface_
 							  &mime_size,
 							  &mime_info);
     }
-    if (_cairo_status_is_error (status))
+    if (_cairo_int_status_is_error (status))
 	return status;
 
-    use_mime = (status == CAIRO_STATUS_SUCCESS);
+    use_mime = (status == CAIRO_INT_STATUS_SUCCESS);
 
     if (!use_mime && image->format != CAIRO_FORMAT_RGB24) {
 	cairo_surface_t *opaque_surface;
@@ -724,7 +724,7 @@ _cairo_win32_printing_surface_paint_image_pattern (cairo_win32_printing_surface_
     m = pattern->base.matrix;
     status = cairo_matrix_invert (&m);
     /* _cairo_pattern_set_matrix guarantees invertibility */
-    assert (status == CAIRO_STATUS_SUCCESS);
+    assert (status == CAIRO_INT_STATUS_SUCCESS);
 
     cairo_matrix_multiply (&m, &m, &surface->ctm);
     cairo_matrix_multiply (&m, &m, &surface->gdi_ctm);

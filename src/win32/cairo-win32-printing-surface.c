@@ -1116,6 +1116,11 @@ _cairo_win32_printing_surface_show_page (void *abstract_surface)
     /* Undo both SaveDC's that we did in start_page */
     RestoreDC (surface->win32.dc, -2);
 
+    /* Invalidate extents since the size of the next page is not known at
+     * this point.
+     */
+    surface->extents_valid = FALSE;
+
     return CAIRO_STATUS_SUCCESS;
 }
 
@@ -1159,6 +1164,18 @@ _cairo_win32_printing_surface_clipper_intersect_clip_path (cairo_surface_clipper
     SelectClipPath (surface->win32.dc, RGN_AND);
 
     return status;
+}
+
+static cairo_bool_t
+_cairo_win32_printing_surface_get_extents (void		          *abstract_surface,
+					   cairo_rectangle_int_t  *rectangle)
+{
+    cairo_win32_printing_surface_t *surface = abstract_surface;
+
+    if (surface->extents_valid)
+	*rectangle = surface->win32.extents;
+
+    return surface->extents_valid;
 }
 
 static void
@@ -1706,6 +1723,27 @@ _cairo_win32_printing_surface_start_page (void *abstract_surface)
     double x_res, y_res;
     cairo_matrix_t inverse_ctm;
     cairo_status_t status;
+    RECT rect;
+
+    /* Since the page size may be changed after _show_page() and before the
+     * next drawing command, the extents are set in _start_page() and invalidated
+     * in _show_page(). The paginated surface will obtain the extents immediately
+     * after calling _show_page() and before any drawing commands. At this point
+     * the next page will not have been setup on the DC so we return invalid
+     * extents and the paginated surface will create an unbounded recording surface.
+     * Prior to replay of the record surface, the paginated surface will call
+     * _start_page and we setup the correct extents.
+     *
+     * Note that we always set the extents x,y to 0 so prevent replay from translating
+     * the coordinates of objects. Windows will clip anything outside of the page clip
+     * area.
+     */
+    GetClipBox(surface->win32.dc, &rect);
+    surface->win32.extents.x = 0;
+    surface->win32.extents.y = 0;
+    surface->win32.extents.width = rect.right;
+    surface->win32.extents.height = rect.bottom;
+    surface->extents_valid = TRUE;
 
     SaveDC (surface->win32.dc); /* Save application context first, before doing MWT */
 
@@ -1823,7 +1861,6 @@ cairo_win32_printing_surface_create (HDC hdc)
 {
     cairo_win32_printing_surface_t *surface;
     cairo_surface_t *paginated;
-    RECT rect;
 
     surface = malloc (sizeof (cairo_win32_printing_surface_t));
     if (surface == NULL)
@@ -1843,6 +1880,7 @@ cairo_win32_printing_surface_create (HDC hdc)
     surface->content = CAIRO_CONTENT_COLOR_ALPHA;
 
     surface->win32.dc = hdc;
+    surface->extents_valid = FALSE;
 
     surface->brush = NULL;
     surface->old_brush = NULL;
@@ -1851,12 +1889,6 @@ cairo_win32_printing_surface_create (HDC hdc)
 	free (surface);
 	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
     }
-
-    GetClipBox(hdc, &rect);
-    surface->win32.extents.x = rect.left;
-    surface->win32.extents.y = rect.top;
-    surface->win32.extents.width = rect.right - rect.left;
-    surface->win32.extents.height = rect.bottom - rect.top;
 
     surface->win32.flags = _cairo_win32_flags_for_dc (surface->win32.dc);
     surface->win32.flags |= CAIRO_WIN32_SURFACE_FOR_PRINTING;
@@ -1898,7 +1930,7 @@ static const cairo_surface_backend_t cairo_win32_printing_surface_backend = {
     NULL, /* copy_page */
     _cairo_win32_printing_surface_show_page,
 
-    _cairo_win32_surface_get_extents,
+    _cairo_win32_printing_surface_get_extents,
     _cairo_win32_printing_surface_get_font_options,
 
     NULL, /* flush */

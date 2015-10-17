@@ -334,7 +334,8 @@ _cairo_win32_display_surface_create_for_dc (HDC             original_dc,
     _cairo_surface_init (&surface->win32.base,
 			 &cairo_win32_display_surface_backend,
 			 device,
-			 _cairo_content_from_format (format));
+			 _cairo_content_from_format (format),
+			 FALSE); /* is_vector */
 
     cairo_device_destroy (device);
 
@@ -979,7 +980,8 @@ cairo_win32_surface_create_with_format (HDC hdc, cairo_format_t format)
     _cairo_surface_init (&surface->win32.base,
 			 &cairo_win32_display_surface_backend,
 			 device,
-			 _cairo_content_from_format (format));
+			 _cairo_content_from_format (format),
+			 FALSE); /* is_vector */
 
     cairo_device_destroy (device);
 

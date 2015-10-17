@@ -60,6 +60,8 @@
 #include "cairo-image-surface-private.h"
 #include "cairo-surface-backend-private.h"
 #include "cairo-surface-clipper-private.h"
+#include "cairo-surface-snapshot-inline.h"
+#include "cairo-surface-subsurface-private.h"
 
 #include <windows.h>
 
@@ -546,6 +548,8 @@ _cairo_win32_printing_surface_paint_recording_pattern (cairo_win32_printing_surf
     RECT clip;
     cairo_recording_surface_t *recording_surface = (cairo_recording_surface_t *) pattern->surface;
     cairo_box_t bbox;
+    cairo_surface_t *free_me = NULL;
+    cairo_bool_t is_subsurface;
 
     extend = cairo_pattern_get_extend (&pattern->base);
 
@@ -561,15 +565,28 @@ _cairo_win32_printing_surface_paint_recording_pattern (cairo_win32_printing_surf
     SaveDC (surface->win32.dc);
     _cairo_matrix_to_win32_xform (&p2d, &xform);
 
-    status = _cairo_recording_surface_get_bbox (recording_surface, &bbox, NULL);
-    if (status)
-	return status;
+    if (_cairo_surface_is_snapshot (&recording_surface->base)) {
+	free_me = _cairo_surface_snapshot_get_target (&recording_surface->base);
+	recording_surface = (cairo_recording_surface_t *) free_me;
+    }
 
-    _cairo_box_round_to_rectangle (&bbox, &recording_extents);
+    if (recording_surface->base.backend->type == CAIRO_SURFACE_TYPE_SUBSURFACE) {
+	cairo_surface_subsurface_t *sub = (cairo_surface_subsurface_t *) recording_surface;
+
+	recording_surface = (cairo_recording_surface_t *) (sub->target);
+	recording_extents = sub->extents;
+	is_subsurface = TRUE;
+    } else {
+	status = _cairo_recording_surface_get_bbox (recording_surface, &bbox, NULL);
+	if (status)
+	    goto err;
+
+	_cairo_box_round_to_rectangle (&bbox, &recording_extents);
+    }
 
     status = _cairo_win32_printing_surface_get_ctm_clip_box (surface, &clip);
     if (status)
-	return status;
+	goto err;
 
     if (extend == CAIRO_EXTEND_REPEAT || extend == CAIRO_EXTEND_REFLECT) {
 	left = floor (clip.left / _cairo_fixed_to_double (bbox.p2.x - bbox.p1.x));
@@ -589,7 +606,7 @@ _cairo_win32_printing_surface_paint_recording_pattern (cairo_win32_printing_surf
 	status = _cairo_win32_printing_surface_paint_solid_pattern (surface,
 								    &_cairo_pattern_black.base);
 	if (status)
-	    return status;
+	    goto err;
     }
 
     for (y_tile = top; y_tile < bottom; y_tile++) {
@@ -643,7 +660,8 @@ _cairo_win32_printing_surface_paint_recording_pattern (cairo_win32_printing_surf
 	    SelectClipPath (surface->win32.dc, RGN_AND);
 
 	    SaveDC (surface->win32.dc); /* Allow clip path to be reset during replay */
-	    status = _cairo_recording_surface_replay_region (&recording_surface->base, NULL,
+	    status = _cairo_recording_surface_replay_region (&recording_surface->base,
+							     is_subsurface ? &recording_extents : NULL,
 							     &surface->win32.base,
 							     CAIRO_RECORDING_REGION_NATIVE);
 	    assert (status != CAIRO_INT_STATUS_UNSUPPORTED);
@@ -651,7 +669,7 @@ _cairo_win32_printing_surface_paint_recording_pattern (cairo_win32_printing_surf
 	    RestoreDC (surface->win32.dc, -2);
 
 	    if (status)
-		return status;
+		goto err;
 	}
     }
 
@@ -660,6 +678,8 @@ _cairo_win32_printing_surface_paint_recording_pattern (cairo_win32_printing_surf
     surface->has_ctm = old_has_ctm;
     RestoreDC (surface->win32.dc, -1);
 
+  err:
+    cairo_surface_destroy (free_me);
     return status;
 }
 

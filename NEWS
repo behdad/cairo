@@ -1,14 +1,15 @@
-Release Next (DATE Bryce Harrington <bryce@bryceharrington.org>)
+Release 1.14.4    (2015-10-27  Bryce Harrington <bryce@osg.samsung.com>)
 ========================================================================
-Documentation and tests
 
 Features
 --------
-Added a cairo API to set up Win32 surfaces for HDC with alpha channels.
+New cairo API routine to set up Win32 surfaces for HDC with alpha
+channels.
 
 API Changes
 -----------
-None
+* Add cairo_win32_surface_create_with_format() API to set up a Win32
+  psurface for an HDX with an alpha channel.
 
 Dependency Changes
 ------------------
@@ -101,6 +102,13 @@ Bug Fixes
 
 * Cleanup various compiler and run-time warnings, valgrind errors, test
   misbehaviors, etc.
+
+Change Logs
+-----------
+For a detailed list of new changes in this release, see:
+
+  http://cairographics.org/releases/ChangeLog.1.14.4
+
 
 Release 1.14.2 (2015-03-09 Bryce Harrington <bryce@osg.samsung.com>)
 ====================================================================

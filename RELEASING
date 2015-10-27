@@ -58,13 +58,14 @@ Here are the steps to follow to create a new cairo release:
 	the following command will show each patch that has changed a
 	public header file since the given version:
 
-		find src/ -name '*.h' ! -name '*-private.h' ! -name 'cairoint.h' ! -name 'cairo-*features*.h' | \
+		find src/ -name '*.h' ! -name '*-private.h' \
+		  ! -name 'cairoint.h' ! -name 'cairo-*features*.h' | \
 		xargs git diff X.Y.Z.. --
 
-	Produce a complete ChangeLog with all changes, and a
-	ChangeLog.X.Y with just the delta since the last release.
-	Upload both these to the website, and include a link to them in
-	the NEWS announce.
+	Include a link to the incremental ChangeLog for this release,
+	which we'll be uploading in a later step:
+
+		http://cairographics.org/releases/ChangeLog.X.Y.Z
 
 4) Increment cairo_version_{minor|micro} in cairo-version.h:
 
@@ -111,6 +112,8 @@ Here are the steps to follow to create a new cairo release:
 	* Provide some text for the release announcement (see below).
 	  If for some reason you lost this message, "make release-publish-message"
 	  prints it for you.
+
+	scp ChangeLog.xxx cairographics.org:releases/ChangeLog.X.Y.Z
 
 7) Increment cairo_version_micro to the next larger (odd) number in
    cairo-version.h, commit, and push.

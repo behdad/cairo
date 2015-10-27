@@ -1,10 +1,19 @@
-Release 1.14.4    (2015-10-27  Bryce Harrington <bryce@osg.samsung.com>)
+Release 1.14.4    (2015-10-28  Bryce Harrington <bryce@osg.samsung.com>)
 ========================================================================
+Just in time for Halloween we see another bug-fix release for Cairo.
+This brings a few dozen straightforward bug fixes with no API changes.
+
+In addition, this includes a typical assortment of fixes to tests,
+cleanup of warnings and memory leaks, correction of misspellings,
+updates to documentation, etc.
+
+For a complete log of changes since 1.14.2, please see:
+ 
+    http://cairographics.org/releases/ChangeLog.cairo-1.14.4
 
 Features
 --------
-New cairo API routine to set up Win32 surfaces for HDC with alpha
-channels.
+None
 
 API Changes
 -----------
@@ -30,6 +39,9 @@ Bug Fixes
 * Fix regression in the font size of canvas text in Inkscape when
   compiled with the Quartz backend.  (Bug #84324)
 
+* Fix _cairo_gl_shader_bind_matrix() to maintain compatibility with
+  OpenGL ES 2.0.  Manually transpose the matrix.
+
 * Fix incorrect font descriptor conversion when the font matrix yy is
   negative. (Bug #90538)
 
@@ -51,14 +63,11 @@ Bug Fixes
 * Fix incorrect recording of certain paths with script surfaces.
   (Bug #91054)
 
-* Avoid using uninitialised variable on impossible error path
-  (Bug #87893)
+* Fix typo in definition of MAYBE_WARN in configure script.
+  (Bug #89750)
 
 * Fix use of filename variable after it's been freed.
   (Bug #91206)
-
-* Fix redundant check of truetype struct.
-  (Bug #29010)
 
 * Fix out of bounds access when printing pattern.
   (Bug #91266)
@@ -67,47 +76,14 @@ Bug Fixes
   compositor.
   (Bug #91321)
 
-* Fix filter quality with image backend for the Quartz framework, such
-  that CAIRO_FILTER_GOOD and CAIRO_FILTER_BILINEAR map to
-  kCGInterpolationLow.
-
-* Fix potential bug with incorrect rendering of SVG paths with more than
-  one subpath.
-  (Bug #90984)
-
 * Fix memory leak in _cairo_gl_pattern_texture_setup()
   (Bug #91537)
-
-* Fix crash in PDF backend when rendering certain glyphs.
-  (Bug #91902)
-
-* Fix broken PDFs that use glyph 0 in embedded fonts for rendering
-  instead of .notdef.  Map it to a non-0 glyph in the subset.
-  (Bug #89082)
 
 * Fix transparent images in win32-print.
   (Bug #91835)
 
 * Fix _put_shm_image_boxes and _put_image_boxes when no SHM available
   with XCB.
-
-* Fix use of memory barriers by default for ARM.
-  (Bug #90302)
-
-* Fix page extents for win32-print to avoid unbounded recording surfaces
-  with paginated surfaces.
-
-* Fix culling of very thin lines on vector surfaces.
-  (Bug #77298)
-
-* Cleanup various compiler and run-time warnings, valgrind errors, test
-  misbehaviors, etc.
-
-Change Logs
------------
-For a detailed list of new changes in this release, see:
-
-  http://cairographics.org/releases/ChangeLog.1.14.4
 
 
 Release 1.14.2 (2015-03-09 Bryce Harrington <bryce@osg.samsung.com>)

@@ -41,6 +41,66 @@ Bug Fixes
 * Fix compilation problem on AIX due to conflicting usage of symbol
   'jmpbuf'.  (Bug #89339)
 
+* Fix broken rendering with XCB due to snapshotting of uploaded part of
+  surfaces.  (Bug #67505)
+
+* Fix loss of alpha when copying a mask for a cairo recording surface,
+  resulting in a double copy.  (Bugs #73038, #73901)
+
+* Fix incorrect recording of certain paths with script surfaces.
+  (Bug #91054)
+
+* Avoid using uninitialised variable on impossible error path
+  (Bug #87893)
+
+* Fix use of filename variable after it's been freed.
+  (Bug #91206)
+
+* Fix redundant check of truetype struct.
+  (Bug #29010)
+
+* Fix out of bounds access when printing pattern.
+  (Bug #91266)
+
+* Fix incorrect size calculation in glyph cache unlocking for Cairo GL
+  compositor.
+  (Bug #91321)
+
+* Fix filter quality with image backend for the Quartz framework, such
+  that CAIRO_FILTER_GOOD and CAIRO_FILTER_BILINEAR map to
+  kCGInterpolationLow.
+
+* Fix potential bug with incorrect rendering of SVG paths with more than
+  one subpath.
+  (Bug #90984)
+
+* Fix memory leak in _cairo_gl_pattern_texture_setup()
+  (Bug #91537)
+
+* Fix crash in PDF backend when rendering certain glyphs.
+  (Bug #91902)
+
+* Fix broken PDFs that use glyph 0 in embedded fonts for rendering
+  instead of .notdef.  Map it to a non-0 glyph in the subset.
+  (Bug #89082)
+
+* Fix transparent images in win32-print.
+  (Bug #91835)
+
+* Fix _put_shm_image_boxes and _put_image_boxes when no SHM available
+  with XCB.
+
+* Fix use of memory barriers by default for ARM.
+  (Bug #90302)
+
+* Fix page extents for win32-print to avoid unbounded recording surfaces
+  with paginated surfaces.
+
+* Fix culling of very thin lines on vector surfaces.
+  (Bug #77298)
+
+* Cleanup various compiler and run-time warnings, valgrind errors, test
+  misbehaviors, etc.
 
 Release 1.14.2 (2015-03-09 Bryce Harrington <bryce@osg.samsung.com>)
 ====================================================================

@@ -118,6 +118,12 @@ Here are the steps to follow to create a new cairo release:
 	  scp ChangeLog.cache-X.Y.Z-1.. \
 	      cairographics.org:/srv/cairo.freedesktop.org/www/releases/ChangeLog.cairo-X.Y.Z
 
+	To undo a release-publish, before you've sent any emails or
+	pushed changes to master, delete the locally created tag (git
+	tag -d X.Y.Z); then log into the webserver, repoint the manual
+	and LATEST-cairo-X.Y.Z symlinks to the previous versions, remove
+	manual-X.Y.Z and release/cairo-1.14.4.
+
 7) Increment cairo_version_micro to the next larger (odd) number in
    cairo-version.h, commit, and push.
 

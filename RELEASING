@@ -124,8 +124,14 @@ Here are the steps to follow to create a new cairo release:
 	and LATEST-cairo-X.Y.Z symlinks to the previous versions, remove
 	manual-X.Y.Z and release/cairo-1.14.4.
 
-7) Increment cairo_version_micro to the next larger (odd) number in
-   cairo-version.h, commit, and push.
+7) Update trunk (or the stable branch) version number.
+
+   For micro releases (X.Y.Z), increment cairo_version_micro to the next
+   larger (odd) number in cairo-version.h, commit, and push.
+
+   For minor releases (X.Y.0), increment cairo_version_minor to the next
+   larger (odd) number, and set cairo_version_micro to 1.  Then commit
+   and push.
 
 8) Push the newly created tag out to the central tree with a command
    something like:

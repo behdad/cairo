@@ -470,6 +470,9 @@ dnl ===========================================================================
 any2ppm_cs=no
 CAIRO_ENABLE_SURFACE_BACKEND(script, script, yes, [
   any2ppm_cs=yes
+  # The script backend requires zlib.
+  use_script=$have_libz
+  script_NONPKGCONFIG_LIBS=-lz
 ])
 
 dnl ===========================================================================

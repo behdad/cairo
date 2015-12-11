@@ -1,3 +1,95 @@
+Release 1.15.2     (2015-12-10 Bryce Harrington <bryce@osg.samsung.com>)
+========================================================================
+This release is largely a rollup to include a variety of fixes that
+didn't make the cut for the stable 1.14.2 and 1.14.4 releases, as well
+as all the fixes from those releases.  Notably this includes a highly
+requested new API for Win32 surfaces.
+
+For a complete log of changes since the last release, please see:
+
+    http://cairographics.org/releases/ChangeLog.1.15.2
+
+Features
+--------
+None
+
+API Changes
+-----------
+
+  cairo_win32_surface_create_with_format
+
+    Added a cairo API to set up Win32 surfaces for HDC with alpha channels.
+
+Dependency Changes
+------------------
+None
+
+Performance Optimizations
+-------------------------
+None
+
+Bug Fixes
+---------
+* All the bug fixes from 1.14.2, 1.14.4, and 14.6
+
+* Fix xcb/xlib compilation and calls.  Make image boxes behave when SHM
+  is not available.
+
+* Fix various issues with printing and transparent images on Win32.
+
+* Fix thin lines that don't show up when printing in Inkscape due to
+  overly aggressive culling.
+  (Bug #77298)
+
+* Fix broken printing via pdf when glyph 0 is used for rendering,
+  resulting in missing spaces and letters.
+  (Bug #89082)
+
+* Fix crash for certain glyphs in opentype fonts.
+  (Bug #91902)
+
+* Fix incorrect rendering of SVG paths with more than one subpath.  If
+  more than one trap is passed in then it's guaranteed that the returned
+  traps will have their left edge to the left of their right edge, but
+  if only one trap is passed in then the function always returns without
+  doing anything.
+  (Bug #90984)
+
+* Improve rendering with Quarts to better match pixman's blending and
+  filtering behavior.
+
+
+Release 1.14.6    (2015-12-09  Bryce Harrington <bryce@osg.samsung.com>)
+========================================================================
+Simple bugfix release to fix one Windows issue.
+
+For a complete log of changes since 1.14.4, please see:
+
+    http://cairographics.org/releases/ChangeLog.1.14.6
+
+Features
+--------
+None
+
+API Changes
+-----------
+None
+
+Dependency Changes
+------------------
+None
+
+Performance Optimizations
+-------------------------
+None
+
+Bug Fixes
+---------
+* Fix failure on Windows due to reference of the function
+  cairo_win32_surface_create_with_format(), which isn't included in the
+  1.14.4 release. (Bug #92771)
+
+
 Release 1.14.4    (2015-10-28  Bryce Harrington <bryce@osg.samsung.com>)
 ========================================================================
 Just in time for Halloween we see another bug-fix release for Cairo.
@@ -17,8 +109,7 @@ None
 
 API Changes
 -----------
-* Add cairo_win32_surface_create_with_format() API to set up a Win32
-  psurface for an HDX with an alpha channel.
+None
 
 Dependency Changes
 ------------------

@@ -52,27 +52,30 @@ Here are the steps to follow to create a new cairo release:
 	development tree between Minor releases, as desired.
 
 	Cairo uses even numbers for official releases, and odd numbers
-	for development snapshots.  Thus, for a Minor release the
-	version numbers should be:
+	for development snapshots.  Thus, for a Minor release it would
+	be:
 
-		LAST_RELEASE="X.Y.Z"     # e.g. 1.14.4
-		THIS_RELEASE="X.Y+2.0"	 # e.g. 1.16.0
+		LAST_RELEASE="X.Y.Z"     # e.g. 1.12.0
+		THIS_RELEASE="X.Y+2.0"	 # e.g. 1.14.0
 
-	While for a micro release it would be:
+	While for a Micro release the version numbers should be:
 
-		LAST_RELEASE="X.Y.Z"     # e.g. 1.16.0
-		THIS_RELEASE="X.Y.Z+2"   # e.g. 1.16.2
+		LAST_RELEASE="X.Y.Z"     # e.g. 1.14.0
+		THIS_RELEASE="X.Y.Z+2"   # e.g. 1.14.2
 
-	Snapshots are similar but have odd minor versions, e.g.:
+	Snapshots are similar but have odd minor versions.  Also, the
+	first snapshot release in a new series will be .2 rather than
+	.0, e.g.:
 
-		LAST_RELEASE="X.Y.Z"     # e.g. 1.16.2
-		THIS_RELEASE="X.Y+1.0"   # e.g. 1.17.0
+		LAST_RELEASE="X.Y.Z"     # e.g. 1.14.0
+		THIS_RELEASE="X.Y+1.0"   # e.g. 1.15.2
 
 	and subsequent snapshots in that series are just normal micro
 	releases:
 
-		LAST_RELEASE="X.Y.Z"     # e.g. 1.17.0
-		THIS_RELEASE="X.Y.Z+2"   # e.g. 1.17.2
+		LAST_RELEASE="X.Y.Z"     # e.g. 1.15.2
+		THIS_RELEASE="X.Y.Z+2"   # e.g. 1.15.4
+
 
 
 4) Fill out an entry in the NEWS file

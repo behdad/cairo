@@ -8,12 +8,16 @@ Makefile
 Makefile.in
 aclocal.m4
 autom4te.cache
+confdefs.h
 config.cache
 config.h
 config.h.in
 config.status
 configure
 configure.scan
+conftest.c
+conftest.err
+conftest.i
 doltcompile
 doltlibtool
 gtk-doc.make

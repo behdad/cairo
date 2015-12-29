@@ -146,10 +146,8 @@ static cairo_int_status_t
 _cairo_composite_rectangles_intersect (cairo_composite_rectangles_t *extents,
 				       const cairo_clip_t *clip)
 {
-    cairo_bool_t ret;
-
-    ret = _cairo_rectangle_intersect (&extents->bounded, &extents->mask);
-    if (! ret && extents->is_bounded & CAIRO_OPERATOR_BOUND_BY_MASK)
+    if ((!_cairo_rectangle_intersect (&extents->bounded, &extents->mask)) &&
+        (extents->is_bounded & CAIRO_OPERATOR_BOUND_BY_MASK))
 	return CAIRO_INT_STATUS_NOTHING_TO_DO;
 
     if (extents->is_bounded == (CAIRO_OPERATOR_BOUND_BY_MASK | CAIRO_OPERATOR_BOUND_BY_SOURCE)) {

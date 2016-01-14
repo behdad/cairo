@@ -144,7 +144,7 @@ _analyze_recording_surface_pattern (cairo_analysis_surface_t *surface,
     const cairo_surface_pattern_t *surface_pattern;
     cairo_analysis_surface_t *tmp;
     cairo_surface_t *source, *proxy;
-    cairo_matrix_t p2d;
+    cairo_matrix_t p2d, surface_transform;
     cairo_status_t status, analysis_status;
 
     assert (pattern->type == CAIRO_PATTERN_TYPE_SURFACE);
@@ -171,9 +171,11 @@ _analyze_recording_surface_pattern (cairo_analysis_surface_t *surface,
     cairo_matrix_multiply (&tmp->ctm, &p2d, &surface->ctm);
     tmp->has_ctm = ! _cairo_matrix_is_identity (&tmp->ctm);
 
+    surface_transform = tmp->ctm;
+    status = cairo_matrix_invert (&surface_transform);
     source = _cairo_surface_get_source (source, NULL);
     status = _cairo_recording_surface_replay_and_create_regions (source,
-								 &tmp->base);
+								 &surface_transform, &tmp->base);
     analysis_status = tmp->has_unsupported ? CAIRO_INT_STATUS_IMAGE_FALLBACK : CAIRO_INT_STATUS_SUCCESS;
     detach_proxy (proxy);
     cairo_surface_destroy (&tmp->base);

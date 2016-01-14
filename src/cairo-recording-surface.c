@@ -2026,9 +2026,10 @@ _cairo_recording_surface_replay_with_clip (cairo_surface_t *surface,
  */
 cairo_status_t
 _cairo_recording_surface_replay_and_create_regions (cairo_surface_t *surface,
+						    const cairo_matrix_t *surface_transform,
 						    cairo_surface_t *target)
 {
-    return _cairo_recording_surface_replay_internal ((cairo_recording_surface_t *) surface, NULL, NULL,
+    return _cairo_recording_surface_replay_internal ((cairo_recording_surface_t *) surface, NULL, surface_transform,
 						     target, NULL,
 						     CAIRO_RECORDING_CREATE_REGIONS,
 						     CAIRO_RECORDING_REGION_ALL);

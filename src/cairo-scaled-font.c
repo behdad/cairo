@@ -85,7 +85,7 @@ static cairo_cache_t cairo_scaled_glyph_page_cache;
 #define CAIRO_SCALED_GLYPH_PAGE_SIZE 32
 struct _cairo_scaled_glyph_page {
     cairo_cache_entry_t cache_entry;
-
+    cairo_scaled_font_t *scaled_font;
     cairo_list_t link;
 
     unsigned int num_glyphs;
@@ -477,7 +477,7 @@ _cairo_scaled_glyph_page_pluck (void *closure)
 
     assert (! cairo_list_is_empty (&page->link));
 
-    scaled_font = (cairo_scaled_font_t *) page->cache_entry.hash;
+    scaled_font = page->scaled_font;
 
     CAIRO_MUTEX_LOCK (scaled_font->mutex);
     _cairo_scaled_glyph_page_destroy (scaled_font, page);
@@ -2824,7 +2824,7 @@ _cairo_scaled_glyph_page_can_remove (const void *closure)
     const cairo_scaled_glyph_page_t *page = closure;
     const cairo_scaled_font_t *scaled_font;
 
-    scaled_font = (cairo_scaled_font_t *) page->cache_entry.hash;
+    scaled_font = page->scaled_font;
     return scaled_font->cache_frozen == 0;
 }
 
@@ -2853,6 +2853,7 @@ _cairo_scaled_font_allocate_glyph (cairo_scaled_font_t *scaled_font,
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
     page->cache_entry.hash = (unsigned long) scaled_font;
+    page->scaled_font = scaled_font;
     page->cache_entry.size = 1; /* XXX occupancy weighting? */
     page->num_glyphs = 0;
 

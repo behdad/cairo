@@ -128,6 +128,7 @@ _cairo_scan_converter_create_in_error (cairo_status_t status)
     case CAIRO_STATUS_INVALID_MESH_CONSTRUCTION: RETURN_NIL;
     case CAIRO_STATUS_DEVICE_FINISHED: RETURN_NIL;
     case CAIRO_STATUS_JBIG2_GLOBAL_MISSING:
+    case CAIRO_STATUS_PNG_ERROR:
     default:
 	break;
     }
@@ -241,6 +242,7 @@ _cairo_span_renderer_create_in_error (cairo_status_t status)
     case CAIRO_STATUS_INVALID_MESH_CONSTRUCTION: RETURN_NIL;
     case CAIRO_STATUS_DEVICE_FINISHED: RETURN_NIL;
     case CAIRO_STATUS_JBIG2_GLOBAL_MISSING: RETURN_NIL;
+    case CAIRO_STATUS_PNG_ERROR: RETURN_NIL;
     default:
 	break;
     }

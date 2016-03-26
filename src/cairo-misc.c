@@ -160,6 +160,8 @@ cairo_status_to_string (cairo_status_t status)
 	return "CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID used but no CAIRO_MIME_TYPE_JBIG2_GLOBAL data provided";
     case CAIRO_STATUS_PNG_ERROR:
 	return "error occurred in libpng while reading from or writing to a PNG file";
+    case CAIRO_STATUS_FREETYPE_ERROR:
+	return "error occurred in libfreetype";
     default:
     case CAIRO_STATUS_LAST_STATUS:
 	return "<unknown error status>";

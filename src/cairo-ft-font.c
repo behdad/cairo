@@ -223,7 +223,10 @@ _ft_to_cairo_error (FT_Error error)
    * Populate as needed. */
   switch (error)
   {
-  default:		return CAIRO_STATUS_NO_MEMORY;
+  case FT_Err_Out_Of_Memory:
+      return CAIRO_STATUS_NO_MEMORY;
+  default:
+      return CAIRO_STATUS_FREETYPE_ERROR;
   }
 }
 

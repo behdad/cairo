@@ -53,6 +53,7 @@ cairo_gobject_status_get_type (void)
 	  { CAIRO_STATUS_DEVICE_FINISHED, "CAIRO_STATUS_DEVICE_FINISHED", "device-finished" },
 	  { CAIRO_STATUS_JBIG2_GLOBAL_MISSING, "CAIRO_STATUS_JBIG2_GLOBAL_MISSING", "jbig2-global_missing" },
 	  { CAIRO_STATUS_PNG_ERROR, "CAIRO_STATUS_PNG_ERROR", "png-error" },
+	  { CAIRO_STATUS_FREETYPE_ERROR, "CAIRO_STATUS_FREETYPE_ERROR", "freetype-error" },
 	  { CAIRO_STATUS_LAST_STATUS, "CAIRO_STATUS_LAST_STATUS", "last-status" },
           { 0, NULL, NULL }
       };

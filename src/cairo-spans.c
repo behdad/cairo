@@ -130,6 +130,7 @@ _cairo_scan_converter_create_in_error (cairo_status_t status)
     case CAIRO_STATUS_JBIG2_GLOBAL_MISSING:
     case CAIRO_STATUS_PNG_ERROR:
     case CAIRO_STATUS_FREETYPE_ERROR:
+    case CAIRO_STATUS_WIN32_GDI_ERROR:
     default:
 	break;
     }
@@ -245,6 +246,7 @@ _cairo_span_renderer_create_in_error (cairo_status_t status)
     case CAIRO_STATUS_JBIG2_GLOBAL_MISSING: RETURN_NIL;
     case CAIRO_STATUS_PNG_ERROR: RETURN_NIL;
     case CAIRO_STATUS_FREETYPE_ERROR: RETURN_NIL;
+    case CAIRO_STATUS_WIN32_GDI_ERROR: RETURN_NIL;
     default:
 	break;
     }

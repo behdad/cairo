@@ -55,6 +55,7 @@ cairo_gobject_status_get_type (void)
 	  { CAIRO_STATUS_PNG_ERROR, "CAIRO_STATUS_PNG_ERROR", "png-error" },
 	  { CAIRO_STATUS_FREETYPE_ERROR, "CAIRO_STATUS_FREETYPE_ERROR", "freetype-error" },
 	  { CAIRO_STATUS_LAST_STATUS, "CAIRO_STATUS_LAST_STATUS", "last-status" },
+	  { CAIRO_STATUS_WIN32_GDI_ERROR, "CAIRO_STATUS_WIN32_GDI_ERROR", "win32-gdi-error" },
           { 0, NULL, NULL }
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_status_t"), values);

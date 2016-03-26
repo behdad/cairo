@@ -2727,6 +2727,7 @@ _cairo_surface_create_in_error (cairo_status_t status)
     case CAIRO_STATUS_JBIG2_GLOBAL_MISSING:
     case CAIRO_STATUS_PNG_ERROR:
     case CAIRO_STATUS_FREETYPE_ERROR:
+    case CAIRO_STATUS_WIN32_GDI_ERROR:
     default:
 	_cairo_error_throw (CAIRO_STATUS_NO_MEMORY);
 	return (cairo_surface_t *) &_cairo_surface_nil;

@@ -178,6 +178,8 @@ _cairo_scaled_glyph_attach_private (cairo_scaled_glyph_t *scaled_glyph,
 				   void (*destroy) (cairo_scaled_glyph_private_t *,
 						    cairo_scaled_glyph_t *,
 						    cairo_scaled_font_t *));
+cairo_private cairo_bool_t
+_cairo_scaled_font_has_color_glyphs (cairo_scaled_font_t *scaled_font);
 
 CAIRO_END_DECLS
 

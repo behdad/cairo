@@ -3190,3 +3190,12 @@ cairo_scaled_font_get_font_options (cairo_scaled_font_t		*scaled_font,
     _cairo_font_options_init_copy (options, &scaled_font->options);
 }
 slim_hidden_def (cairo_scaled_font_get_font_options);
+
+cairo_bool_t
+_cairo_scaled_font_has_color_glyphs (cairo_scaled_font_t *scaled_font)
+{
+    if (scaled_font->backend != NULL && scaled_font->backend->has_color_glyphs != NULL)
+        return scaled_font->backend->has_color_glyphs (scaled_font);
+    else
+       return FALSE;
+}

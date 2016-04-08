@@ -477,7 +477,8 @@ typedef enum _cairo_scaled_glyph_info {
     CAIRO_SCALED_GLYPH_INFO_METRICS	 = (1 << 0),
     CAIRO_SCALED_GLYPH_INFO_SURFACE	 = (1 << 1),
     CAIRO_SCALED_GLYPH_INFO_PATH	 = (1 << 2),
-    CAIRO_SCALED_GLYPH_INFO_RECORDING_SURFACE = (1 << 3)
+    CAIRO_SCALED_GLYPH_INFO_RECORDING_SURFACE = (1 << 3),
+    CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE = (1 << 4)
 } cairo_scaled_glyph_info_t;
 
 typedef struct _cairo_scaled_font_subset {
@@ -1254,6 +1255,11 @@ cairo_private void
 _cairo_scaled_glyph_set_recording_surface (cairo_scaled_glyph_t *scaled_glyph,
                                            cairo_scaled_font_t *scaled_font,
                                            cairo_surface_t *recording_surface);
+
+cairo_private void
+_cairo_scaled_glyph_set_color_surface (cairo_scaled_glyph_t *scaled_glyph,
+		                       cairo_scaled_font_t *scaled_font,
+		                       cairo_image_surface_t *surface);
 
 cairo_private cairo_int_status_t
 _cairo_scaled_glyph_lookup (cairo_scaled_font_t *scaled_font,

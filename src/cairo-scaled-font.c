@@ -224,6 +224,9 @@ _cairo_scaled_glyph_fini (cairo_scaled_font_t *scaled_font,
 	cairo_surface_finish (scaled_glyph->recording_surface);
 	cairo_surface_destroy (scaled_glyph->recording_surface);
     }
+
+    if (scaled_glyph->color_surface != NULL)
+	cairo_surface_destroy (&scaled_glyph->color_surface->base);
 }
 
 #define ZOMBIE 0
@@ -2828,6 +2831,24 @@ _cairo_scaled_glyph_set_recording_surface (cairo_scaled_glyph_t *scaled_glyph,
 	scaled_glyph->has_info |= CAIRO_SCALED_GLYPH_INFO_RECORDING_SURFACE;
     else
 	scaled_glyph->has_info &= ~CAIRO_SCALED_GLYPH_INFO_RECORDING_SURFACE;
+}
+
+void
+_cairo_scaled_glyph_set_color_surface (cairo_scaled_glyph_t *scaled_glyph,
+	                               cairo_scaled_font_t *scaled_font,
+	                               cairo_image_surface_t *surface)
+{
+    if (scaled_glyph->color_surface != NULL)
+	cairo_surface_destroy (&scaled_glyph->color_surface->base);
+
+    /* sanity check the backend glyph contents */
+    _cairo_debug_check_image_surface_is_defined (&surface->base);
+    scaled_glyph->color_surface = surface;
+
+    if (surface != NULL)
+	scaled_glyph->has_info |= CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE;
+    else
+	scaled_glyph->has_info &= ~CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE;
 }
 
 static cairo_bool_t

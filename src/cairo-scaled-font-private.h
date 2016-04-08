@@ -141,6 +141,7 @@ struct _cairo_scaled_glyph {
     cairo_image_surface_t   *surface;		/* device-space image */
     cairo_path_fixed_t	    *path;		/* device-space outline */
     cairo_surface_t         *recording_surface;	/* device-space recording-surface */
+    cairo_image_surface_t   *color_surface;	/* device-space color image */
 
     const void		   *dev_private_key;
     void		   *dev_private;

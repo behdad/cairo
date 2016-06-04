@@ -357,6 +357,7 @@ _cairo_pattern_init_copy (cairo_pattern_t	*pattern,
     /* The reference count and user_data array are unique to the copy. */
     CAIRO_REFERENCE_COUNT_INIT (&pattern->ref_count, 0);
     _cairo_user_data_array_init (&pattern->user_data);
+    cairo_list_init (&pattern->observers);
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -396,6 +397,7 @@ _cairo_pattern_init_static_copy (cairo_pattern_t	*pattern,
 
     CAIRO_REFERENCE_COUNT_INIT (&pattern->ref_count, 0);
     _cairo_user_data_array_init (&pattern->user_data);
+    cairo_list_init (&pattern->observers);
 }
 
 cairo_status_t

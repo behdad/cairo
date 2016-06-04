@@ -380,6 +380,7 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     surface->surface_extents.y = 0;
     surface->surface_extents.width  = ceil (surface->width);
     surface->surface_extents.height = ceil (surface->height);
+    surface->surface_bounded = TRUE;
 
     _cairo_array_init (&surface->objects, sizeof (cairo_pdf_object_t));
     _cairo_array_init (&surface->pages, sizeof (cairo_pdf_resource_t));
@@ -3028,6 +3029,7 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
 {
     double old_width, old_height;
     cairo_rectangle_int_t old_surface_extents;
+    cairo_bool_t old_surface_bounded;
     cairo_paginated_mode_t old_paginated_mode;
     cairo_surface_clipper_t old_clipper;
     cairo_bool_t old_in_xobject;
@@ -3069,16 +3071,17 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     old_height = surface->height;
     old_in_xobject = surface->in_xobject;
     old_surface_extents = surface->surface_extents;
+    old_surface_bounded = surface->surface_bounded;
     old_paginated_mode = surface->paginated_mode;
     old_clipper = surface->clipper;
     surface->surface_extents = *extents;
     _cairo_surface_clipper_init (&surface->clipper,
 				 _cairo_pdf_surface_clipper_intersect_clip_path);
 
-    _cairo_pdf_surface_set_size_internal (surface, width, height);
     _cairo_pdf_operators_reset (&surface->pdf_operators);
     surface->in_xobject = TRUE;
     surface->surface_extents = *extents;
+    surface->surface_bounded = FALSE;
 
     /* Patterns are emitted after fallback images. The paginated mode
      * needs to be set to _RENDER while the recording surface is replayed
@@ -3131,13 +3134,11 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
 
     _cairo_surface_clipper_reset (&surface->clipper);
     surface->clipper = old_clipper;
-    _cairo_pdf_surface_set_size_internal (surface,
-					  old_width,
-					  old_height);
     _cairo_pdf_operators_reset (&surface->pdf_operators);
     surface->in_xobject = old_in_xobject;
     surface->paginated_mode = old_paginated_mode;
     surface->surface_extents = old_surface_extents;
+    surface->surface_bounded = old_surface_bounded;
 
 err:
     cairo_surface_destroy (free_me);
@@ -3165,16 +3166,16 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
     cairo_extend_t extend = cairo_pattern_get_extend (pattern);
     double xstep, ystep;
     cairo_rectangle_int_t pattern_extents;
-    int pattern_width = 0; /* squelch bogus compiler warning */
-    int pattern_height = 0; /* squelch bogus compiler warning */
     double x_offset;
     double y_offset;
-    char draw_surface[200];
+    char draw_surface[50];
+    char draw_surface2[200];
     cairo_box_double_t bbox;
     cairo_matrix_t mat;
     cairo_pdf_source_surface_entry_t *pdf_source;
     cairo_rectangle_int_t op_extents;
 
+    assert (pattern->type == CAIRO_PATTERN_TYPE_SURFACE);
     if (pattern->extend == CAIRO_EXTEND_PAD) {
 	status = _cairo_pdf_surface_add_padded_image_surface (surface,
 							      pattern,
@@ -3202,8 +3203,6 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 	return status;
 
     pattern_extents = pdf_source->extents;
-    pattern_width = pdf_source->extents.width;
-    pattern_height = pdf_source->extents.height;
     if (!pdf_source->bounded)
     {
 	extend = CAIRO_EXTEND_NONE;
@@ -3238,13 +3237,12 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 	 * required an answer that's large enough, we don't really
 	 * care if it's not as tight as possible.*/
 	xstep = ystep = ceil ((x2 - x1) + (y2 - y1) +
-			      pattern_width + pattern_height);
+			      pattern_extents.width + pattern_extents.height);
     }
     break;
-
     case CAIRO_EXTEND_REPEAT:
-	xstep = pattern_width;
-	ystep = pattern_height;
+	xstep = pattern_extents.width;
+	ystep = pattern_extents.height;
 	break;
 
     case CAIRO_EXTEND_REFLECT:
@@ -3303,11 +3301,11 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
     cairo_matrix_translate (&pdf_p2d, x_offset, y_offset);
     if (((cairo_surface_pattern_t *)pattern)->surface->type != CAIRO_SURFACE_TYPE_RECORDING)
     {
-	cairo_matrix_translate (&pdf_p2d, 0.0, pattern_height);
+	cairo_matrix_translate (&pdf_p2d, 0.0, pdf_source->extents.height);
 	cairo_matrix_scale (&pdf_p2d, 1.0, -1.0);
     }
 
-    _get_bbox_from_extents (pattern_height, &pattern_extents, &bbox);
+    _get_bbox_from_extents (pattern_extents.height, &pattern_extents, &bbox);
     _cairo_pdf_surface_update_object (surface, pdf_pattern->pattern_res);
     status = _cairo_pdf_surface_open_stream (surface,
 				             &pdf_pattern->pattern_res,
@@ -3330,35 +3328,54 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
     if (unlikely (status))
 	return status;
 
-    if (pattern->type == CAIRO_PATTERN_TYPE_SURFACE &&
-	((cairo_surface_pattern_t *) pattern)->surface->type == CAIRO_SURFACE_TYPE_RECORDING) {
+    if (((cairo_surface_pattern_t *) pattern)->surface->type == CAIRO_SURFACE_TYPE_RECORDING) {
 	snprintf(draw_surface,
 		 sizeof (draw_surface),
-		 "/x%d Do\n",
+		 "/x%d Do",
 		 pdf_source->surface_res.id);
     } else {
 	snprintf(draw_surface,
 		 sizeof (draw_surface),
 		 "q %d 0 0 %d 0 0 cm /x%d Do Q",
-		 pattern_width,
-		 pattern_height,
+		 pdf_source->extents.width,
+		 pdf_source->extents.height,
 		 pdf_source->surface_res.id);
     }
 
     if (extend == CAIRO_EXTEND_REFLECT) {
-	_cairo_output_stream_printf (surface->output,
-				     "q 0 0 %d %d re W n %s Q\n"
-				     "q -1 0 0 1 %d 0 cm 0 0 %d %d re W n %s Q\n"
-				     "q 1 0 0 -1 0 %d cm 0 0 %d %d re W n %s Q\n"
-				     "q -1 0 0 -1 %d %d cm 0 0 %d %d re W n %s Q\n",
-				     pattern_width, pattern_height,
-				     draw_surface,
-				     pattern_width*2, pattern_width, pattern_height,
-				     draw_surface,
-				     pattern_height*2, pattern_width, pattern_height,
-				     draw_surface,
-				     pattern_width*2, pattern_height*2, pattern_width, pattern_height,
-				     draw_surface);
+	cairo_rectangle_int_t p_extents = pdf_source->extents;
+	snprintf(draw_surface2,
+		 sizeof (draw_surface2),
+		 "%d %d %d %d re W n %s",
+		 p_extents.x, p_extents.y,
+		 p_extents.width, p_extents.height,
+		 draw_surface);
+
+	_cairo_output_stream_printf (surface->output, "q %s Q\n", draw_surface2);
+
+	cairo_matrix_init_translate (&mat, p_extents.x, p_extents.y);
+	cairo_matrix_scale (&mat, -1, 1);
+	cairo_matrix_translate (&mat, -2*p_extents.width, 0);
+	cairo_matrix_translate (&mat, -p_extents.x, -p_extents.y);
+	_cairo_output_stream_printf (surface->output, "q ");
+	_cairo_output_stream_print_matrix (surface->output, &mat);
+	_cairo_output_stream_printf (surface->output, " cm %s Q\n", draw_surface2);
+
+	cairo_matrix_init_translate (&mat, p_extents.x, p_extents.y);
+	cairo_matrix_scale (&mat, 1, -1);
+	cairo_matrix_translate (&mat, 0, -2*p_extents.height);
+	cairo_matrix_translate (&mat, -p_extents.x, -p_extents.y);
+	_cairo_output_stream_printf (surface->output, "q ");
+	_cairo_output_stream_print_matrix (surface->output, &mat);
+	_cairo_output_stream_printf (surface->output, " cm %s Q\n", draw_surface2);
+
+	cairo_matrix_init_translate (&mat, p_extents.x, p_extents.y);
+	cairo_matrix_scale (&mat, -1, -1);
+	cairo_matrix_translate (&mat, -2*p_extents.width, -2*p_extents.height);
+	cairo_matrix_translate (&mat, -p_extents.x, -p_extents.y);
+	_cairo_output_stream_printf (surface->output, "q ");
+	_cairo_output_stream_print_matrix (surface->output, &mat);
+	_cairo_output_stream_printf (surface->output, " cm %s Q\n", draw_surface2);
     } else {
 	_cairo_output_stream_printf (surface->output,
 				     " %s \n",
@@ -4681,9 +4698,10 @@ _cairo_pdf_surface_get_extents (void		        *abstract_surface,
 {
     cairo_pdf_surface_t *surface = abstract_surface;
 
-    *rectangle = surface->surface_extents;
+    if (surface->surface_bounded)
+	*rectangle = surface->surface_extents;
 
-    return TRUE;
+    return surface->surface_bounded;
 }
 
 static void
@@ -6280,9 +6298,11 @@ _cairo_pdf_surface_write_smask_group (cairo_pdf_surface_t     *surface,
     cairo_bool_t old_in_xobject;
     cairo_int_status_t status;
     cairo_box_double_t bbox;
+    cairo_rectangle_int_t old_surface_extents;
 
     old_width = surface->width;
     old_height = surface->height;
+    old_surface_extents = surface->surface_extents;
     old_in_xobject = surface->in_xobject;
     surface->in_xobject = TRUE;
     _cairo_pdf_surface_set_size_internal (surface,
@@ -6352,6 +6372,7 @@ RESTORE_SIZE:
     _cairo_pdf_surface_set_size_internal (surface,
 					  old_width,
 					  old_height);
+    surface->surface_extents = old_surface_extents;
     _cairo_pdf_operators_reset (&surface->pdf_operators);
 
     return status;

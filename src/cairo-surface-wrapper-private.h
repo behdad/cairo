@@ -186,6 +186,7 @@ _cairo_surface_wrapper_is_active (cairo_surface_wrapper_t *wrapper)
 
 cairo_private cairo_bool_t
 _cairo_surface_wrapper_get_target_extents (cairo_surface_wrapper_t *wrapper,
+					   cairo_bool_t surface_is_unbounded,
 					   cairo_rectangle_int_t *extents);
 
 CAIRO_END_DECLS

@@ -146,6 +146,7 @@ _analyze_recording_surface_pattern (cairo_analysis_surface_t *surface,
     cairo_surface_t *source, *proxy;
     cairo_matrix_t p2d, surface_transform;
     cairo_status_t status, analysis_status;
+    cairo_bool_t surface_is_unbounded;
     cairo_bool_t unused;
 
     assert (pattern->type == CAIRO_PATTERN_TYPE_SURFACE);
@@ -175,8 +176,12 @@ _analyze_recording_surface_pattern (cairo_analysis_surface_t *surface,
     surface_transform = tmp->ctm;
     status = cairo_matrix_invert (&surface_transform);
     source = _cairo_surface_get_source (source, NULL);
+    surface_is_unbounded = (pattern->extend == CAIRO_EXTEND_REPEAT
+				     || pattern->extend == CAIRO_EXTEND_REFLECT);
     status = _cairo_recording_surface_replay_and_create_regions (source,
-								 &surface_transform, &tmp->base);
+								 &surface_transform,
+								 &tmp->base,
+								 surface_is_unbounded);
 
     if (!tmp->first_op)
 	_cairo_box_add_box (&surface->page_bbox, &tmp->page_bbox);

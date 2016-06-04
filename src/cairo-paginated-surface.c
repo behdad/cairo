@@ -355,7 +355,7 @@ _paint_page (cairo_paginated_surface_t *surface)
     surface->backend->set_paginated_mode (surface->target,
 	                                  CAIRO_PAGINATED_MODE_ANALYZE);
     status = _cairo_recording_surface_replay_and_create_regions (surface->recording_surface,
-								 NULL, analysis);
+								 NULL, analysis, FALSE);
     if (status)
 	goto FAIL;
 

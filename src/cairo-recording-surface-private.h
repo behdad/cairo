@@ -170,7 +170,8 @@ _cairo_recording_surface_replay_with_clip (cairo_surface_t *surface,
 cairo_private cairo_status_t
 _cairo_recording_surface_replay_and_create_regions (cairo_surface_t *surface,
 						    const cairo_matrix_t *surface_transform,
-						    cairo_surface_t *target);
+						    cairo_surface_t *target,
+						    cairo_bool_t surface_is_unbounded);
 cairo_private cairo_status_t
 _cairo_recording_surface_replay_region (cairo_surface_t			*surface,
 					const cairo_rectangle_int_t *surface_extents,

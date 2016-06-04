@@ -625,12 +625,15 @@ _cairo_surface_wrapper_fini (cairo_surface_wrapper_t *wrapper)
 
 cairo_bool_t
 _cairo_surface_wrapper_get_target_extents (cairo_surface_wrapper_t *wrapper,
+					   cairo_bool_t surface_is_unbounded,
 					   cairo_rectangle_int_t *extents)
 {
     cairo_rectangle_int_t clip;
-    cairo_bool_t has_clip;
+    cairo_bool_t has_clip = FALSE;
 
-    has_clip = _cairo_surface_get_extents (wrapper->target, &clip);
+    if (!surface_is_unbounded)
+	has_clip = _cairo_surface_get_extents (wrapper->target, &clip);
+
     if (wrapper->clip) {
 	if (has_clip) {
 	    if (! _cairo_rectangle_intersect (&clip,

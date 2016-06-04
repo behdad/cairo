@@ -166,6 +166,7 @@ struct _cairo_pdf_surface {
     double width;
     double height;
     cairo_rectangle_int_t surface_extents;
+    cairo_bool_t surface_bounded;
     cairo_matrix_t cairo_to_pdf;
     cairo_bool_t in_xobject;
 

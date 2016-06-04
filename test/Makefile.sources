@@ -272,6 +272,7 @@ test_sources = \
 	record90.c					\
 	recordflip.c					\
 	record-extend.c					\
+	record-neg-extents.c                            \
 	record-mesh.c					\
 	recording-surface-pattern.c			\
 	recording-surface-extend.c			\

@@ -81,9 +81,6 @@ _cairo_surface_wrapper_get_transform (cairo_surface_wrapper_t *wrapper,
 {
     cairo_matrix_init_identity (m);
 
-    if (wrapper->has_extents && (wrapper->extents.x || wrapper->extents.y))
-	cairo_matrix_translate (m, -wrapper->extents.x, -wrapper->extents.y);
-
     if (! _cairo_matrix_is_identity (&wrapper->transform))
 	cairo_matrix_multiply (m, &wrapper->transform, m);
 
@@ -109,9 +106,6 @@ _cairo_surface_wrapper_get_inverse_transform (cairo_surface_wrapper_t *wrapper,
 	assert (status == CAIRO_STATUS_SUCCESS);
 	cairo_matrix_multiply (m, &inv, m);
     }
-
-    if (wrapper->has_extents && (wrapper->extents.x || wrapper->extents.y))
-	cairo_matrix_translate (m, wrapper->extents.x, wrapper->extents.y);
 }
 
 static cairo_clip_t *

@@ -76,9 +76,14 @@ typedef struct _cairo_pdf_source_surface_entry {
     cairo_bool_t smask;
     cairo_pdf_resource_t surface_res;
     cairo_pdf_resource_t smask_res;
-    int width;
-    int height;
+
+    /* Extents of the source surface. If bounded is false,
+     * extents is the ink extents. */
+    cairo_bool_t bounded;
     cairo_rectangle_int_t extents;
+
+    /* Union of source extents requried for all operations using this source */
+    cairo_rectangle_int_t required_extents;
 } cairo_pdf_source_surface_entry_t;
 
 typedef struct _cairo_pdf_source_surface {
@@ -160,6 +165,7 @@ struct _cairo_pdf_surface {
 
     double width;
     double height;
+    cairo_rectangle_int_t surface_extents;
     cairo_matrix_t cairo_to_pdf;
     cairo_bool_t in_xobject;
 

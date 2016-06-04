@@ -300,6 +300,10 @@ _cairo_pdf_surface_set_size_internal (cairo_pdf_surface_t *surface,
 {
     surface->width = width;
     surface->height = height;
+    surface->surface_extents.x = 0;
+    surface->surface_extents.y = 0;
+    surface->surface_extents.width  = ceil (surface->width);
+    surface->surface_extents.height = ceil (surface->height);
 }
 
 static cairo_bool_t
@@ -372,6 +376,10 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     surface->height = height;
     cairo_matrix_init (&surface->cairo_to_pdf, 1, 0, 0, 1, 0, 0);
     surface->in_xobject = FALSE;
+    surface->surface_extents.x = 0;
+    surface->surface_extents.y = 0;
+    surface->surface_extents.width  = ceil (surface->width);
+    surface->surface_extents.height = ceil (surface->height);
 
     _cairo_array_init (&surface->objects, sizeof (cairo_pdf_object_t));
     _cairo_array_init (&surface->pages, sizeof (cairo_pdf_resource_t));
@@ -1237,16 +1245,18 @@ _get_jpeg_image_info (cairo_surface_t		 *source,
 }
 
 static cairo_int_status_t
-_get_source_surface_size (cairo_surface_t         *source,
-			  int                     *width,
-			  int                     *height,
-			  cairo_rectangle_int_t   *extents)
+_get_source_surface_extents (cairo_surface_t         *source,
+			     cairo_rectangle_int_t   *extents,
+			     cairo_bool_t            *bounded,
+			     cairo_bool_t            *subsurface)
 {
     cairo_int_status_t status;
     cairo_image_info_t info;
     const unsigned char *mime_data;
     unsigned long mime_data_length;
 
+    *bounded = TRUE;
+    *subsurface = FALSE;
     if (source->type == CAIRO_SURFACE_TYPE_RECORDING) {
 	cairo_surface_t *free_me = NULL;
 
@@ -1257,28 +1267,20 @@ _get_source_surface_size (cairo_surface_t         *source,
 	    cairo_surface_subsurface_t *sub = (cairo_surface_subsurface_t *) source;
 
 	    *extents = sub->extents;
-	    extents->x = 0;
-	    extents->y = 0;
-	    *width  = extents->width;
-	    *height = extents->height;
+	    *subsurface = TRUE;
 	} else {
 	    cairo_rectangle_int_t surf_extents;
 	    cairo_box_t box;
-	    cairo_bool_t bounded;
 
-	    status = _cairo_recording_surface_get_ink_bbox ((cairo_recording_surface_t *)source,
-							    &box, NULL);
-	    if (unlikely (status)) {
-		cairo_surface_destroy (free_me);
-		return status;
+	    if (! _cairo_surface_get_extents (source, extents)) {
+		    status = _cairo_recording_surface_get_ink_bbox ((cairo_recording_surface_t *)source,
+								    &box, NULL);
+		    if (unlikely (status)) {
+			cairo_surface_destroy (free_me);
+			return status;
+		    }
+		    _cairo_box_round_to_rectangle (&box, extents);
 	    }
-
-	    bounded = _cairo_surface_get_extents (source, &surf_extents);
-
-	    *width = surf_extents.width;
-	    *height = surf_extents.height;
-
-	    _cairo_box_round_to_rectangle (&box, extents);
 	}
 	cairo_surface_destroy (free_me);
 
@@ -1290,8 +1292,6 @@ _get_source_surface_size (cairo_surface_t         *source,
 
     status = _get_jbig2_image_info (source, &info, &mime_data, &mime_data_length);
     if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
-	*width = info.width;
-	*height = info.height;
 	extents->width = info.width;
 	extents->height = info.height;
 	return status;
@@ -1299,8 +1299,6 @@ _get_source_surface_size (cairo_surface_t         *source,
 
     status = _get_jpx_image_info (source, &info, &mime_data, &mime_data_length);
     if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
-	*width = info.width;
-	*height = info.height;
 	extents->width = info.width;
 	extents->height = info.height;
 	return status;
@@ -1308,8 +1306,6 @@ _get_source_surface_size (cairo_surface_t         *source,
 
     status = _get_jpeg_image_info (source, &info, &mime_data, &mime_data_length);
     if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
-	*width = info.width;
-	*height = info.height;
 	extents->width = info.width;
 	extents->height = info.height;
 	return status;
@@ -1317,9 +1313,6 @@ _get_source_surface_size (cairo_surface_t         *source,
 
     if (! _cairo_surface_get_extents (source, extents))
 	return CAIRO_INT_STATUS_UNSUPPORTED;
-
-    *width = extents->width;
-    *height = extents->height;
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -1333,51 +1326,52 @@ _get_source_surface_size (cairo_surface_t         *source,
  * @filter: filter type of the source pattern
  * @stencil_mask: if true, the surface will be written to the PDF as an /ImageMask
  * @smask: if true, only the alpha channel will be written (images only)
+ * @smask_res: if not NULL, the image written will specify this resource as the smask for
+   the image (images only)
  * @extents: extents of the operation that is using this source
- * @smask_res: if not NULL, the image written will specify this resource as the smask for the image (images only)
- * @surface_res: return PDF resource number of the surface
- * @width: returns width of surface
- * @height: returns height of surface
- * @x_offset: x offset of surface
- * @t_offset: y offset of surface
- * @source_extents: returns extents of source (either ink extents or extents needed to cover @extents)
+ * @pdf_source: return pdf_source_surface entry in hash table
+ * @x_offset: if not NULL return x offset of surface
+ * @y_offset: if not NULL return y offset of surface
+ * @source_extents: if not NULL return operation extents in source space
  *
  * Add surface or raster_source pattern to list of surfaces to be
  * written to the PDF file when the current page is finished. Returns
- * a PDF resource to reference the image. A hash table of all images
- * in the PDF files (keyed by CAIRO_MIME_TYPE_UNIQUE_ID or surface
- * unique_id) to ensure surfaces with the same id are only written
- * once to the PDF file.
+ * a PDF resource to reference the surface. A hash table of all
+ * surfaces in the PDF file (keyed by CAIRO_MIME_TYPE_UNIQUE_ID or
+ * surface unique_id) is used to ensure surfaces with the same id are
+ * only written once to the PDF file.
  *
  * Only one of @source_pattern or @source_surface is to be
  * specified. Set the other to NULL.
  **/
 static cairo_int_status_t
-_cairo_pdf_surface_add_source_surface (cairo_pdf_surface_t	    *surface,
-				       cairo_surface_t	            *source_surface,
-				       const cairo_pattern_t	    *source_pattern,
-				       cairo_operator_t              op,
-				       cairo_filter_t		     filter,
-				       cairo_bool_t                  stencil_mask,
-				       cairo_bool_t                  smask,
-				       const cairo_rectangle_int_t  *extents,
-				       cairo_pdf_resource_t	    *smask_res,
-				       cairo_pdf_resource_t	    *surface_res,
-				       int                          *width,
-				       int                          *height,
-				       double                       *x_offset,
-				       double                       *y_offset,
-				       cairo_rectangle_int_t        *source_extents)
+_cairo_pdf_surface_add_source_surface (cairo_pdf_surface_t	         *surface,
+				       cairo_surface_t	                 *source_surface,
+				       const cairo_pattern_t	         *source_pattern,
+				       cairo_operator_t                   op,
+				       cairo_filter_t		          filter,
+				       cairo_bool_t                       stencil_mask,
+				       cairo_bool_t                       smask,
+				       cairo_pdf_resource_t	         *smask_res,
+				       const cairo_rectangle_int_t       *extents,
+				       cairo_pdf_source_surface_entry_t **pdf_source,
+				       double                            *x_offset,
+				       double                            *y_offset,
+				       cairo_rectangle_int_t             *source_extents)
 {
     cairo_pdf_source_surface_t src_surface;
     cairo_pdf_source_surface_entry_t surface_key;
     cairo_pdf_source_surface_entry_t *surface_entry;
-    cairo_int_status_t status;
+    cairo_int_status_t status = CAIRO_STATUS_SUCCESS;
     cairo_bool_t interpolate;
     unsigned char *unique_id = NULL;
     unsigned long unique_id_length = 0;
     cairo_image_surface_t *image;
     void *image_extra;
+    cairo_box_t box;
+    cairo_rectangle_int_t op_extents;
+    double x, y;
+    cairo_bool_t subsurface;
 
     switch (filter) {
     default:
@@ -1393,8 +1387,8 @@ _cairo_pdf_surface_add_source_surface (cairo_pdf_surface_t	    *surface,
 	break;
     }
 
-    *x_offset = 0;
-    *y_offset = 0;
+    x = 0;
+    y = 0;
     if (source_pattern) {
 	if (source_pattern->type == CAIRO_PATTERN_TYPE_RASTER_SOURCE) {
 	    status = _cairo_pdf_surface_acquire_source_image_from_pattern (surface, source_pattern,
@@ -1402,12 +1396,27 @@ _cairo_pdf_surface_add_source_surface (cairo_pdf_surface_t	    *surface,
 	    if (unlikely (status))
 		return status;
 	    source_surface = &image->base;
-	    cairo_surface_get_device_offset (source_surface, x_offset, y_offset);
+	    cairo_surface_get_device_offset (source_surface, &x, &y);
 	} else {
 	    cairo_surface_pattern_t *surface_pattern = (cairo_surface_pattern_t *) source_pattern;
 	    source_surface = surface_pattern->surface;
 	}
     }
+    if (x_offset)
+	*x_offset = x;
+    if (y_offset)
+	*y_offset = y;
+
+    /* transform operation extents to pattern space */
+    op_extents = *extents;
+    if (source_pattern)
+    {
+	_cairo_box_from_rectangle (&box, extents);
+	_cairo_matrix_transform_bounding_box_fixed (&source_pattern->matrix, &box, NULL);
+	_cairo_box_round_to_rectangle (&box, &op_extents);
+    }
+    if (source_extents)
+	*source_extents = op_extents;
 
     surface_key.id  = source_surface->unique_id;
     surface_key.interpolate = interpolate;
@@ -1417,40 +1426,36 @@ _cairo_pdf_surface_add_source_surface (cairo_pdf_surface_t	    *surface,
     _cairo_pdf_source_surface_init_key (&surface_key);
     surface_entry = _cairo_hash_table_lookup (surface->all_surfaces, &surface_key.base);
     if (surface_entry) {
-	*surface_res = surface_entry->surface_res;
-	*width = surface_entry->width;
-	*height = surface_entry->height;
-	*source_extents = surface_entry->extents;
+	if (pdf_source)
+	    *pdf_source = surface_entry;
+
+	if (source_pattern && source_pattern->extend != CAIRO_EXTEND_NONE)
+	    _cairo_unbounded_rectangle_init (&op_extents);
+
+	_cairo_rectangle_intersect (&op_extents, &surface_entry->extents);
+	_cairo_rectangle_union (&surface_entry->required_extents, &op_extents);
 	status = CAIRO_STATUS_SUCCESS;
-    } else {
-	status = _get_source_surface_size (source_surface,
-					   width,
-					   height,
-					   source_extents);
-	if (unlikely(status))
-	    goto release_source;
-
-	if (surface_key.unique_id && surface_key.unique_id_length > 0) {
-	    unique_id = _cairo_malloc (surface_key.unique_id_length);
-	    if (unique_id == NULL) {
-		status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
-		goto release_source;
-	    }
-
-	    unique_id_length = surface_key.unique_id_length;
-	    memcpy (unique_id, surface_key.unique_id, unique_id_length);
-	} else {
-	    unique_id = NULL;
-	    unique_id_length = 0;
-	}
     }
 
-release_source:
-    if (source_pattern && source_pattern->type == CAIRO_PATTERN_TYPE_RASTER_SOURCE)
-	_cairo_pdf_surface_release_source_image_from_pattern (surface, source_pattern, image, image_extra);
-
-    if (status || surface_entry)
+    if (status || surface_entry) {
+	if (source_pattern && source_pattern->type == CAIRO_PATTERN_TYPE_RASTER_SOURCE)
+	    _cairo_pdf_surface_release_source_image_from_pattern (surface, source_pattern, image, image_extra);
 	return status;
+    }
+
+    if (surface_key.unique_id && surface_key.unique_id_length > 0) {
+	unique_id = _cairo_malloc (surface_key.unique_id_length);
+	if (unique_id == NULL) {
+	    status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	    goto fail1;
+	}
+
+	unique_id_length = surface_key.unique_id_length;
+	    memcpy (unique_id, surface_key.unique_id, unique_id_length);
+    } else {
+	unique_id = NULL;
+	unique_id_length = 0;
+    }
 
     surface_entry = malloc (sizeof (cairo_pdf_source_surface_entry_t));
     if (surface_entry == NULL) {
@@ -1458,6 +1463,8 @@ release_source:
 	goto fail1;
     }
 
+    if (pdf_source)
+	*pdf_source = surface_entry;
     surface_entry->id = surface_key.id;
     surface_entry->operator = op;
     surface_entry->interpolate = interpolate;
@@ -1465,13 +1472,29 @@ release_source:
     surface_entry->smask = smask;
     surface_entry->unique_id_length = unique_id_length;
     surface_entry->unique_id = unique_id;
-    surface_entry->width = *width;
-    surface_entry->height = *height;
-    surface_entry->extents = *source_extents;
     if (smask_res)
 	surface_entry->smask_res = *smask_res;
     else
 	surface_entry->smask_res.id = 0;
+
+    status = _get_source_surface_extents (source_surface,
+					  &surface_entry->extents,
+					  &surface_entry->bounded,
+					  &subsurface);
+    if (unlikely (status))
+	goto fail2;
+
+    if (subsurface) {
+	*x_offset = -surface_entry->extents.x;
+	*y_offset = -surface_entry->extents.y;
+    }
+
+    if (source_pattern && source_pattern->extend != CAIRO_EXTEND_NONE)
+	_cairo_unbounded_rectangle_init (&op_extents);
+
+    _cairo_rectangle_intersect (&op_extents, &surface_entry->extents);
+    surface_entry->required_extents = op_extents;
+
     _cairo_pdf_source_surface_init_key (surface_entry);
 
     src_surface.hash_entry = surface_entry;
@@ -1503,9 +1526,10 @@ release_source:
     if (unlikely(status))
 	goto fail3;
 
-    *surface_res = surface_entry->surface_res;
+    if (source_pattern && source_pattern->type == CAIRO_PATTERN_TYPE_RASTER_SOURCE)
+	_cairo_pdf_surface_release_source_image_from_pattern (surface, source_pattern, image, image_extra);
 
-    return status;
+    return CAIRO_STATUS_SUCCESS;
 
 fail3:
     if (source_pattern && source_pattern->type == CAIRO_PATTERN_TYPE_RASTER_SOURCE)
@@ -1517,7 +1541,11 @@ fail2:
     free (surface_entry);
 
 fail1:
-    free (unique_id);
+    if (unique_id)
+	free (unique_id);
+
+    if (source_pattern && source_pattern->type == CAIRO_PATTERN_TYPE_RASTER_SOURCE)
+	_cairo_pdf_surface_release_source_image_from_pattern (surface, source_pattern, image, image_extra);
 
     return status;
 }
@@ -2166,6 +2194,7 @@ _cairo_pdf_surface_start_page (void *abstract_surface)
     }
 
     _cairo_pdf_group_resources_clear (&surface->resources);
+    surface->in_xobject = FALSE;
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -2179,6 +2208,7 @@ _cairo_pdf_surface_has_fallback_images (void		*abstract_surface,
     cairo_box_double_t bbox;
 
     surface->has_fallback_images = has_fallbacks;
+    surface->in_xobject = has_fallbacks;
     bbox.p1.x = 0;
     bbox.p1.y = 0;
     bbox.p2.x = surface->width;
@@ -2200,18 +2230,16 @@ static cairo_int_status_t
 _cairo_pdf_surface_add_padded_image_surface (cairo_pdf_surface_t          *surface,
 					     const cairo_pattern_t        *source,
 					     const cairo_rectangle_int_t  *extents,
-					     cairo_pdf_resource_t         *surface_res,
-					     int                          *width,
-					     int                          *height,
+					     cairo_pdf_source_surface_entry_t **pdf_source,
 					     double                       *x_offset,
-					     double                       *y_offset)
+					     double                       *y_offset,
+					     cairo_rectangle_int_t        *source_extents)
 {
     cairo_image_surface_t *image;
     cairo_surface_t *pad_image;
     void *image_extra;
     cairo_int_status_t status;
     int w, h;
-    cairo_rectangle_int_t extents2;
     cairo_box_t box;
     cairo_rectangle_int_t rect;
     cairo_surface_pattern_t pad_pattern;
@@ -2258,18 +2286,16 @@ _cairo_pdf_surface_add_padded_image_surface (cairo_pdf_surface_t          *surfa
     status = _cairo_pdf_surface_add_source_surface (surface,
 						    pad_image,
 						    NULL,
-						    FALSE,
+						    CAIRO_OPERATOR_OVER, /* not used for images */
 						    source->filter,
-						    FALSE,
-						    FALSE,
+						    FALSE, /* stencil mask */
+						    FALSE, /* smask */
+						    NULL, /* smask_res */
 						    extents,
-						    NULL,
-						    surface_res,
-						    width,
-						    height,
+						    pdf_source,
 						    x_offset,
 						    y_offset,
-						    &extents2);
+						    source_extents);
     if (unlikely (status))
         goto BAIL;
 
@@ -3001,6 +3027,7 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
 					   cairo_pdf_source_surface_t *pdf_source)
 {
     double old_width, old_height;
+    cairo_rectangle_int_t old_surface_extents;
     cairo_paginated_mode_t old_paginated_mode;
     cairo_surface_clipper_t old_clipper;
     cairo_bool_t old_in_xobject;
@@ -3017,9 +3044,9 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     cairo_recording_surface_t *recording;
 
     assert (pdf_source->type == CAIRO_PATTERN_TYPE_SURFACE);
-    extents = &pdf_source->hash_entry->extents;
-    width = pdf_source->hash_entry->width;
-    height = pdf_source->hash_entry->height;
+    extents = &pdf_source->hash_entry->required_extents;
+    width = pdf_source->hash_entry->extents.width;
+    height = pdf_source->hash_entry->extents.height;
     is_subsurface = FALSE;
     source = pdf_source->surface;
     if (_cairo_surface_is_snapshot (source))
@@ -3041,15 +3068,17 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     old_width = surface->width;
     old_height = surface->height;
     old_in_xobject = surface->in_xobject;
-
+    old_surface_extents = surface->surface_extents;
     old_paginated_mode = surface->paginated_mode;
     old_clipper = surface->clipper;
+    surface->surface_extents = *extents;
     _cairo_surface_clipper_init (&surface->clipper,
 				 _cairo_pdf_surface_clipper_intersect_clip_path);
 
     _cairo_pdf_surface_set_size_internal (surface, width, height);
     _cairo_pdf_operators_reset (&surface->pdf_operators);
     surface->in_xobject = TRUE;
+    surface->surface_extents = *extents;
 
     /* Patterns are emitted after fallback images. The paginated mode
      * needs to be set to _RENDER while the recording surface is replayed
@@ -3058,10 +3087,10 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     surface->paginated_mode = CAIRO_PAGINATED_MODE_RENDER;
     _cairo_pdf_group_resources_clear (&surface->resources);
     if (is_subsurface) {
-	bbox.p1.x = 0;
-	bbox.p1.y = 0;
-	bbox.p2.x = extents->width;
-	bbox.p2.y = extents->height;
+	bbox.p1.x = extents->x;
+	bbox.p1.y = extents->y;
+	bbox.p2.x = extents->x + extents->width;
+	bbox.p2.y = extents->y + extents->height;
     } else {
 	_get_bbox_from_extents (height, extents, &bbox);
     }
@@ -3108,6 +3137,7 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     _cairo_pdf_operators_reset (&surface->pdf_operators);
     surface->in_xobject = old_in_xobject;
     surface->paginated_mode = old_paginated_mode;
+    surface->surface_extents = old_surface_extents;
 
 err:
     cairo_surface_destroy (free_me);
@@ -3131,7 +3161,6 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 {
     cairo_pattern_t *pattern = pdf_pattern->pattern;
     cairo_int_status_t status;
-    cairo_pdf_resource_t pattern_resource = {0};
     cairo_matrix_t cairo_p2d, pdf_p2d;
     cairo_extend_t extend = cairo_pattern_get_extend (pattern);
     double xstep, ystep;
@@ -3141,41 +3170,45 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
     double x_offset;
     double y_offset;
     char draw_surface[200];
-    cairo_box_double_t     bbox;
+    cairo_box_double_t bbox;
     cairo_matrix_t mat;
+    cairo_pdf_source_surface_entry_t *pdf_source;
+    cairo_rectangle_int_t op_extents;
 
     if (pattern->extend == CAIRO_EXTEND_PAD) {
 	status = _cairo_pdf_surface_add_padded_image_surface (surface,
 							      pattern,
 							      &pdf_pattern->extents,
-							      &pattern_resource,
-							      &pattern_width,
-							      &pattern_height,
+							      &pdf_source,
 							      &x_offset,
-							      &y_offset);
-	pattern_extents.x = 0;
-	pattern_extents.y = 0;
-	pattern_extents.width = pattern_width;
-	pattern_extents.height = pattern_height;
+							      &y_offset,
+							      &op_extents);
     } else {
 	status = _cairo_pdf_surface_add_source_surface (surface,
 							NULL,
 							pattern,
 							pdf_pattern->operator,
 							pattern->filter,
-							FALSE,
-							FALSE,
+							FALSE, /* stencil mask */
+							FALSE, /* smask */
+							NULL, /* smask_res */
 							&pdf_pattern->extents,
-							NULL,
-							&pattern_resource,
-							&pattern_width,
-							&pattern_height,
+							&pdf_source,
 							&x_offset,
 							&y_offset,
-							&pattern_extents);
+							&op_extents);
     }
     if (unlikely (status))
 	return status;
+
+    pattern_extents = pdf_source->extents;
+    pattern_width = pdf_source->extents.width;
+    pattern_height = pdf_source->extents.height;
+    if (!pdf_source->bounded)
+    {
+	extend = CAIRO_EXTEND_NONE;
+	_cairo_rectangle_intersect (&pattern_extents, &op_extents);
+    }
 
     switch (extend) {
     case CAIRO_EXTEND_PAD:
@@ -3194,7 +3227,8 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 	 * repeat visibly.
 	 */
 	double x1 = 0.0, y1 = 0.0;
-	double x2 = surface->width, y2 = surface->height;
+	double x2 = surface->surface_extents.width;
+	double y2 = surface->surface_extents.height;
 	_cairo_matrix_transform_bounding_box (&pattern->matrix,
 					      &x1, &y1, &x2, &y2,
 					      NULL);
@@ -3207,20 +3241,21 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 			      pattern_width + pattern_height);
     }
     break;
+
     case CAIRO_EXTEND_REPEAT:
 	xstep = pattern_width;
 	ystep = pattern_height;
 	break;
+
     case CAIRO_EXTEND_REFLECT:
-	pattern_extents.x = 0;
-	pattern_extents.y = 0;
-	pattern_extents.width = pattern_width*2;
-	pattern_extents.height = pattern_height*2;
-	xstep = pattern_width*2;
-	ystep = pattern_height*2;
+	pattern_extents.width *= 2;
+	pattern_extents.height *= 2;
+	xstep = pattern_extents.width;
+	ystep = pattern_extents.height;
 	break;
-	/* All the rest (if any) should have been analyzed away, so this
-	 * case should be unreachable. */
+
+    /* All the rest (if any) should have been analyzed away, so this
+     * case should be unreachable. */
     default:
 	ASSERT_NOT_REACHED;
 	xstep = 0;
@@ -3265,7 +3300,7 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 	cairo_matrix_init (&mat, 1, 0, 0, -1, 0, surface->height);
 
     cairo_matrix_multiply (&pdf_p2d, &cairo_p2d, &mat);
-    cairo_matrix_translate (&pdf_p2d, -x_offset, -y_offset);
+    cairo_matrix_translate (&pdf_p2d, x_offset, y_offset);
     if (((cairo_surface_pattern_t *)pattern)->surface->type != CAIRO_SURFACE_TYPE_RECORDING)
     {
 	cairo_matrix_translate (&pdf_p2d, 0.0, pattern_height);
@@ -3290,8 +3325,8 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 					     pdf_p2d.xx, pdf_p2d.yx,
 					     pdf_p2d.xy, pdf_p2d.yy,
 					     pdf_p2d.x0, pdf_p2d.y0,
-					     pattern_resource.id,
-					     pattern_resource.id);
+					     pdf_source->surface_res.id,
+					     pdf_source->surface_res.id);
     if (unlikely (status))
 	return status;
 
@@ -3300,14 +3335,14 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 	snprintf(draw_surface,
 		 sizeof (draw_surface),
 		 "/x%d Do\n",
-		 pattern_resource.id);
+		 pdf_source->surface_res.id);
     } else {
 	snprintf(draw_surface,
 		 sizeof (draw_surface),
 		 "q %d 0 0 %d 0 0 cm /x%d Do Q",
 		 pattern_width,
 		 pattern_height,
-		 pattern_resource.id);
+		 pdf_source->surface_res.id);
     }
 
     if (extend == CAIRO_EXTEND_REFLECT) {
@@ -4245,15 +4280,7 @@ _cairo_pdf_surface_emit_mesh_pattern (cairo_pdf_surface_t    *surface,
 static cairo_int_status_t
 _cairo_pdf_surface_emit_pattern (cairo_pdf_surface_t *surface, cairo_pdf_pattern_t *pdf_pattern)
 {
-    double old_width, old_height;
     cairo_int_status_t status;
-
-    old_width = surface->width;
-    old_height = surface->height;
-    _cairo_pdf_surface_set_size_internal (surface,
-					  pdf_pattern->width,
-					  pdf_pattern->height);
-    _cairo_pdf_operators_reset (&surface->pdf_operators);
 
     switch (pdf_pattern->pattern->type) {
     case CAIRO_PATTERN_TYPE_SOLID:
@@ -4281,11 +4308,6 @@ _cairo_pdf_surface_emit_pattern (cairo_pdf_surface_t *surface, cairo_pdf_pattern
 	break;
     }
 
-    _cairo_pdf_surface_set_size_internal (surface,
-					  old_width,
-					  old_height);
-    _cairo_pdf_operators_reset (&surface->pdf_operators);
-
     return status;
 }
 
@@ -4297,14 +4319,12 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
 					  cairo_pdf_resource_t	       *smask_res,
 					  cairo_bool_t                  stencil_mask)
 {
-    cairo_pdf_resource_t surface_res;
-    int width, height;
     cairo_matrix_t cairo_p2d, pdf_p2d;
     cairo_int_status_t status;
     int alpha;
-    cairo_rectangle_int_t extents2;
     double x_offset;
     double y_offset;
+    cairo_pdf_source_surface_entry_t *pdf_source;
 
     if (source->extend == CAIRO_EXTEND_PAD &&
 	!(source->type == CAIRO_PATTERN_TYPE_SURFACE &&
@@ -4313,11 +4333,10 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
 	status = _cairo_pdf_surface_add_padded_image_surface (surface,
 							      source,
 							      extents,
-							      &surface_res,
-							      &width,
-							      &height,
+							      &pdf_source,
 							      &x_offset,
-							      &y_offset);
+							      &y_offset,
+							      NULL);
     } else {
 	status = _cairo_pdf_surface_add_source_surface (surface,
 							NULL,
@@ -4325,15 +4344,13 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
 							op,
 							source->filter,
 							stencil_mask,
-							FALSE,
-							extents,
+							FALSE, /* smask */
 							smask_res,
-							&surface_res,
-							&width,
-							&height,
+							extents,
+							&pdf_source,
 							&x_offset,
 							&y_offset,
-							&extents2);
+							NULL);
     }
     if (unlikely (status))
 	return status;
@@ -4349,9 +4366,9 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
     if (!(source->type == CAIRO_PATTERN_TYPE_SURFACE &&
 	  ((cairo_surface_pattern_t *)source)->surface->type == CAIRO_SURFACE_TYPE_RECORDING))
     {
-	cairo_matrix_translate (&pdf_p2d, 0.0, height);
+	cairo_matrix_translate (&pdf_p2d, 0.0, pdf_source->extents.height);
 	cairo_matrix_scale (&pdf_p2d, 1.0, -1.0);
-	cairo_matrix_scale (&pdf_p2d, width, height);
+	cairo_matrix_scale (&pdf_p2d, pdf_source->extents.width, pdf_source->extents.height);
     }
 
     status = _cairo_pdf_operators_flush (&surface->pdf_operators);
@@ -4370,15 +4387,15 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
     if (stencil_mask) {
 	_cairo_output_stream_printf (surface->output,
 				     "/x%d Do\n",
-				     surface_res.id);
+				     pdf_source->surface_res.id);
     } else {
 	_cairo_output_stream_printf (surface->output,
 				     "/a%d gs /x%d Do\n",
 				     alpha,
-				     surface_res.id);
+				     pdf_source->surface_res.id);
     }
 
-    return _cairo_pdf_surface_add_xobject (surface, surface_res);
+    return _cairo_pdf_surface_add_xobject (surface, pdf_source->surface_res);
 }
 
 static cairo_int_status_t
@@ -4664,15 +4681,7 @@ _cairo_pdf_surface_get_extents (void		        *abstract_surface,
 {
     cairo_pdf_surface_t *surface = abstract_surface;
 
-    rectangle->x = 0;
-    rectangle->y = 0;
-
-    /* XXX: The conversion to integers here is pretty bogus, (not to
-     * mention the arbitrary limitation of width to a short(!). We
-     * may need to come up with a better interface for get_size.
-     */
-    rectangle->width  = ceil (surface->width);
-    rectangle->height = ceil (surface->height);
+    *rectangle = surface->surface_extents;
 
     return TRUE;
 }
@@ -6744,7 +6753,6 @@ _cairo_pdf_surface_emit_combined_smask (cairo_pdf_surface_t         *surface,
     cairo_image_surface_t  *image;
     void		   *image_extra;
     cairo_image_transparency_t transparency;
-    cairo_pdf_resource_t smask_res;
     int src_width, src_height;
     int mask_width, mask_height;
     double src_x_offset, src_y_offset;
@@ -6753,8 +6761,8 @@ _cairo_pdf_surface_emit_combined_smask (cairo_pdf_surface_t         *surface,
     double mask_x1, mask_y1, mask_x2, mask_y2;
     cairo_matrix_t p2u;
     double src_radius, mask_radius, e;
-    cairo_rectangle_int_t extents2;
     cairo_bool_t need_smask;
+    cairo_pdf_source_surface_entry_t *pdf_source;
 
     /* Check that source and mask are images */
 
@@ -6873,16 +6881,14 @@ _cairo_pdf_surface_emit_combined_smask (cairo_pdf_surface_t         *surface,
 							mask,
 							op,
 							source->filter,
-							FALSE,
-							TRUE,
+							FALSE, /* stencil mask */
+							TRUE, /* smask */
+							NULL, /* smask_res */
 							extents,
+							&pdf_source,
 							NULL,
-							&smask_res,
-							&mask_width,
-							&mask_height,
-							&mask_x_offset,
-							&mask_y_offset,
-							&extents2);
+							NULL,
+							NULL);
 	if (unlikely (status))
 	    return status;
     }
@@ -6893,7 +6899,7 @@ _cairo_pdf_surface_emit_combined_smask (cairo_pdf_surface_t         *surface,
 
     _cairo_output_stream_printf (surface->output, "q\n");
     status = _cairo_pdf_surface_paint_surface_pattern (surface, op, source, extents,
-						       need_smask ? &smask_res : NULL,
+						       need_smask ? &pdf_source->smask_res : NULL,
 						       FALSE);
     if (unlikely (status))
 	return status;
@@ -7010,7 +7016,7 @@ _cairo_pdf_surface_paint (void			*abstract_surface,
 	status = _cairo_pdf_surface_analyze_operation (surface, op, source, &extents.bounded);
 	goto cleanup;
     } else if (surface->paginated_mode == CAIRO_PAGINATED_MODE_FALLBACK) {
-	status = _cairo_pdf_surface_start_fallback (surface);
+	status = _cairo_pdf_surface_start_fallback  (surface);
 	if (unlikely (status))
 	    goto cleanup;
     }
@@ -7091,8 +7097,11 @@ _cairo_pdf_surface_paint (void			*abstract_surface,
 	    goto cleanup;
 
 	_cairo_output_stream_printf (surface->output,
-				     "0 0 %f %f re f\n",
-				     surface->width, surface->height);
+				     "%d %d %d %d re f\n",
+				     surface->surface_extents.x,
+				     surface->surface_extents.y,
+				     surface->surface_extents.width,
+				     surface->surface_extents.height);
 
 	status = _cairo_pdf_surface_unselect_pattern (surface);
 	if (unlikely (status))
@@ -7887,6 +7896,12 @@ _cairo_pdf_surface_set_paginated_mode (void			*abstract_surface,
     cairo_pdf_surface_t *surface = abstract_surface;
 
     surface->paginated_mode = paginated_mode;
+    if (paginated_mode == CAIRO_PAGINATED_MODE_RENDER) {
+	surface->surface_extents.x = 0;
+	surface->surface_extents.y = 0;
+	surface->surface_extents.width  = ceil (surface->width);
+	surface->surface_extents.height = ceil (surface->height);
+    }
 }
 
 static const cairo_surface_backend_t cairo_pdf_surface_backend = {

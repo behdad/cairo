@@ -1781,6 +1781,9 @@ _cairo_matrix_to_pixman_matrix_offset (const cairo_matrix_t	*matrix,
 				       int                      *out_x_offset,
 				       int                      *out_y_offset);
 
+cairo_private void
+_cairo_debug_print_matrix (FILE *file, const cairo_matrix_t *matrix);
+
 cairo_private cairo_status_t
 _cairo_bentley_ottmann_tessellate_rectilinear_polygon (cairo_traps_t	 *traps,
 						       const cairo_polygon_t *polygon,
@@ -2062,7 +2065,7 @@ _cairo_debug_check_image_surface_is_defined (const cairo_surface_t *surface);
 #endif
 
 cairo_private void
-_cairo_debug_print_path (FILE *stream, cairo_path_fixed_t *path);
+_cairo_debug_print_path (FILE *stream, const cairo_path_fixed_t *path);
 
 cairo_private void
 _cairo_debug_print_polygon (FILE *stream, cairo_polygon_t *polygon);

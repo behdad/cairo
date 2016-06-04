@@ -4607,7 +4607,36 @@ static void
 _cairo_debug_print_surface_pattern (FILE *file,
 				    const cairo_surface_pattern_t *pattern)
 {
-    printf ("  surface type: %d\n", pattern->surface->type);
+    const char *s;
+    switch (pattern->surface->type) {
+    case CAIRO_SURFACE_TYPE_IMAGE: s = "image"; break;
+    case CAIRO_SURFACE_TYPE_PDF: s = "pdf"; break;
+    case CAIRO_SURFACE_TYPE_PS: s = "ps"; break;
+    case CAIRO_SURFACE_TYPE_XLIB: s = "xlib"; break;
+    case CAIRO_SURFACE_TYPE_XCB: s = "xcb"; break;
+    case CAIRO_SURFACE_TYPE_GLITZ: s = "glitz"; break;
+    case CAIRO_SURFACE_TYPE_QUARTZ: s = "quartz"; break;
+    case CAIRO_SURFACE_TYPE_WIN32: s = "win32"; break;
+    case CAIRO_SURFACE_TYPE_BEOS: s = "beos"; break;
+    case CAIRO_SURFACE_TYPE_DIRECTFB: s = "directfb"; break;
+    case CAIRO_SURFACE_TYPE_SVG: s = "svg"; break;
+    case CAIRO_SURFACE_TYPE_OS2: s = "os2"; break;
+    case CAIRO_SURFACE_TYPE_WIN32_PRINTING: s = "win32_printing"; break;
+    case CAIRO_SURFACE_TYPE_QUARTZ_IMAGE: s = "quartz_image"; break;
+    case CAIRO_SURFACE_TYPE_SCRIPT: s = "script"; break;
+    case CAIRO_SURFACE_TYPE_QT: s = "qt"; break;
+    case CAIRO_SURFACE_TYPE_RECORDING: s = "recording"; break;
+    case CAIRO_SURFACE_TYPE_VG: s = "vg"; break;
+    case CAIRO_SURFACE_TYPE_GL: s = "gl"; break;
+    case CAIRO_SURFACE_TYPE_DRM: s = "drm"; break;
+    case CAIRO_SURFACE_TYPE_TEE: s = "tee"; break;
+    case CAIRO_SURFACE_TYPE_XML: s = "xml"; break;
+    case CAIRO_SURFACE_TYPE_SKIA: s = "skia"; break;
+    case CAIRO_SURFACE_TYPE_SUBSURFACE: s = "subsurface"; break;
+    case CAIRO_SURFACE_TYPE_COGL: s = "cogl"; break;
+    default: s = "invalid"; ASSERT_NOT_REACHED; break;
+    }
+    fprintf (file, "  surface type: %s\n", s);
 }
 
 static void

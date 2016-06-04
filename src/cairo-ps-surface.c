@@ -109,7 +109,7 @@
 
 /**
  * CAIRO_HAS_PS_SURFACE:
- * 
+ *
  * Defined if the PostScript surface backend is available.
  * This macro can be used to conditionally compile backend-specific code.
  *
@@ -670,7 +670,7 @@ _cairo_ps_surface_emit_type3_font_subset (cairo_ps_surface_t		*surface,
     _cairo_output_stream_printf (surface->final_stream,
 				 "8 dict begin\n"
 				 "/FontType 3 def\n"
-				 "/FontMatrix [1 0 0 1 0 0] def\n"
+				 "/FontMatrix [1 0 0 -1 0 0] def\n"
 				 "/Encoding 256 array def\n"
 				 "0 1 255 { Encoding exch /.notdef put } for\n");
 
@@ -1053,7 +1053,7 @@ _cairo_ps_surface_create_for_stream_internal (cairo_output_stream_t *stream,
     surface->ps_level_used = CAIRO_PS_LEVEL_2;
     surface->width  = width;
     surface->height = height;
-    cairo_matrix_init (&surface->cairo_to_ps, 1, 0, 0, -1, 0, height);
+    cairo_matrix_init (&surface->cairo_to_ps, 1, 0, 0, 1, 0, 0);
     surface->paginated_mode = CAIRO_PAGINATED_MODE_ANALYZE;
     surface->force_fallbacks = FALSE;
     surface->content = CAIRO_CONTENT_COLOR_ALPHA;
@@ -1401,7 +1401,7 @@ cairo_ps_surface_set_size (cairo_surface_t	*surface,
 
     ps_surface->width = width_in_points;
     ps_surface->height = height_in_points;
-    cairo_matrix_init (&ps_surface->cairo_to_ps, 1, 0, 0, -1, 0, height_in_points);
+    cairo_matrix_init (&ps_surface->cairo_to_ps, 1, 0, 0, 1, 0, 0);
     _cairo_pdf_operators_set_cairo_to_pdf_matrix (&ps_surface->pdf_operators,
 						  &ps_surface->cairo_to_ps);
     status = _cairo_paginated_surface_set_size (ps_surface->paginated_surface,
@@ -2980,7 +2980,7 @@ _cairo_ps_surface_emit_recording_surface (cairo_ps_surface_t          *surface,
 
     surface->current_pattern_is_solid_color = FALSE;
     _cairo_pdf_operators_reset (&surface->pdf_operators);
-    cairo_matrix_init (&surface->cairo_to_ps, 1, 0, 0, -1, 0, surface->height);
+    cairo_matrix_init (&surface->cairo_to_ps, 1, 0, 0, 1, 0, 0);
     _cairo_pdf_operators_set_cairo_to_pdf_matrix (&surface->pdf_operators,
 						  &surface->cairo_to_ps);
     _cairo_output_stream_printf (surface->stream, "  q\n");
@@ -3232,8 +3232,12 @@ _cairo_ps_surface_paint_surface (cairo_ps_surface_t     *surface,
     ps_p2d = surface->cairo_to_ps;
     cairo_matrix_multiply (&ps_p2d, &cairo_p2d, &ps_p2d);
     cairo_matrix_translate (&ps_p2d, x_offset, y_offset);
-    cairo_matrix_translate (&ps_p2d, 0.0, height);
-    cairo_matrix_scale (&ps_p2d, 1.0, -1.0);
+    if (!(pattern->type == CAIRO_PATTERN_TYPE_SURFACE &&
+          ((cairo_surface_pattern_t *)pattern)->surface->type == CAIRO_SURFACE_TYPE_RECORDING))
+    {
+	cairo_matrix_translate (&ps_p2d, 0.0, height);
+	cairo_matrix_scale (&ps_p2d, 1.0, -1.0);
+    }
 
     if (! _cairo_matrix_is_identity (&ps_p2d)) {
 	_cairo_output_stream_printf (surface->stream, "[ ");
@@ -3421,11 +3425,13 @@ _cairo_ps_surface_emit_surface_pattern (cairo_ps_surface_t      *surface,
     assert (status == CAIRO_STATUS_SUCCESS);
 
     cairo_matrix_init_identity (&ps_p2d);
-    cairo_matrix_translate (&ps_p2d, 0.0, surface->height);
-    cairo_matrix_scale (&ps_p2d, 1.0, -1.0);
     cairo_matrix_multiply (&ps_p2d, &cairo_p2d, &ps_p2d);
-    cairo_matrix_translate (&ps_p2d, 0.0, pattern_height);
-    cairo_matrix_scale (&ps_p2d, 1.0, -1.0);
+
+    if (((cairo_surface_pattern_t *)pattern)->surface->type != CAIRO_SURFACE_TYPE_RECORDING)
+    {
+	cairo_matrix_translate (&ps_p2d, 0.0, pattern_height);
+	cairo_matrix_scale (&ps_p2d, 1.0, -1.0);
+    }
 
     _cairo_output_stream_printf (surface->stream, "[ ");
     _cairo_output_stream_print_matrix (surface->stream, &ps_p2d);
@@ -4547,11 +4553,13 @@ _cairo_ps_surface_set_bounding_box (void		*abstract_surface,
 
     _cairo_output_stream_printf (surface->stream,
                                  "%%%%EndPageSetup\n"
-				 "q %d %d %d %d rectclip q\n",
+				 "q %d %d %d %d rectclip\n"
+                                 "1 0 0 -1 0 %f cm q\n",
 				 surface->page_bbox.x,
 				 surface->page_bbox.y,
 				 surface->page_bbox.width,
-				 surface->page_bbox.height);
+				 surface->page_bbox.height,
+				 surface->height);
 
     if (surface->num_pages == 1) {
 	surface->bbox_x1 = x1;

@@ -97,6 +97,17 @@ typedef struct _cairo_pdf_pattern {
     cairo_pdf_resource_t gstate_res;
     cairo_operator_t operator;
     cairo_bool_t is_shading;
+
+    /* PDF pattern space is the pattern matrix concatenated with the
+     * initial space of the parent object. If the parent object is the
+     * page, the intial space does not include the Y-axis flipping
+     * matrix emitted at the start of the page content stream.  If the
+     * parent object is not the page content stream, the initial space
+     * will have a flipped Y-axis. The inverted_y_axis flag is true
+     * when the initial space of the parent object that is drawing
+     * this pattern has a flipped Y-axis.
+     */
+    cairo_bool_t inverted_y_axis;
 } cairo_pdf_pattern_t;
 
 typedef enum _cairo_pdf_operation {
@@ -150,6 +161,7 @@ struct _cairo_pdf_surface {
     double width;
     double height;
     cairo_matrix_t cairo_to_pdf;
+    cairo_bool_t in_xobject;
 
     cairo_array_t objects;
     cairo_array_t pages;

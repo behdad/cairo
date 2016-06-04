@@ -300,9 +300,6 @@ _cairo_pdf_surface_set_size_internal (cairo_pdf_surface_t *surface,
 {
     surface->width = width;
     surface->height = height;
-    cairo_matrix_init (&surface->cairo_to_pdf, 1, 0, 0, -1, 0, height);
-    _cairo_pdf_operators_set_cairo_to_pdf_matrix (&surface->pdf_operators,
-						  &surface->cairo_to_pdf);
 }
 
 static cairo_bool_t
@@ -373,7 +370,8 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     surface->output = output;
     surface->width = width;
     surface->height = height;
-    cairo_matrix_init (&surface->cairo_to_pdf, 1, 0, 0, -1, 0, height);
+    cairo_matrix_init (&surface->cairo_to_pdf, 1, 0, 0, 1, 0, 0);
+    surface->in_xobject = FALSE;
 
     _cairo_array_init (&surface->objects, sizeof (cairo_pdf_object_t));
     _cairo_array_init (&surface->pages, sizeof (cairo_pdf_resource_t));
@@ -1259,6 +1257,8 @@ _get_source_surface_size (cairo_surface_t         *source,
 	    cairo_surface_subsurface_t *sub = (cairo_surface_subsurface_t *) source;
 
 	    *extents = sub->extents;
+	    extents->x = 0;
+	    extents->y = 0;
 	    *width  = extents->width;
 	    *height = extents->height;
 	} else {
@@ -1586,6 +1586,10 @@ _cairo_pdf_surface_add_pdf_pattern_or_shading (cairo_pdf_surface_t	   *surface,
 
     *pattern_res = pdf_pattern.pattern_res;
     *gstate_res = pdf_pattern.gstate_res;
+    /* If the pattern requires a gstate it will be drawn from within
+     * an XObject. The initial space of each XObject has an inverted
+     * Y-axis. */
+    pdf_pattern.inverted_y_axis = pdf_pattern.gstate_res.id ? TRUE : surface->in_xobject;
 
     status = _cairo_array_append (&surface->page_patterns, &pdf_pattern);
     if (unlikely (status)) {
@@ -1603,9 +1607,9 @@ _get_bbox_from_extents (double                       surface_height,
 		       cairo_box_double_t          *bbox)
 {
     bbox->p1.x = extents->x;
-    bbox->p1.y = surface_height - (extents->y + extents->height);
+    bbox->p1.y = extents->y;
     bbox->p2.x = extents->x + extents->width;
-    bbox->p2.y = surface_height - extents->y;
+    bbox->p2.y = extents->y + extents->height;
 }
 
 static cairo_int_status_t
@@ -1707,6 +1711,7 @@ _cairo_pdf_surface_open_stream (cairo_pdf_surface_t	*surface,
         surface->output = output;
 	_cairo_pdf_operators_set_stream (&surface->pdf_operators, surface->output);
     }
+    _cairo_pdf_operators_reset (&surface->pdf_operators);
 
     return _cairo_output_stream_get_status (surface->output);
 }
@@ -1967,6 +1972,9 @@ _cairo_pdf_surface_open_content_stream (cairo_pdf_surface_t       *surface,
 					    resource,
 					    surface->compress_content,
 					    NULL);
+	_cairo_output_stream_printf (surface->output,
+				     "1 0 0 -1 0 %f cm\n",
+				     surface->height);
     }
     if (unlikely (status))
 	return status;
@@ -1974,6 +1982,7 @@ _cairo_pdf_surface_open_content_stream (cairo_pdf_surface_t       *surface,
     surface->content = surface->pdf_stream.self;
 
     _cairo_output_stream_printf (surface->output, "q\n");
+    _cairo_pdf_operators_reset (&surface->pdf_operators);
 
     return _cairo_output_stream_get_status (surface->output);
 }
@@ -2994,6 +3003,7 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     double old_width, old_height;
     cairo_paginated_mode_t old_paginated_mode;
     cairo_surface_clipper_t old_clipper;
+    cairo_bool_t old_in_xobject;
     cairo_box_double_t bbox;
     cairo_int_status_t status;
     int alpha = 0;
@@ -3030,12 +3040,16 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
 
     old_width = surface->width;
     old_height = surface->height;
+    old_in_xobject = surface->in_xobject;
+
     old_paginated_mode = surface->paginated_mode;
     old_clipper = surface->clipper;
     _cairo_surface_clipper_init (&surface->clipper,
 				 _cairo_pdf_surface_clipper_intersect_clip_path);
 
     _cairo_pdf_surface_set_size_internal (surface, width, height);
+    _cairo_pdf_operators_reset (&surface->pdf_operators);
+    surface->in_xobject = TRUE;
 
     /* Patterns are emitted after fallback images. The paginated mode
      * needs to be set to _RENDER while the recording surface is replayed
@@ -3091,6 +3105,8 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     _cairo_pdf_surface_set_size_internal (surface,
 					  old_width,
 					  old_height);
+    _cairo_pdf_operators_reset (&surface->pdf_operators);
+    surface->in_xobject = old_in_xobject;
     surface->paginated_mode = old_paginated_mode;
 
 err:
@@ -3126,6 +3142,7 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
     double y_offset;
     char draw_surface[200];
     cairo_box_double_t     bbox;
+    cairo_matrix_t mat;
 
     if (pattern->extend == CAIRO_EXTEND_PAD) {
 	status = _cairo_pdf_surface_add_padded_image_surface (surface,
@@ -3242,10 +3259,18 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
     /* cairo_pattern_set_matrix ensures the matrix is invertible */
     assert (status == CAIRO_INT_STATUS_SUCCESS);
 
-    cairo_matrix_multiply (&pdf_p2d, &cairo_p2d, &surface->cairo_to_pdf);
+    if (pdf_pattern->inverted_y_axis)
+	cairo_matrix_init (&mat, 1, 0, 0, 1, 0, 0);
+    else
+	cairo_matrix_init (&mat, 1, 0, 0, -1, 0, surface->height);
+
+    cairo_matrix_multiply (&pdf_p2d, &cairo_p2d, &mat);
     cairo_matrix_translate (&pdf_p2d, -x_offset, -y_offset);
-    cairo_matrix_translate (&pdf_p2d, 0.0, pattern_height);
-    cairo_matrix_scale (&pdf_p2d, 1.0, -1.0);
+    if (((cairo_surface_pattern_t *)pattern)->surface->type != CAIRO_SURFACE_TYPE_RECORDING)
+    {
+	cairo_matrix_translate (&pdf_p2d, 0.0, pattern_height);
+	cairo_matrix_scale (&pdf_p2d, 1.0, -1.0);
+    }
 
     _get_bbox_from_extents (pattern_height, &pattern_extents, &bbox);
     _cairo_pdf_surface_update_object (surface, pdf_pattern->pattern_res);
@@ -3923,6 +3948,7 @@ _cairo_pdf_surface_emit_gradient (cairo_pdf_surface_t    *surface,
     cairo_circle_double_t start, end;
     double domain[2];
     cairo_int_status_t status;
+    cairo_matrix_t mat;
 
     assert (pattern->n_stops != 0);
 
@@ -3937,7 +3963,13 @@ _cairo_pdf_surface_emit_gradient (cairo_pdf_surface_t    *surface,
     status = cairo_matrix_invert (&pat_to_pdf);
     /* cairo_pattern_set_matrix ensures the matrix is invertible */
     assert (status == CAIRO_INT_STATUS_SUCCESS);
-    cairo_matrix_multiply (&pat_to_pdf, &pat_to_pdf, &surface->cairo_to_pdf);
+
+    if (pdf_pattern->inverted_y_axis)
+       cairo_matrix_init (&mat, 1, 0, 0, 1, 0, 0);
+    else
+       cairo_matrix_init (&mat, 1, 0, 0, -1, 0, surface->height);
+
+    cairo_matrix_multiply (&pat_to_pdf, &pat_to_pdf, &mat);
 
     if (pattern->base.extend == CAIRO_EXTEND_REPEAT ||
 	pattern->base.extend == CAIRO_EXTEND_REFLECT)
@@ -4069,13 +4101,19 @@ _cairo_pdf_surface_emit_mesh_pattern (cairo_pdf_surface_t    *surface,
     cairo_pdf_shading_t shading;
     int i;
     cairo_pdf_resource_t res;
+    cairo_matrix_t mat;
 
     pat_to_pdf = pattern->matrix;
     status = cairo_matrix_invert (&pat_to_pdf);
     /* cairo_pattern_set_matrix ensures the matrix is invertible */
     assert (status == CAIRO_INT_STATUS_SUCCESS);
 
-    cairo_matrix_multiply (&pat_to_pdf, &pat_to_pdf, &surface->cairo_to_pdf);
+    if (pdf_pattern->inverted_y_axis)
+	cairo_matrix_init (&mat, 1, 0, 0, 1, 0, 0);
+    else
+	cairo_matrix_init (&mat, 1, 0, 0, -1, 0, surface->height);
+
+    cairo_matrix_multiply (&pat_to_pdf, &pat_to_pdf, &mat);
 
     status = _cairo_pdf_shading_init_color (&shading, (cairo_mesh_pattern_t *) pattern);
     if (unlikely (status))
@@ -4215,6 +4253,7 @@ _cairo_pdf_surface_emit_pattern (cairo_pdf_surface_t *surface, cairo_pdf_pattern
     _cairo_pdf_surface_set_size_internal (surface,
 					  pdf_pattern->width,
 					  pdf_pattern->height);
+    _cairo_pdf_operators_reset (&surface->pdf_operators);
 
     switch (pdf_pattern->pattern->type) {
     case CAIRO_PATTERN_TYPE_SOLID:
@@ -4245,6 +4284,7 @@ _cairo_pdf_surface_emit_pattern (cairo_pdf_surface_t *surface, cairo_pdf_pattern
     _cairo_pdf_surface_set_size_internal (surface,
 					  old_width,
 					  old_height);
+    _cairo_pdf_operators_reset (&surface->pdf_operators);
 
     return status;
 }
@@ -4306,11 +4346,11 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
     pdf_p2d = surface->cairo_to_pdf;
     cairo_matrix_multiply (&pdf_p2d, &cairo_p2d, &pdf_p2d);
     cairo_matrix_translate (&pdf_p2d, x_offset, y_offset);
-    cairo_matrix_translate (&pdf_p2d, 0.0, height);
-    cairo_matrix_scale (&pdf_p2d, 1.0, -1.0);
     if (!(source->type == CAIRO_PATTERN_TYPE_SURFACE &&
 	  ((cairo_surface_pattern_t *)source)->surface->type == CAIRO_SURFACE_TYPE_RECORDING))
     {
+	cairo_matrix_translate (&pdf_p2d, 0.0, height);
+	cairo_matrix_scale (&pdf_p2d, 1.0, -1.0);
 	cairo_matrix_scale (&pdf_p2d, width, height);
     }
 
@@ -5859,16 +5899,16 @@ _cairo_pdf_surface_emit_type3_font_subset (cairo_pdf_surface_t		*surface,
 				 "<< /Type /Font\n"
 				 "   /Subtype /Type3\n"
 				 "   /FontBBox [%f %f %f %f]\n"
-				 "   /FontMatrix [ 1 0 0 1 0 0 ]\n"
+				 "   /FontMatrix [ 1 0 0 -1 0 0 ]\n"
 				 "   /Encoding %d 0 R\n"
 				 "   /CharProcs %d 0 R\n"
 				 "   /FirstChar 0\n"
 				 "   /LastChar %d\n",
 				 subset_resource.id,
 				 _cairo_fixed_to_double (font_bbox.p1.x),
-				 - _cairo_fixed_to_double (font_bbox.p2.y),
+				 _cairo_fixed_to_double (font_bbox.p1.y),
 				 _cairo_fixed_to_double (font_bbox.p2.x),
-				 - _cairo_fixed_to_double (font_bbox.p1.y),
+				 _cairo_fixed_to_double (font_bbox.p2.y),
 				 encoding.id,
 				 char_procs.id,
 				 font_subset->num_glyphs - 1);
@@ -6228,14 +6268,18 @@ _cairo_pdf_surface_write_smask_group (cairo_pdf_surface_t     *surface,
 				      cairo_pdf_smask_group_t *group)
 {
     double old_width, old_height;
+    cairo_bool_t old_in_xobject;
     cairo_int_status_t status;
     cairo_box_double_t bbox;
 
     old_width = surface->width;
     old_height = surface->height;
+    old_in_xobject = surface->in_xobject;
+    surface->in_xobject = TRUE;
     _cairo_pdf_surface_set_size_internal (surface,
 					  group->width,
 					  group->height);
+    _cairo_pdf_operators_reset (&surface->pdf_operators);
     /* _mask is a special case that requires two groups - source
      * and mask as well as a smask and gstate dictionary */
     if (group->operation == PDF_MASK) {
@@ -6295,9 +6339,11 @@ _cairo_pdf_surface_write_smask_group (cairo_pdf_surface_t     *surface,
     status = _cairo_pdf_surface_close_group (surface, NULL);
 
 RESTORE_SIZE:
+    surface->in_xobject = old_in_xobject;
     _cairo_pdf_surface_set_size_internal (surface,
 					  old_width,
 					  old_height);
+    _cairo_pdf_operators_reset (&surface->pdf_operators);
 
     return status;
 }

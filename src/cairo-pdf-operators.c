@@ -1492,9 +1492,6 @@ _cairo_pdf_operators_show_text_glyphs (cairo_pdf_operators_t	  *pdf_operators,
     cairo_matrix_init_scale (&invert_y_axis, 1, -1);
     text_matrix = scaled_font->scale;
 
-    /* Invert y axis in font space  */
-    cairo_matrix_multiply (&text_matrix, &text_matrix, &invert_y_axis);
-
     /* Invert y axis in device space  */
     cairo_matrix_multiply (&text_matrix, &invert_y_axis, &text_matrix);
 

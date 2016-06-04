@@ -1679,8 +1679,7 @@ _cairo_recording_surface_replay_internal (cairo_recording_surface_t	*surface,
     cairo_surface_wrapper_t wrapper;
     cairo_command_t **elements;
     cairo_bool_t replay_all =
-	type == CAIRO_RECORDING_REPLAY &&
-	region == CAIRO_RECORDING_REGION_ALL;
+	type == CAIRO_RECORDING_CREATE_REGIONS || region == CAIRO_RECORDING_REGION_ALL;
     cairo_int_status_t status = CAIRO_STATUS_SUCCESS;
     cairo_rectangle_int_t extents;
     cairo_bool_t use_indices = FALSE;
@@ -1871,7 +1870,7 @@ _cairo_recording_surface_replay_internal (cairo_recording_surface_t	*surface,
 	    ASSERT_NOT_REACHED;
 	}
 
-	if (type == CAIRO_RECORDING_CREATE_REGIONS) {
+	if (type == CAIRO_RECORDING_CREATE_REGIONS && command->header.region != CAIRO_RECORDING_REGION_NATIVE) {
 	    if (status == CAIRO_INT_STATUS_SUCCESS) {
 		command->header.region = CAIRO_RECORDING_REGION_NATIVE;
 	    } else if (status == CAIRO_INT_STATUS_IMAGE_FALLBACK) {

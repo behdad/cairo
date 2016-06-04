@@ -417,7 +417,7 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     }
 
     surface->pdf_version = CAIRO_PDF_VERSION_1_5;
-    surface->compress_content = TRUE;
+    surface->compress_content = 0;
     surface->pdf_stream.active = FALSE;
     surface->pdf_stream.old_output = NULL;
     surface->group_stream.active = FALSE;
@@ -1320,20 +1320,20 @@ _get_source_surface_extents (cairo_surface_t         *source,
 
 /**
  * _cairo_pdf_surface_add_source_surface:
- * @surface: the pdf surface
- * @source_surface: A #cairo_surface_t to use as the source surface
- * @source_pattern: A #cairo_pattern_t of type SURFACE or RASTER_SOURCE to use as the source
- * @op: the operator used to composite this source
- * @filter: filter type of the source pattern
- * @stencil_mask: if true, the surface will be written to the PDF as an /ImageMask
- * @smask: if true, only the alpha channel will be written (images only)
- * @smask_res: if not NULL, the image written will specify this resource as the smask for
-   the image (images only)
- * @extents: extents of the operation that is using this source
- * @pdf_source: return pdf_source_surface entry in hash table
- * @x_offset: if not NULL return x offset of surface
- * @y_offset: if not NULL return y offset of surface
- * @source_extents: if not NULL return operation extents in source space
+ * @surface: [in] the pdf surface
+ * @source_surface: [in] A #cairo_surface_t to use as the source surface
+ * @source_pattern: [in] A #cairo_pattern_t of type SURFACE or RASTER_SOURCE to use as the source
+ * @op: [in] the operator used to composite this source
+ * @filter: [in] filter type of the source pattern
+ * @stencil_mask: [in] if true, the surface will be written to the PDF as an /ImageMask
+ * @smask: [in] if true, only the alpha channel will be written (images only)
+ * @extents: [in] extents of the operation that is using this source
+ * @smask_res: [out] if not NULL, the image written will specify this resource as the smask for
+ * the image (images only)
+ * @pdf_source: [out] return pdf_source_surface entry in hash table
+ * @x_offset: [out] if not NULL return x offset of surface
+ * @y_offset: [out] if not NULL return y offset of surface
+ * @source_extents: [out] if not NULL return operation extents in source space
  *
  * Add surface or raster_source pattern to list of surfaces to be
  * written to the PDF file when the current page is finished. Returns
@@ -1353,8 +1353,8 @@ _cairo_pdf_surface_add_source_surface (cairo_pdf_surface_t	         *surface,
 				       cairo_filter_t		          filter,
 				       cairo_bool_t                       stencil_mask,
 				       cairo_bool_t                       smask,
-				       cairo_pdf_resource_t	         *smask_res,
 				       const cairo_rectangle_int_t       *extents,
+				       cairo_pdf_resource_t	         *smask_res,
 				       cairo_pdf_source_surface_entry_t **pdf_source,
 				       double                            *x_offset,
 				       double                            *y_offset,
@@ -2291,8 +2291,8 @@ _cairo_pdf_surface_add_padded_image_surface (cairo_pdf_surface_t          *surfa
 						    source->filter,
 						    FALSE, /* stencil mask */
 						    FALSE, /* smask */
-						    NULL, /* smask_res */
 						    extents,
+						    NULL, /* smask_res */
 						    pdf_source,
 						    x_offset,
 						    y_offset,
@@ -3192,8 +3192,8 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 							pattern->filter,
 							FALSE, /* stencil mask */
 							FALSE, /* smask */
-							NULL, /* smask_res */
 							&pdf_pattern->extents,
+							NULL, /* smask_res */
 							&pdf_source,
 							&x_offset,
 							&y_offset,
@@ -4362,8 +4362,8 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
 							source->filter,
 							stencil_mask,
 							FALSE, /* smask */
-							smask_res,
 							extents,
+							smask_res,
 							&pdf_source,
 							&x_offset,
 							&y_offset,
@@ -6904,8 +6904,8 @@ _cairo_pdf_surface_emit_combined_smask (cairo_pdf_surface_t         *surface,
 							source->filter,
 							FALSE, /* stencil mask */
 							TRUE, /* smask */
-							NULL, /* smask_res */
 							extents,
+							NULL, /* smask_res */
 							&pdf_source,
 							NULL,
 							NULL,

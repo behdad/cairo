@@ -311,3 +311,11 @@ _cairo_debug_print_matrix (FILE *file, const cairo_matrix_t *matrix)
 	     matrix->xy, matrix->yy,
 	     matrix->x0, matrix->y0);
 }
+
+void
+_cairo_debug_print_rect (FILE *file, const cairo_rectangle_int_t *rect)
+{
+    fprintf (file, "x: %d y: %d width: %d height: %d\n",
+	     rect->x, rect->y,
+	     rect->width, rect->height);
+}

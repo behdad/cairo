@@ -109,10 +109,10 @@ Here are some of the relevant details:
 
   * Your system must have a copy of the DejaVu font, the sha1sum of
     the version used are listed in [...].  These are
-      "DejaVu Sans" (DejaVuSans.ttf) [1cd336329f45f241002ded61893d91e3acd04436];
-      "DejaVu Sans Mono" (DejaVuSansMono.ttf) [0458c0f0fb57f3eb8ced62f26fe7c5ed4e6a9a68];
-      "DejaVu Serif" (DejaVuSerif.ttf) [93502d0d0445d1fe1c9f51e51b3e0169266346ce];
-      [the DejaVu fonts can be installed from the ttf-dejavu 2.33-2 Debian package]
+      "DejaVu Sans" (DejaVuSans.ttf) [e9831ee4fd2e1d0ac54508a548c6a449545eba3f];
+      "DejaVu Sans Mono" (DejaVuSansMono.ttf) [25d854fbd0450a372615a26a8ef9a1024bd3efc6];
+      "DejaVu Serif" (DejaVuSerif.ttf) [78a81850dc7883969042cf3d6dfd18eea7e43e2f];
+      [the DejaVu fonts can be installed from the fonts-dejavu-core 2.34-1 Debian package]
     and also
       "Nimbus Sans L" (n019003l.pfb)
       [which can be found in the gsfonts Debian package].
@@ -130,7 +130,7 @@ Here are some of the relevant details:
     the fixes you will need to avoid false negatives from the test
     suite.
 
-  * To test the ps backend, you will need ghostscript version 9.04.
+  * To test the ps backend, you will need ghostscript version 9.06.
 
   * Testing the xlib backend is problematic since many X server
     drivers have bugs that are exercised by the test suite. (Or, if

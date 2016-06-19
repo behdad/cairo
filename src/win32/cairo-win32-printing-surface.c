@@ -389,7 +389,7 @@ _cairo_win32_printing_surface_analyze_operation (cairo_win32_printing_surface_t 
     if (pattern->type == CAIRO_PATTERN_TYPE_SURFACE) {
 	cairo_surface_pattern_t *surface_pattern = (cairo_surface_pattern_t *) pattern;
 
-	if ( _cairo_surface_is_recording (surface_pattern->surface))
+	if (surface_pattern->surface->type == CAIRO_SURFACE_TYPE_RECORDING)
 	    return CAIRO_INT_STATUS_ANALYZE_RECORDING_SURFACE_PATTERN;
     }
 

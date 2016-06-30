@@ -119,11 +119,7 @@ _cairo_clip_contains_rectangle (const cairo_clip_t *clip,
 {
     cairo_box_t box;
 
-    box.p1.x = _cairo_fixed_from_int (rect->x);
-    box.p1.y = _cairo_fixed_from_int (rect->y);
-    box.p2.x = _cairo_fixed_from_int (rect->x + rect->width);
-    box.p2.y = _cairo_fixed_from_int (rect->y + rect->height);
-
+    _cairo_box_from_rectangle_int (&box, rect);
     return _cairo_clip_contains_rectangle_box (clip, rect, &box);
 }
 
@@ -347,10 +343,7 @@ _cairo_clip_intersect_rectangle (cairo_clip_t       *clip,
     if (r->width == 0 || r->height == 0)
 	return _cairo_clip_set_all_clipped (clip);
 
-    box.p1.x = _cairo_fixed_from_int (r->x);
-    box.p1.y = _cairo_fixed_from_int (r->y);
-    box.p2.x = _cairo_fixed_from_int (r->x + r->width);
-    box.p2.y = _cairo_fixed_from_int (r->y + r->height);
+    _cairo_box_from_rectangle_int (&box, r);
 
     return _cairo_clip_intersect_rectangle_box (clip, r, &box);
 }

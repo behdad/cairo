@@ -264,6 +264,35 @@ _cairo_clip_intersect_box (cairo_clip_t *clip,
     return _cairo_clip_intersect_rectangle_box (clip, &r, box);
 }
 
+/**
+ * copy a box set to an clip
+ *
+ * @param	box	the box set to copy from
+ * @param	clip	the clip to copy to (return buffer)
+ * @result		zero if the allocation failed - the clip will be set to all-clipped
+ *			otherwise non-zero
+ */
+static cairo_bool_t
+_cairo_boxes_copy_to_clip (const cairo_boxes_t *boxes, cairo_clip_t *clip)
+{
+    /* XXX cow-boxes? */
+    if (boxes->num_boxes == 1) {
+	clip->boxes = &clip->embedded_box;
+	clip->boxes[0] = boxes->chunks.base[0];
+	clip->num_boxes = 1;
+	return TRUE;
+    }
+
+    clip->boxes = _cairo_boxes_to_array (boxes, &clip->num_boxes);
+    if (unlikely (clip->boxes == NULL))
+    {
+	_cairo_clip_set_all_clipped (clip);
+	return FALSE;
+    }
+
+    return TRUE;
+}
+
 cairo_clip_t *
 _cairo_clip_intersect_boxes (cairo_clip_t *clip,
 			     const cairo_boxes_t *boxes)
@@ -301,13 +330,10 @@ _cairo_clip_intersect_boxes (cairo_clip_t *clip,
     if (boxes->num_boxes == 0) {
 	clip = _cairo_clip_set_all_clipped (clip);
 	goto out;
-    } else if (boxes->num_boxes == 1) {
-	clip->boxes = &clip->embedded_box;
-	clip->boxes[0] = boxes->chunks.base[0];
-	clip->num_boxes = 1;
-    } else {
-	clip->boxes = _cairo_boxes_to_array (boxes, &clip->num_boxes);
     }
+
+    _cairo_boxes_copy_to_clip (boxes, clip);
+
     _cairo_boxes_extents (boxes, &limits);
 
     _cairo_box_round_to_rectangle (&limits, &extents);
@@ -574,16 +600,8 @@ _cairo_clip_from_boxes (const cairo_boxes_t *boxes)
     if (clip == NULL)
 	return _cairo_clip_set_all_clipped (clip);
 
-    /* XXX cow-boxes? */
-    if(boxes->num_boxes == 1) {
-	clip->boxes = &clip->embedded_box;
-	clip->boxes[0] = boxes->chunks.base[0];
-	clip->num_boxes = 1;
-    } else {
-	clip->boxes = _cairo_boxes_to_array (boxes, &clip->num_boxes);
-	if (clip->boxes == NULL)
-	    return _cairo_clip_set_all_clipped (clip);
-    }
+    if (unlikely (! _cairo_boxes_copy_to_clip (boxes, clip)))
+	return clip;
 
     _cairo_boxes_extents (boxes, &extents);
     _cairo_box_round_to_rectangle (&extents, &clip->extents);

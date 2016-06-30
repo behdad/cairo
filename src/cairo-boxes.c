@@ -345,16 +345,13 @@ _cairo_boxes_clear (cairo_boxes_t *boxes)
  * */
 cairo_box_t *
 _cairo_boxes_to_array (const cairo_boxes_t *boxes,
-		       int *num_boxes,
-		       cairo_bool_t force_allocation)
+		       int *num_boxes)
 {
     const struct _cairo_boxes_chunk *chunk;
     cairo_box_t *box;
     int i, j;
 
     *num_boxes = boxes->num_boxes;
-    if (boxes->chunks.next == NULL && ! force_allocation)
-	    return boxes->chunks.base;
 
     box = _cairo_malloc_ab (boxes->num_boxes, sizeof (cairo_box_t));
     if (box == NULL) {

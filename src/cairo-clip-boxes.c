@@ -306,7 +306,7 @@ _cairo_clip_intersect_boxes (cairo_clip_t *clip,
 	clip->boxes[0] = boxes->chunks.base[0];
 	clip->num_boxes = 1;
     } else {
-	clip->boxes = _cairo_boxes_to_array (boxes, &clip->num_boxes, TRUE);
+	clip->boxes = _cairo_boxes_to_array (boxes, &clip->num_boxes);
     }
     _cairo_boxes_extents (boxes, &limits);
 
@@ -580,7 +580,7 @@ _cairo_clip_from_boxes (const cairo_boxes_t *boxes)
 	clip->boxes[0] = boxes->chunks.base[0];
 	clip->num_boxes = 1;
     } else {
-	clip->boxes = _cairo_boxes_to_array (boxes, &clip->num_boxes, TRUE);
+	clip->boxes = _cairo_boxes_to_array (boxes, &clip->num_boxes);
 	if (clip->boxes == NULL)
 	    return _cairo_clip_set_all_clipped (clip);
     }

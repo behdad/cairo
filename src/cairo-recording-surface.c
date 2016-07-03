@@ -684,21 +684,6 @@ _cairo_recording_surface_reset (cairo_recording_surface_t *surface)
     _cairo_array_init (&surface->commands, sizeof (cairo_command_t *));
 }
 
-static cairo_bool_t
-is_identity_recording_pattern (const cairo_pattern_t *pattern)
-{
-    cairo_surface_t *surface;
-
-    if (pattern->type != CAIRO_PATTERN_TYPE_SURFACE)
-	return FALSE;
-
-    if (!_cairo_matrix_is_identity(&pattern->matrix))
-	return FALSE;
-
-    surface = ((cairo_surface_pattern_t *)pattern)->surface;
-    return surface->backend->type == CAIRO_SURFACE_TYPE_RECORDING;
-}
-
 static cairo_int_status_t
 _cairo_recording_surface_paint (void			  *abstract_surface,
 				cairo_operator_t	   op,

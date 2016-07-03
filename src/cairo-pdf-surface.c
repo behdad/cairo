@@ -1270,7 +1270,6 @@ _get_source_surface_extents (cairo_surface_t         *source,
 	    *extents = sub->extents;
 	    *subsurface = TRUE;
 	} else {
-	    cairo_rectangle_int_t surf_extents;
 	    cairo_box_t box;
 
 	    if (! _cairo_surface_get_extents (source, extents)) {

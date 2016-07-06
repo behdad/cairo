@@ -49,7 +49,7 @@ COMPILE_TIME_ASSERT (CAIRO_INT_STATUS_LAST_STATUS <= 127);
  * @Title: Error handling
  * @Short_Description: Decoding cairo's status
  * @See_Also: cairo_status(), cairo_surface_status(), cairo_pattern_status(),
- *            cairo_font_face_status(), cairo_scaled_font_status(), 
+ *            cairo_font_face_status(), cairo_scaled_font_status(),
  *            cairo_region_status()
  *
  * Cairo uses a single status type to represent all kinds of errors.  A status

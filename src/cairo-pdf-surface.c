@@ -417,7 +417,7 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     }
 
     surface->pdf_version = CAIRO_PDF_VERSION_1_5;
-    surface->compress_content = 0;
+    surface->compress_content = TRUE;
     surface->pdf_stream.active = FALSE;
     surface->pdf_stream.old_output = NULL;
     surface->group_stream.active = FALSE;

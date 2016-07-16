@@ -372,7 +372,7 @@ _cairo_analysis_surface_operation_extents (cairo_analysis_surface_t *surface,
     if (_cairo_operator_bounded_by_source (op)) {
 	cairo_rectangle_int_t source_extents;
 
-	_cairo_pattern_get_extents (source, &source_extents);
+	_cairo_pattern_get_extents (source, &source_extents, surface->target->is_vector);
 	_cairo_rectangle_intersect (extents, &source_extents);
     }
 
@@ -474,7 +474,7 @@ _cairo_analysis_surface_mask (void			*abstract_surface,
     if (_cairo_operator_bounded_by_mask (op)) {
 	cairo_rectangle_int_t mask_extents;
 
-	_cairo_pattern_get_extents (mask, &mask_extents);
+	_cairo_pattern_get_extents (mask, &mask_extents, surface->target->is_vector);
 	_cairo_rectangle_intersect (&extents, &mask_extents);
     }
 

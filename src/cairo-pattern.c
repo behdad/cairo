@@ -3524,13 +3524,17 @@ _cairo_pattern_sampled_area (const cairo_pattern_t *pattern,
  * For unbounded patterns, the @extents will be initialized with
  * "infinite" extents, (minimum and maximum fixed-point values).
  *
+ * When is_vector is TRUE, avoid rounding to zero widths or heights that
+ * are less than 1 unit.
+ *
  * XXX: Currently, bounded gradient patterns will also return
  * "infinite" extents, though it would be possible to optimize these
  * with a little more work.
  **/
 void
 _cairo_pattern_get_extents (const cairo_pattern_t         *pattern,
-			    cairo_rectangle_int_t         *extents)
+			    cairo_rectangle_int_t         *extents,
+			    cairo_bool_t                   is_vector)
 {
     double x1, y1, x2, y2;
     int ix1, ix2, iy1, iy2;
@@ -3733,6 +3737,8 @@ _cairo_pattern_get_extents (const cairo_pattern_t         *pattern,
     else
 	ix2 = _cairo_lround (x2);
     extents->x = ix1; extents->width  = ix2 - ix1;
+    if (is_vector && extents->width == 0 && x1 != x2)
+	extents->width += 1;
 
     if (!round_y) {
 	y1 -= 0.5;
@@ -3746,7 +3752,9 @@ _cairo_pattern_get_extents (const cairo_pattern_t         *pattern,
 	iy2 = CAIRO_RECT_INT_MAX;
     else
 	iy2 = _cairo_lround (y2);
-    extents->y = iy1; extents->height = iy2 - iy1;
+    extents->y = iy1; extents->height = iy2 - iy1 + 1;
+    if (is_vector && extents->height == 0 && y1 != y2)
+	extents->height += 1;
 
     return;
 
@@ -3798,7 +3806,7 @@ _cairo_pattern_get_ink_extents (const cairo_pattern_t         *pattern,
 	}
     }
 
-    _cairo_pattern_get_extents (pattern, extents);
+    _cairo_pattern_get_extents (pattern, extents, TRUE);
     return CAIRO_STATUS_SUCCESS;
 }
 

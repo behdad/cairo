@@ -3752,7 +3752,7 @@ _cairo_pattern_get_extents (const cairo_pattern_t         *pattern,
 	iy2 = CAIRO_RECT_INT_MAX;
     else
 	iy2 = _cairo_lround (y2);
-    extents->y = iy1; extents->height = iy2 - iy1 + 1;
+    extents->y = iy1; extents->height = iy2 - iy1;
     if (is_vector && extents->height == 0 && y1 != y2)
 	extents->height += 1;
 

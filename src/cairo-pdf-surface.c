@@ -1327,7 +1327,7 @@ _get_source_surface_extents (cairo_surface_t         *source,
  * @stencil_mask: [in] if true, the surface will be written to the PDF as an /ImageMask
  * @smask: [in] if true, only the alpha channel will be written (images only)
  * @extents: [in] extents of the operation that is using this source
- * @smask_res: [out] if not NULL, the image written will specify this resource as the smask for
+ * @smask_res: [in] if not NULL, the image written will specify this resource as the smask for
  * the image (images only)
  * @pdf_source: [out] return pdf_source_surface entry in hash table
  * @x_offset: [out] if not NULL return x offset of surface
@@ -6925,7 +6925,7 @@ _cairo_pdf_surface_emit_combined_smask (cairo_pdf_surface_t         *surface,
 
     _cairo_output_stream_printf (surface->output, "q\n");
     status = _cairo_pdf_surface_paint_surface_pattern (surface, op, source, extents,
-						       need_smask ? &pdf_source->smask_res : NULL,
+						       need_smask ? &pdf_source->surface_res : NULL,
 						       FALSE);
     if (unlikely (status))
 	return status;

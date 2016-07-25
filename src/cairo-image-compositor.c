@@ -1763,7 +1763,7 @@ _fill16_spans (void *abstract_renderer, int y, int h,
 	    if (spans[0].coverage) {
 		int len = spans[1].x - spans[0].x;
 		uint16_t *d = (uint16_t*)(r->u.fill.data + r->u.fill.stride*y + spans[0].x*2);
-		while (len--)
+		while (len-- > 0)
 		    *d++ = r->u.fill.pixel;
 	    }
 	    spans++;
@@ -1775,7 +1775,7 @@ _fill16_spans (void *abstract_renderer, int y, int h,
 		do {
 		    int len = spans[1].x - spans[0].x;
 		    uint16_t *d = (uint16_t*)(r->u.fill.data + r->u.fill.stride*yy + spans[0].x*2);
-		    while (len--)
+		    while (len-- > 0)
 			*d++ = r->u.fill.pixel;
 		    yy++;
 		} while (--hh);
@@ -1805,7 +1805,7 @@ _fill32_spans (void *abstract_renderer, int y, int h,
 				 spans[0].x, y, len, 1, r->u.fill.pixel);
 		} else {
 		    uint32_t *d = (uint32_t*)(r->u.fill.data + r->u.fill.stride*y + spans[0].x*4);
-		    while (len--)
+		    while (len-- > 0)
 			*d++ = r->u.fill.pixel;
 		}
 	    }
@@ -1823,7 +1823,7 @@ _fill32_spans (void *abstract_renderer, int y, int h,
 		    do {
 			int len = spans[1].x - spans[0].x;
 			uint32_t *d = (uint32_t*)(r->u.fill.data + r->u.fill.stride*yy + spans[0].x*4);
-			while (len--)
+			while (len-- > 0)
 			    *d++ = r->u.fill.pixel;
 			yy++;
 		    } while (--hh);
@@ -2180,7 +2180,7 @@ _fill_a8_lerp_opaque_spans (void *abstract_renderer, int y, int h,
 		    uint8_t s = mul8_8(a, r->u.fill.pixel);
 		    uint8_t *dst = d + spans[0].x;
 		    a = ~a;
-		    while (len--) {
+		    while (len-- > 0) {
 			uint8_t t = mul8_8(*dst, a);
 			*dst++ = t + s;
 		    }
@@ -2206,7 +2206,7 @@ _fill_a8_lerp_opaque_spans (void *abstract_renderer, int y, int h,
 		    do {
 			int len = spans[1].x - spans[0].x;
 			uint8_t *d = r->u.fill.data + r->u.fill.stride*yy + spans[0].x;
-			while (len--) {
+			while (len-- > 0) {
 			    uint8_t t = mul8_8(*d, a);
 			    *d++ = t + s;
 			}
@@ -2266,7 +2266,7 @@ _fill_xrgb32_lerp_opaque_spans (void *abstract_renderer, int y, int h,
 			do {
 			    int len = spans[1].x - spans[0].x;
 			    uint32_t *d = (uint32_t*)(r->u.fill.data + r->u.fill.stride*yy + spans[0].x*4);
-			    while (len--)
+			    while (len-- > 0)
 				*d++ = r->u.fill.pixel;
 			    yy++;
 			} while (--hh);
@@ -2276,7 +2276,7 @@ _fill_xrgb32_lerp_opaque_spans (void *abstract_renderer, int y, int h,
 		    do {
 			int len = spans[1].x - spans[0].x;
 			uint32_t *d = (uint32_t *)(r->u.fill.data + r->u.fill.stride*yy + spans[0].x*4);
-			while (len--) {
+			while (len-- > 0) {
 			    *d = lerp8x4 (r->u.fill.pixel, a, *d);
 			    d++;
 			}
@@ -2308,7 +2308,7 @@ _fill_a8_lerp_spans (void *abstract_renderer, int y, int h,
 		uint8_t *d = r->u.fill.data + r->u.fill.stride*y + spans[0].x;
 		uint16_t p = (uint16_t)a * r->u.fill.pixel + 0x7f;
 		uint16_t ia = ~a;
-		while (len--) {
+		while (len-- > 0) {
 		    uint16_t t = *d*ia + p;
 		    *d++ = (t + (t>>8)) >> 8;
 		}
@@ -2325,7 +2325,7 @@ _fill_a8_lerp_spans (void *abstract_renderer, int y, int h,
 		do {
 		    int len = spans[1].x - spans[0].x;
 		    uint8_t *d = r->u.fill.data + r->u.fill.stride*yy + spans[0].x;
-		    while (len--) {
+		    while (len-- > 0) {
 			uint16_t t = *d*ia + p;
 			*d++ = (t + (t>>8)) >> 8;
 		    }
@@ -2354,7 +2354,7 @@ _fill_xrgb32_lerp_spans (void *abstract_renderer, int y, int h,
 	    if (a) {
 		int len = spans[1].x - spans[0].x;
 		uint32_t *d = (uint32_t*)(r->u.fill.data + r->u.fill.stride*y + spans[0].x*4);
-		while (len--) {
+		while (len-- > 0) {
 		    *d = lerp8x4 (r->u.fill.pixel, a, *d);
 		    d++;
 		}
@@ -2369,7 +2369,7 @@ _fill_xrgb32_lerp_spans (void *abstract_renderer, int y, int h,
 		do {
 		    int len = spans[1].x - spans[0].x;
 		    uint32_t *d = (uint32_t *)(r->u.fill.data + r->u.fill.stride*yy + spans[0].x*4);
-		    while (len--) {
+		    while (len-- > 0) {
 			*d = lerp8x4 (r->u.fill.pixel, a, *d);
 			d++;
 		    }
@@ -2407,7 +2407,7 @@ _blit_xrgb32_lerp_spans (void *abstract_renderer, int y, int h,
 		    else
 			memcpy(d, s, len*4);
 		} else {
-		    while (len--) {
+		    while (len-- > 0) {
 			*d = lerp8x4 (*s, a, *d);
 			s++, d++;
 		    }
@@ -2430,7 +2430,7 @@ _blit_xrgb32_lerp_spans (void *abstract_renderer, int y, int h,
 			else
 			    memcpy(d, s, len * 4);
 		    } else {
-			while (len--) {
+			while (len-- > 0) {
 			    *d = lerp8x4 (*s, a, *d);
 			    s++, d++;
 			}

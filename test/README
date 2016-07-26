@@ -21,9 +21,10 @@ The test suite needs to be run before any code is committed and before
 any release. See below for hints and rules governing the use of the suite.
 
 The test suite is built as a single binary, which allows you to choose
-individual or categories of tests to run. For example, if you want to
-run all text related tests you can use:
-    ./cairo-test-suite text
+individual or categories of tests to run. For example, to run specific tests:
+    ./cairo-test-suite record-neg-extents-unbounded record-neg-extents-bounded
+Or if you want to run all paint.* related tests you can use:
+    ./cairo-test-suite paint
 Or if you want to check the current status of known failures:
     ./cairo-test-suite XFAIL
 Or to run a subset of tests, use the -k option to run only the tests

@@ -2959,6 +2959,7 @@ _cairo_pdf_surface_emit_jpeg_image (cairo_pdf_surface_t              *surface,
 						 "   /Height %d\n"
 						 "   /ColorSpace %s\n"
 						 "   /Interpolate %s\n"
+						 "%s"
 						 "   /BitsPerComponent %d\n"
 						 "%s"
 						 "   /Filter /DCTDecode\n",
@@ -2966,6 +2967,7 @@ _cairo_pdf_surface_emit_jpeg_image (cairo_pdf_surface_t              *surface,
 						 info.height,
 						 colorspace,
 						 surface_entry->interpolate ? "true" : "false",
+						 info.is_adobe_jpeg && info.num_components == 4 ? "   /Decode [ 1 0 1 0 1 0 1 0 ]\n" : "",
 						 info.bits_per_component,
 						 smask_buf);
     }

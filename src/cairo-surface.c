@@ -914,8 +914,8 @@ _cairo_surface_create_scratch (cairo_surface_t	 *other,
  * @surface from being destroyed until a matching call to
  * cairo_surface_destroy() is made.
  *
- * The number of references to a #cairo_surface_t can be get using
- * cairo_surface_get_reference_count().
+ * Use cairo_surface_get_reference_count() to get the number of
+ * references to a #cairo_surface_t.
  *
  * Return value: the referenced #cairo_surface_t.
  *

@@ -1277,8 +1277,8 @@ _cairo_scaled_font_reset_static_data (void)
  * @scaled_font from being destroyed until a matching call to
  * cairo_scaled_font_destroy() is made.
  *
- * The number of references to a #cairo_scaled_font_t can be get using
- * cairo_scaled_font_get_reference_count().
+ * Use cairo_scaled_font_get_reference_count() to get the number of
+ * references to a #cairo_scaled_font_t.
  *
  * Returns: the referenced #cairo_scaled_font_t
  *

@@ -194,8 +194,8 @@ _cairo_device_init (cairo_device_t *device,
  * @device from being destroyed until a matching call to
  * cairo_device_destroy() is made.
  *
- * The number of references to a #cairo_device_t can be get using
- * cairo_device_get_reference_count().
+ * Use cairo_device_get_reference_count() to get the number of references
+ * to a #cairo_device_t.
  *
  * Return value: the referenced #cairo_device_t.
  *

@@ -478,8 +478,8 @@ _cairo_init (cairo_t *cr,
  * @cr from being destroyed until a matching call to cairo_destroy()
  * is made.
  *
- * The number of references to a #cairo_t can be get using
- * cairo_get_reference_count().
+ * Use cairo_get_reference_count() to get the number of references to
+ * a #cairo_t.
  *
  * Return value: the referenced #cairo_t.
  *

@@ -1073,8 +1073,8 @@ slim_hidden_def (cairo_pattern_reference);
  * cairo_pattern_get_type:
  * @pattern: a #cairo_pattern_t
  *
- * This function returns the type a pattern.
- * See #cairo_pattern_type_t for available types.
+ * Get the pattern's type.  See #cairo_pattern_type_t for available
+ * types.
  *
  * Return value: The type of @pattern.
  *

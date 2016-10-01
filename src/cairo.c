@@ -2667,6 +2667,55 @@ cairo_copy_clip_rectangle_list (cairo_t *cr)
 }
 
 /**
+ * cairo_tag_begin:
+ * @cr: a cairo context
+ * @tag_name: tag name
+ * @attributes: tag attributes
+ *
+ * Marks the beginning of the @tag_name structure. Call
+ * cairo_tag_end() with the same @tag_name to mark the end of the
+ * structure.
+ *
+ * Since: 1.16
+ **/
+void
+cairo_tag_begin (cairo_t *cr, const char *tag_name, const char *attributes)
+{
+    cairo_status_t status;
+
+    if (unlikely (cr->status))
+	return;
+
+    status = cr->backend->tag_begin (cr, tag_name, attributes);
+    if (unlikely (status))
+	_cairo_set_error (cr, status);
+}
+
+/**
+ * cairo_tag_end:
+ * @cr: a cairo context
+ * @tag_name: tag name
+ *
+ * Marks the end of the @tag_name structure.
+ *
+ * See cairo_tag_begin().
+ *
+ * Since: 1.16
+ **/
+cairo_public void
+cairo_tag_end (cairo_t *cr, const char *tag_name)
+{
+    cairo_status_t status;
+
+    if (unlikely (cr->status))
+	return;
+
+    status = cr->backend->tag_end (cr, tag_name);
+    if (unlikely (status))
+	_cairo_set_error (cr, status);
+}
+
+/**
  * cairo_select_font_face:
  * @cr: a #cairo_t
  * @family: a font family name, encoded in UTF-8

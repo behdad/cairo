@@ -1024,6 +1024,14 @@ cairo_copy_clip_rectangle_list (cairo_t *cr);
 cairo_public void
 cairo_rectangle_list_destroy (cairo_rectangle_list_t *rectangle_list);
 
+/* Logical structure tagging functions */
+
+cairo_public void
+cairo_tag_begin (cairo_t *cr, const char *tag_name, const char *attributes);
+
+cairo_public void
+cairo_tag_end (cairo_t *cr, const char *tag_name);
+
 /* Font/Text functions */
 
 /**

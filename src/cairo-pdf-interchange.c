@@ -506,6 +506,99 @@ cairo_pdf_interchange_write_parent_tree (cairo_pdf_surface_t *surface)
     return CAIRO_STATUS_SUCCESS;
 }
 
+static cairo_int_status_t
+cairo_pdf_interchange_write_outline (cairo_pdf_surface_t *surface)
+{
+    int num_elems, i;
+    cairo_pdf_outline_entry_t *outline;
+    cairo_pdf_interchange_t *ic = &surface->interchange;
+    cairo_int_status_t status;
+    char *name = NULL;
+    char *dest = NULL;
+
+    num_elems = _cairo_array_num_elements (&ic->outline);
+    if (num_elems < 2)
+	return CAIRO_INT_STATUS_SUCCESS;
+
+    _cairo_array_copy_element (&ic->outline, 0, &outline);
+    outline->res = _cairo_pdf_surface_new_object (surface);
+    surface->outlines_dict_res = outline->res;
+    _cairo_output_stream_printf (surface->output,
+				 "%d 0 obj\n"
+				 "<< /Type /Outlines\n"
+				 "   /First %d 0 R\n"
+				 "   /Last %d 0 R\n"
+				 "   /Count %d\n"
+				 ">>\n"
+				 "endobj\n",
+				 outline->res.id,
+				 outline->first_child->res.id,
+				 outline->last_child->res.id,
+				 outline->count);
+
+    for (i = 1; i < num_elems; i++) {
+	_cairo_array_copy_element (&ic->outline, i, &outline);
+	_cairo_pdf_surface_update_object (surface, outline->res);
+	status = _cairo_utf8_to_pdf_string (outline->name, &name);
+	if (unlikely (status))
+	    return status;
+
+	status = _cairo_utf8_to_pdf_string (outline->dest, &dest);
+	if (unlikely (status))
+	    return status;
+
+	_cairo_output_stream_printf (surface->output,
+				     "%d 0 obj\n"
+				     "<< /Title %s\n"
+				     "   /Parent %d 0 R\n",
+				     outline->res.id,
+				     name,
+				     outline->parent->res.id);
+
+	if (outline->prev) {
+	    _cairo_output_stream_printf (surface->output,
+					 "   /Prev %d 0 R\n",
+					 outline->prev->res.id);
+	}
+
+	if (outline->next) {
+	    _cairo_output_stream_printf (surface->output,
+					 "   /Next %d 0 R\n",
+					 outline->next->res.id);
+	}
+
+	if (outline->first_child) {
+	    _cairo_output_stream_printf (surface->output,
+					 "   /First %d 0 R\n"
+					 "   /Last %d 0 R\n"
+					 "   /Count %d\n",
+					 outline->first_child->res.id,
+					 outline->last_child->res.id,
+					 outline->count);
+	}
+
+	if (outline->flags) {
+	    int flags = 0;
+	    if (outline->flags & CAIRO_BOOKMARK_FLAG_ITALIC)
+		flags |= 1;
+	    if (outline->flags & CAIRO_BOOKMARK_FLAG_BOLD)
+		flags |= 2;
+	    _cairo_output_stream_printf (surface->output,
+					 "   /F %d\n",
+					 flags);
+	}
+
+	_cairo_output_stream_printf (surface->output,
+				     "   /Dest %s\n"
+				     ">>\n"
+				     "endobj\n",
+				     dest);
+	free (dest);
+    }
+
+    return status;
+}
+
 static void
 _collect_dest (void *entry, void *closure)
 {
@@ -937,6 +1030,10 @@ _cairo_pdf_interchange_write_document_objects (cairo_pdf_surface_t *surface)
     if (_cairo_tag_stack_get_structure_type (&ic->analysis_tag_stack) == TAG_TREE_TYPE_TAGGED)
 	surface->tagged = TRUE;
 
+    status = cairo_pdf_interchange_write_outline (surface);
+    if (unlikely (status))
+	return status;
+
     status = cairo_pdf_interchange_write_names_dict (surface);
 
     return status;
@@ -946,6 +1043,8 @@ cairo_int_status_t
 _cairo_pdf_interchange_init (cairo_pdf_surface_t *surface)
 {
     cairo_pdf_interchange_t *ic = &surface->interchange;
+    cairo_pdf_outline_entry_t *outline_root;
+    cairo_int_status_t status;
 
     _cairo_tag_stack_init (&ic->analysis_tag_stack);
     _cairo_tag_stack_init (&ic->render_tag_stack);
@@ -971,13 +1070,21 @@ _cairo_pdf_interchange_init (cairo_pdf_surface_t *surface)
     ic->sorted_dests = NULL;
     ic->dests_res.id = 0;
 
-    return CAIRO_STATUS_SUCCESS;
+    _cairo_array_init (&ic->outline, sizeof(cairo_pdf_outline_entry_t *));
+    outline_root = calloc (1, sizeof(cairo_pdf_outline_entry_t));
+    if (unlikely (outline_root == NULL))
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    status = _cairo_array_append (&ic->outline, &outline_root);
+
+    return status;
 }
 
 cairo_int_status_t
 _cairo_pdf_interchange_fini (cairo_pdf_surface_t *surface)
 {
     cairo_pdf_interchange_t *ic = &surface->interchange;
+    unsigned i;
 
     _cairo_tag_stack_fini (&ic->analysis_tag_stack);
     _cairo_tag_stack_fini (&ic->render_tag_stack);
@@ -988,6 +1095,79 @@ _cairo_pdf_interchange_fini (cairo_pdf_surface_t *surface)
     _cairo_hash_table_foreach (ic->named_dests, _named_dest_pluck, ic->named_dests);
     _cairo_hash_table_destroy (ic->named_dests);
     free (ic->sorted_dests);
+
+    for (i = 0; i < _cairo_array_num_elements (&ic->outline); i++) {
+	cairo_pdf_outline_entry_t *outline;
+
+	_cairo_array_copy_element (&ic->outline, i, &outline);
+	free (outline);
+    }
+    _cairo_array_fini (&ic->outline);
+
+    return CAIRO_STATUS_SUCCESS;
+}
+
+cairo_int_status_t
+_cairo_pdf_interchange_add_outline (cairo_pdf_surface_t        *surface,
+				    int                         parent_id,
+				    const char                 *name,
+				    const char                 *dest,
+				    cairo_pdf_outline_flags_t   flags,
+				    int                        *id)
+{
+    cairo_pdf_interchange_t *ic = &surface->interchange;
+    cairo_pdf_outline_entry_t *outline;
+    cairo_pdf_outline_entry_t *parent;
+    cairo_int_status_t status;
+
+    if (parent_id < 0 || parent_id >= (int)_cairo_array_num_elements (&ic->outline))
+	return CAIRO_STATUS_SUCCESS;
+
+    outline = _cairo_malloc (sizeof(cairo_pdf_outline_entry_t));
+    if (unlikely (outline == NULL))
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    outline->res = _cairo_pdf_surface_new_object (surface);
+    if (outline->res.id == 0)
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    outline->name = strdup (name);
+    outline->dest = strdup (dest);
+    outline->flags = flags;
+    outline->count = 0;
+
+    _cairo_array_copy_element (&ic->outline, parent_id, &parent);
+
+    outline->parent = parent;
+    outline->first_child = NULL;
+    outline->last_child = NULL;
+    outline->next = NULL;
+    if (parent->last_child) {
+	parent->last_child->next = outline;
+	outline->prev = parent->last_child;
+	parent->last_child = outline;
+    } else {
+	parent->first_child = outline;
+	parent->last_child = outline;
+	outline->prev = NULL;
+    }
+
+    *id = _cairo_array_num_elements (&ic->outline);
+    status = _cairo_array_append (&ic->outline, &outline);
+    if (unlikely (status))
+	return status;
+
+    /* Update Count */
+    outline = outline->parent;
+    while (outline) {
+	if (outline->flags & CAIRO_BOOKMARK_FLAG_OPEN) {
+	    outline->count++;
+	} else {
+	    outline->count--;
+	    break;
+	}
+	outline = outline->parent;
+    }
 
     return CAIRO_STATUS_SUCCESS;
 }

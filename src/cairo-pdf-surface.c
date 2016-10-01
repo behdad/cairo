@@ -450,6 +450,7 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     surface->page_parent_tree = -1;
     _cairo_array_init (&surface->page_annots, sizeof (cairo_pdf_resource_t));
     surface->tagged = FALSE;
+    surface->outlines_dict_res.id = 0;
     surface->names_dict_res.id = 0;
 
     surface->paginated_surface =  _cairo_paginated_surface_create (
@@ -718,6 +719,58 @@ cairo_pdf_surface_set_size (cairo_surface_t	*surface,
 						height_in_points);
     if (status)
 	status = _cairo_surface_set_error (surface, status);
+}
+
+/**
+ * CAIRO_PDF_OUTLINE_ROOT:
+ *
+ * The root outline item in cairo_pdf_surface_add_outline().
+ *
+ * Since: 1.16
+ **/
+
+/**
+ * cairo_pdf_surface_add_outline:
+ * @surface: a PDF #cairo_surface_t
+ * @parent_id: the id of the parent item or %CAIRO_PDF_OUTLINE_ROOT if this is a top level item.
+ * @utf8: the name of the outline
+ * @dest: the name of the destination
+ * @flags: outline item flags
+ *
+ * Add an item to the document outline hierarchy with the name @utf8 that links to the
+ * destinaton @dest. Destinations are created using
+ * cairo_tag_begin()/cairo_tag_end() with the
+ * %CAIRO_TAG_DEST. The item will be a child of the item with id @parent_id. Use %CAIRO_PDF_OUTLINE_ROOT
+ * as the parent id of top level items.
+ *
+ * Return value: the id for the added item.
+ *
+ * Since: 1.16
+ **/
+int
+cairo_pdf_surface_add_outline (cairo_surface_t	         *surface,
+			       int                        parent_id,
+			       const char                *utf8,
+			       const char                *dest,
+			       cairo_pdf_outline_flags_t  flags)
+{
+    cairo_pdf_surface_t *pdf_surface = NULL; /* hide compiler warning */
+    cairo_status_t status;
+    int id = 0;
+
+    if (! _extract_pdf_surface (surface, &pdf_surface))
+	return 0;
+
+    status = _cairo_pdf_interchange_add_outline (pdf_surface,
+						 parent_id,
+						 utf8,
+						 dest,
+						 flags,
+						 &id);
+    if (status)
+	status = _cairo_surface_set_error (surface, status);
+
+    return id;
 }
 
 static void
@@ -6105,6 +6158,12 @@ _cairo_pdf_surface_write_catalog (cairo_pdf_surface_t *surface)
 	    _cairo_output_stream_printf (surface->output,
 					 "   /MarkInfo << /Marked true >>\n");
 	}
+    }
+
+    if (surface->outlines_dict_res.id != 0) {
+	_cairo_output_stream_printf (surface->output,
+				     "   /Outlines %d 0 R\n",
+				     surface->outlines_dict_res.id);
     }
 
     if (surface->names_dict_res.id != 0) {

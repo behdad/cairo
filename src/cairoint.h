@@ -282,6 +282,12 @@ _cairo_isdigit (int c)
     return (c >= '0' && c <= '9');
 }
 
+static inline int cairo_const
+_cairo_isalpha (int c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
 #include "cairo-types-private.h"
 #include "cairo-cache-private.h"
 #include "cairo-reference-count-private.h"

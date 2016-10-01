@@ -209,9 +209,6 @@ typedef struct _cairo_pdf_alpha_linear_function {
     double               alpha2;
 } cairo_pdf_alpha_linear_function_t;
 
-static cairo_pdf_resource_t
-_cairo_pdf_surface_new_object (cairo_pdf_surface_t *surface);
-
 static void
 _cairo_pdf_surface_clear (cairo_pdf_surface_t *surface);
 
@@ -262,7 +259,7 @@ _cairo_pdf_source_surface_equal (const void *key_a, const void *key_b);
 static const cairo_surface_backend_t cairo_pdf_surface_backend;
 static const cairo_paginated_surface_backend_t cairo_pdf_surface_paginated_backend;
 
-static cairo_pdf_resource_t
+cairo_pdf_resource_t
 _cairo_pdf_surface_new_object (cairo_pdf_surface_t *surface)
 {
     cairo_pdf_resource_t resource;
@@ -283,7 +280,7 @@ _cairo_pdf_surface_new_object (cairo_pdf_surface_t *surface)
     return resource;
 }
 
-static void
+void
 _cairo_pdf_surface_update_object (cairo_pdf_surface_t	*surface,
 				  cairo_pdf_resource_t	 resource)
 {
@@ -416,6 +413,7 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
         goto BAIL2;
     }
 
+    surface->struct_tree_root.id = 0;
     surface->pdf_version = CAIRO_PDF_VERSION_1_5;
     surface->compress_content = TRUE;
     surface->pdf_stream.active = FALSE;
@@ -444,6 +442,15 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
 						    _cairo_pdf_surface_add_font,
 						    surface);
     _cairo_pdf_operators_enable_actual_text(&surface->pdf_operators, TRUE);
+
+    status = _cairo_pdf_interchange_init (surface);
+    if (unlikely (status))
+	goto BAIL2;
+
+    surface->page_parent_tree = -1;
+    _cairo_array_init (&surface->page_annots, sizeof (cairo_pdf_resource_t));
+    surface->tagged = FALSE;
+    surface->names_dict_res.id = 0;
 
     surface->paginated_surface =  _cairo_paginated_surface_create (
 	                                  &surface->base,
@@ -742,6 +749,7 @@ _cairo_pdf_surface_clear (cairo_pdf_surface_t *surface)
     }
     _cairo_array_truncate (&surface->smask_groups, 0);
     _cairo_array_truncate (&surface->knockout_group, 0);
+    _cairo_array_truncate (&surface->page_annots, 0);
 }
 
 static void
@@ -2071,6 +2079,10 @@ _cairo_pdf_surface_finish (void *abstract_surface)
 
     _cairo_pdf_surface_write_pages (surface);
 
+    status = _cairo_pdf_interchange_write_document_objects (surface);
+    if (unlikely (status))
+	return status;
+
     info = _cairo_pdf_surface_write_info (surface);
     if (info.id == 0 && status == CAIRO_STATUS_SUCCESS)
 	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
@@ -2145,6 +2157,7 @@ _cairo_pdf_surface_finish (void *abstract_surface)
     _cairo_array_fini (&surface->smask_groups);
     _cairo_array_fini (&surface->fonts);
     _cairo_array_fini (&surface->knockout_group);
+    _cairo_array_fini (&surface->page_annots);
 
     if (surface->font_subsets) {
 	_cairo_scaled_font_subsets_destroy (surface->font_subsets);
@@ -2164,13 +2177,15 @@ _cairo_pdf_surface_finish (void *abstract_surface)
 
     _cairo_surface_clipper_reset (&surface->clipper);
 
-    return status;
+    return _cairo_pdf_interchange_fini (surface);
 }
 
 static cairo_int_status_t
 _cairo_pdf_surface_start_page (void *abstract_surface)
 {
     cairo_pdf_surface_t *surface = abstract_surface;
+    cairo_pdf_resource_t page;
+    cairo_int_status_t status;
 
     /* Document header */
     if (! surface->header_emitted) {
@@ -2195,6 +2210,14 @@ _cairo_pdf_surface_start_page (void *abstract_surface)
 
     _cairo_pdf_group_resources_clear (&surface->resources);
     surface->in_xobject = FALSE;
+
+    page = _cairo_pdf_surface_new_object (surface);
+    if (page.id == 0)
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    status = _cairo_array_append (&surface->pages, &page);
+    if (unlikely (status))
+	return status;
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -4678,6 +4701,10 @@ _cairo_pdf_surface_show_page (void *abstract_surface)
     cairo_pdf_surface_t *surface = abstract_surface;
     cairo_int_status_t status;
 
+    status = _cairo_pdf_interchange_end_page_content (surface);
+    if (unlikely (status))
+	return status;
+
     status = _cairo_pdf_surface_close_content_stream (surface);
     if (unlikely (status))
 	return status;
@@ -4769,8 +4796,8 @@ _cairo_pdf_surface_write_pages (cairo_pdf_surface_t *surface)
 				 "endobj\n");
 }
 
-static cairo_int_status_t
-_utf8_to_pdf_string (const char *utf8, char **str_out)
+cairo_int_status_t
+_cairo_utf8_to_pdf_string (const char *utf8, char **str_out)
 {
     int i;
     int len;
@@ -5115,7 +5142,7 @@ _cairo_pdf_surface_emit_cff_font (cairo_pdf_surface_t		*surface,
     if (subset->family_name_utf8) {
 	char *pdf_str;
 
-	status = _utf8_to_pdf_string (subset->family_name_utf8, &pdf_str);
+	status = _cairo_utf8_to_pdf_string (subset->family_name_utf8, &pdf_str);
 	if (likely (status == CAIRO_INT_STATUS_SUCCESS)) {
 	    _cairo_output_stream_printf (surface->output,
 					 "   /FontFamily %s\n",
@@ -5561,7 +5588,7 @@ _cairo_pdf_surface_emit_truetype_font_subset (cairo_pdf_surface_t		*surface,
     if (subset.family_name_utf8) {
 	char *pdf_str;
 
-	status = _utf8_to_pdf_string (subset.family_name_utf8, &pdf_str);
+	status = _cairo_utf8_to_pdf_string (subset.family_name_utf8, &pdf_str);
 	if (likely (status == CAIRO_INT_STATUS_SUCCESS)) {
 	    _cairo_output_stream_printf (surface->output,
 					 "   /FontFamily %s\n",
@@ -6066,11 +6093,29 @@ _cairo_pdf_surface_write_catalog (cairo_pdf_surface_t *surface)
     _cairo_output_stream_printf (surface->output,
 				 "%d 0 obj\n"
 				 "<< /Type /Catalog\n"
-				 "   /Pages %d 0 R\n"
-				 ">>\n"
-				 "endobj\n",
+				 "   /Pages %d 0 R\n",
 				 catalog.id,
 				 surface->pages_resource.id);
+
+    if (surface->struct_tree_root.id != 0) {
+	_cairo_output_stream_printf (surface->output,
+				     "   /StructTreeRoot %d 0 R\n",
+				     surface->struct_tree_root.id);
+	if (surface->tagged) {
+	    _cairo_output_stream_printf (surface->output,
+					 "   /MarkInfo << /Marked true >>\n");
+	}
+    }
+
+    if (surface->names_dict_res.id != 0) {
+	_cairo_output_stream_printf (surface->output,
+				     "   /Names %d 0 R\n",
+				     surface->names_dict_res.id);
+    }
+
+    _cairo_output_stream_printf (surface->output,
+				 ">>\n"
+				 "endobj\n");
 
     return catalog;
 }
@@ -6436,9 +6481,14 @@ _cairo_pdf_surface_write_patterns_and_smask_groups (cairo_pdf_surface_t *surface
 static cairo_int_status_t
 _cairo_pdf_surface_write_page (cairo_pdf_surface_t *surface)
 {
-    cairo_pdf_resource_t page, knockout, res;
+    cairo_pdf_resource_t knockout, res;
+    cairo_pdf_resource_t *page;
     cairo_int_status_t status;
-    unsigned int i, len;
+    unsigned int i, len, page_num, num_annots;
+
+    status = _cairo_pdf_interchange_write_page_objects (surface);
+    if (unlikely (status))
+	return status;
 
     _cairo_pdf_group_resources_clear (&surface->resources);
     if (surface->has_fallback_images) {
@@ -6492,10 +6542,9 @@ _cairo_pdf_surface_write_page (cairo_pdf_surface_t *surface)
 	    return status;
     }
 
-    page = _cairo_pdf_surface_new_object (surface);
-    if (page.id == 0)
-	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
-
+    page_num = _cairo_array_num_elements (&surface->pages);
+    page = _cairo_array_index (&surface->pages, page_num - 1);
+    _cairo_pdf_surface_update_object (surface, *page);
     _cairo_output_stream_printf (surface->output,
 				 "%d 0 obj\n"
 				 "<< /Type /Page\n"
@@ -6508,19 +6557,36 @@ _cairo_pdf_surface_write_page (cairo_pdf_surface_t *surface)
 				 "      /I true\n"
 				 "      /CS /DeviceRGB\n"
 				 "   >>\n"
-				 "   /Resources %d 0 R\n"
-				 ">>\n"
-				 "endobj\n",
-				 page.id,
+				 "   /Resources %d 0 R\n",
+				 page->id,
 				 surface->pages_resource.id,
 				 surface->width,
 				 surface->height,
 				 surface->content.id,
 				 surface->content_resources.id);
 
-    status = _cairo_array_append (&surface->pages, &page);
-    if (unlikely (status))
-	return status;
+    if (surface->page_parent_tree >= 0) {
+	_cairo_output_stream_printf (surface->output,
+				     "   /StructParents %d\n",
+				     surface->page_parent_tree);
+    }
+
+    num_annots = _cairo_array_num_elements (&surface->page_annots);
+    if (num_annots > 0) {
+	_cairo_output_stream_printf (surface->output,
+				     "   /Annots [ ");
+	for (i = 0; i < num_annots; i++) {
+	    _cairo_array_copy_element (&surface->page_annots, i, &res);
+	    _cairo_output_stream_printf (surface->output,
+					 "%d 0 R ",
+					 res.id);
+	}
+	_cairo_output_stream_printf (surface->output, "]\n");
+    }
+
+    _cairo_output_stream_printf (surface->output,
+				 ">>\n"
+				 "endobj\n");
 
     status = _cairo_pdf_surface_write_patterns_and_smask_groups (surface);
     if (unlikely (status))
@@ -6764,7 +6830,11 @@ _cairo_pdf_surface_start_fallback (cairo_pdf_surface_t *surface)
     bbox.p1.y = 0;
     bbox.p2.x = surface->width;
     bbox.p2.y = surface->height;
-    return _cairo_pdf_surface_open_content_stream (surface, &bbox, NULL, TRUE, TRUE);
+    status = _cairo_pdf_surface_open_content_stream (surface, &bbox, NULL, TRUE, TRUE);
+    if (unlikely (status))
+	return status;
+
+    return _cairo_pdf_interchange_begin_page_content (surface);
 }
 
 /* If source is an opaque image and mask is an image and both images
@@ -7040,6 +7110,10 @@ _cairo_pdf_surface_paint (void			*abstract_surface,
     if (unlikely (status))
 	return status;
 
+    status = _cairo_pdf_interchange_add_operation_extents (surface, &extents.bounded);
+    if (unlikely (status))
+	return status;
+
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
 	status = _cairo_pdf_surface_analyze_operation (surface, op, source, &extents.bounded);
 	goto cleanup;
@@ -7161,6 +7235,10 @@ _cairo_pdf_surface_mask (void			*abstract_surface,
     status = _cairo_composite_rectangles_init_for_mask (&extents,
 							&surface->base,
 							op, source, mask, clip);
+    if (unlikely (status))
+	return status;
+
+    status = _cairo_pdf_interchange_add_operation_extents (surface, &extents.bounded);
     if (unlikely (status))
 	return status;
 
@@ -7333,6 +7411,10 @@ _cairo_pdf_surface_stroke (void			*abstract_surface,
 	    goto cleanup;
     }
 
+    status = _cairo_pdf_interchange_add_operation_extents (surface, &extents.bounded);
+    if (unlikely (status))
+	goto cleanup;
+
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
 	status = _cairo_pdf_surface_analyze_operation (surface, op, source, &extents.bounded);
 	goto cleanup;
@@ -7466,6 +7548,10 @@ _cairo_pdf_surface_fill (void			*abstract_surface,
 	if (unlikely (status))
 	    goto cleanup;
     }
+
+    status = _cairo_pdf_interchange_add_operation_extents (surface, &extents.bounded);
+    if (unlikely (status))
+	goto cleanup;
 
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
 	status = _cairo_pdf_surface_analyze_operation (surface, op, source, &extents.bounded);
@@ -7685,6 +7771,10 @@ _cairo_pdf_surface_fill_stroke (void			*abstract_surface,
 	    goto cleanup;
     }
 
+    status = _cairo_pdf_interchange_add_operation_extents (surface, &extents.bounded);
+    if (unlikely (status))
+	goto cleanup;
+
     fill_pattern_res.id = 0;
     gstate_res.id = 0;
     status = _cairo_pdf_surface_add_pdf_pattern (surface, fill_source,
@@ -7777,6 +7867,10 @@ _cairo_pdf_surface_show_text_glyphs (void			*abstract_surface,
 							  glyphs, num_glyphs,
 							  clip,
 							  &overlap);
+    if (unlikely (status))
+	return status;
+
+    status = _cairo_pdf_interchange_add_operation_extents (surface, &extents.bounded);
     if (unlikely (status))
 	return status;
 
@@ -7918,12 +8012,39 @@ _cairo_pdf_surface_get_supported_mime_types (void		 *abstract_surface)
 }
 
 static cairo_int_status_t
+_cairo_pdf_surface_tag (void			   *abstract_surface,
+			cairo_bool_t                begin,
+			const char                 *tag_name,
+			const char                 *attributes,
+			const cairo_pattern_t	   *source,
+			const cairo_stroke_style_t *style,
+			const cairo_matrix_t	   *ctm,
+			const cairo_matrix_t	   *ctm_inverse,
+			const cairo_clip_t	   *clip)
+{
+    cairo_pdf_surface_t *surface = abstract_surface;
+    cairo_int_status_t status = 0;
+
+    if (begin)
+	status = _cairo_pdf_interchange_tag_begin (surface, tag_name, attributes);
+    else
+	status = _cairo_pdf_interchange_tag_end (surface, tag_name);
+
+    return status;
+}
+
+static cairo_int_status_t
 _cairo_pdf_surface_set_paginated_mode (void			*abstract_surface,
 				       cairo_paginated_mode_t	 paginated_mode)
 {
     cairo_pdf_surface_t *surface = abstract_surface;
+    cairo_int_status_t status;
 
     surface->paginated_mode = paginated_mode;
+    status = _cairo_pdf_interchange_begin_page_content (surface);
+    if (unlikely (status))
+	return status;
+
     if (paginated_mode == CAIRO_PAGINATED_MODE_RENDER) {
 	surface->surface_extents.x = 0;
 	surface->surface_extents.y = 0;
@@ -7969,6 +8090,7 @@ static const cairo_surface_backend_t cairo_pdf_surface_backend = {
     _cairo_pdf_surface_has_show_text_glyphs,
     _cairo_pdf_surface_show_text_glyphs,
     _cairo_pdf_surface_get_supported_mime_types,
+    _cairo_pdf_surface_tag,
 };
 
 static const cairo_paginated_surface_backend_t

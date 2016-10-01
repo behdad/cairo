@@ -48,6 +48,8 @@
 #include "cairo-surface-clipper-private.h"
 #include "cairo-pdf-operators-private.h"
 #include "cairo-path-fixed-private.h"
+#include "cairo-tag-attributes-private.h"
+#include "cairo-tag-stack-private.h"
 
 typedef struct _cairo_pdf_resource {
     unsigned int id;
@@ -154,6 +156,66 @@ typedef struct _cairo_pdf_jbig2_global {
     cairo_bool_t emitted;
 } cairo_pdf_jbig2_global_t;
 
+/* cairo-pdf-interchange.c types */
+
+struct page_mcid {
+    int page;
+    int mcid;
+};
+
+struct tag_extents {
+    cairo_rectangle_int_t extents;
+    cairo_bool_t valid;
+    cairo_list_t link;
+};
+
+typedef struct _cairo_pdf_struct_tree_node {
+    char *name;
+    cairo_pdf_resource_t res;
+    struct _cairo_pdf_struct_tree_node *parent;
+    cairo_list_t children;
+    cairo_array_t mcid; /* array of struct page_mcid */
+    struct {
+	struct tag_extents extents;
+	cairo_pdf_resource_t res;
+	cairo_link_attrs_t link_attrs;
+	double page_height;
+    } annot;
+    cairo_list_t link;
+} cairo_pdf_struct_tree_node_t;
+
+typedef struct _cairo_pdf_named_dest {
+    cairo_hash_entry_t base;
+    struct tag_extents extents;
+    cairo_dest_attrs_t attrs;
+    int page;
+    double page_height;
+    cairo_bool_t referenced;
+} cairo_pdf_named_dest_t;
+
+typedef struct _cairo_pdf_interchange {
+    cairo_tag_stack_t analysis_tag_stack;
+    cairo_tag_stack_t render_tag_stack;
+    cairo_array_t push_data; /* records analysis_tag_stack data field for each push */
+    int push_data_index;
+    cairo_pdf_struct_tree_node_t *struct_root;
+    cairo_pdf_struct_tree_node_t *current_node;
+    cairo_pdf_struct_tree_node_t *begin_page_node;
+    cairo_pdf_struct_tree_node_t *end_page_node;
+    cairo_array_t parent_tree; /* parent tree resources */
+    cairo_array_t mcid_to_tree; /* mcid to tree node mapping for current page */
+    cairo_pdf_resource_t parent_tree_res;
+    cairo_list_t extents_list;
+    cairo_hash_table_t *named_dests;
+    int num_dests;
+    cairo_pdf_named_dest_t **sorted_dests;
+    cairo_pdf_resource_t dests_res;
+    int annot_page;
+
+} cairo_pdf_interchange_t;
+
+/* pdf surface data */
+
 typedef struct _cairo_pdf_surface cairo_pdf_surface_t;
 
 struct _cairo_pdf_surface {
@@ -186,6 +248,7 @@ struct _cairo_pdf_surface {
 
     cairo_pdf_resource_t next_available_resource;
     cairo_pdf_resource_t pages_resource;
+    cairo_pdf_resource_t struct_tree_root;
 
     cairo_pdf_version_t pdf_version;
     cairo_bool_t compress_content;
@@ -231,7 +294,55 @@ struct _cairo_pdf_surface {
     double current_color_blue;
     double current_color_alpha;
 
+    cairo_pdf_interchange_t interchange;
+    int page_parent_tree; /* -1 if not used */
+    cairo_array_t page_annots;
+    cairo_bool_t tagged;
+    cairo_pdf_resource_t names_dict_res;
+
     cairo_surface_t *paginated_surface;
 };
+
+cairo_private cairo_pdf_resource_t
+_cairo_pdf_surface_new_object (cairo_pdf_surface_t *surface);
+
+cairo_private void
+_cairo_pdf_surface_update_object (cairo_pdf_surface_t	*surface,
+				  cairo_pdf_resource_t	 resource);
+
+cairo_int_status_t
+_cairo_utf8_to_pdf_string (const char *utf8, char **str_out);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_init (cairo_pdf_surface_t *surface);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_fini (cairo_pdf_surface_t *surface);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_begin_page_content (cairo_pdf_surface_t *surface);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_end_page_content (cairo_pdf_surface_t *surface);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_tag_begin (cairo_pdf_surface_t    *surface,
+				  const char             *name,
+				  const char             *attributes);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_tag_end (cairo_pdf_surface_t *surface,
+				const char          *name);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_add_operation_extents (cairo_pdf_surface_t         *surface,
+					      const cairo_rectangle_int_t *extents);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_write_page_objects (cairo_pdf_surface_t *surface);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_write_document_objects (cairo_pdf_surface_t *surface);
+
 
 #endif /* CAIRO_PDF_SURFACE_PRIVATE_H */

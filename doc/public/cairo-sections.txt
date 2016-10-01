@@ -408,6 +408,14 @@ cairo_raster_source_finish_func_t
 </SECTION>
 
 <SECTION>
+<FILE>cairo-tag</FILE>
+CAIRO_TAG_DEST
+CAIRO_TAG_LINK
+cairo_tag_begin
+cairo_tag_end
+</SECTION>
+
+<SECTION>
 <FILE>cairo-matrix</FILE>
 cairo_matrix_t
 cairo_matrix_init

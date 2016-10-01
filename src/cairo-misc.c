@@ -164,6 +164,8 @@ cairo_status_to_string (cairo_status_t status)
 	return "error occurred in libfreetype";
     case CAIRO_STATUS_WIN32_GDI_ERROR:
 	return "error occurred in the Windows Graphics Device Interface";
+    case CAIRO_STATUS_TAG_ERROR:
+	return "invalid tag name, attributes, or nesting";
     default:
     case CAIRO_STATUS_LAST_STATUS:
 	return "<unknown error status>";

@@ -1554,4 +1554,41 @@ _cairo_pdf_operators_show_text_glyphs (cairo_pdf_operators_t	  *pdf_operators,
     return _cairo_output_stream_get_status (pdf_operators->stream);
 }
 
+cairo_int_status_t
+_cairo_pdf_operators_tag_begin (cairo_pdf_operators_t *pdf_operators,
+				const char            *tag_name,
+				int                    mcid)
+{
+    cairo_status_t status;
+
+    if (pdf_operators->in_text_object) {
+	status = _cairo_pdf_operators_end_text (pdf_operators);
+	if (unlikely (status))
+	    return status;
+    }
+
+    _cairo_output_stream_printf (pdf_operators->stream,
+				 "/%s << /MCID %d >> BDC\n",
+				 tag_name,
+				 mcid);
+
+    return _cairo_output_stream_get_status (pdf_operators->stream);
+}
+
+cairo_int_status_t
+_cairo_pdf_operators_tag_end (cairo_pdf_operators_t *pdf_operators)
+{
+    cairo_status_t status;
+
+    if (pdf_operators->in_text_object) {
+	status = _cairo_pdf_operators_end_text (pdf_operators);
+	if (unlikely (status))
+	    return status;
+    }
+
+    _cairo_output_stream_printf (pdf_operators->stream, "EMC\n");
+
+    return _cairo_output_stream_get_status (pdf_operators->stream);
+}
+
 #endif /* CAIRO_HAS_PDF_OPERATORS */

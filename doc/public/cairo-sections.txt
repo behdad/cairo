@@ -81,6 +81,7 @@ cairo_pdf_surface_set_size
 cairo_pdf_surface_add_outline
 cairo_pdf_surface_set_metadata
 cairo_pdf_surface_set_page_label
+cairo_pdf_surface_set_thumbnail_size
 </SECTION>
 
 <SECTION>

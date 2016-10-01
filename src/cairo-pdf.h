@@ -148,6 +148,11 @@ void
 cairo_pdf_surface_set_page_label (cairo_surface_t *surface,
                                   const char      *utf8);
 
+void
+cairo_pdf_surface_set_thumbnail_size (cairo_surface_t *surface,
+				      int              width,
+				      int              height);
+
 CAIRO_END_DECLS
 
 #else  /* CAIRO_HAS_PDF_SURFACE */

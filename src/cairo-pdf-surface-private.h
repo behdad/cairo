@@ -330,6 +330,10 @@ struct _cairo_pdf_surface {
     cairo_pdf_resource_t docinfo_res;
     cairo_pdf_resource_t page_labels_res;
 
+    int thumbnail_width;
+    int thumbnail_height;
+    cairo_image_surface_t *thumbnail_image;
+
     cairo_surface_t *paginated_surface;
 };
 

@@ -453,6 +453,9 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     surface->names_dict_res.id = 0;
     surface->docinfo_res.id = 0;
     surface->page_labels_res.id = 0;
+    surface->thumbnail_width = 0;
+    surface->thumbnail_height = 0;
+    surface->thumbnail_image = NULL;
 
     surface->paginated_surface =  _cairo_paginated_surface_create (
 	                                  &surface->base,
@@ -832,6 +835,32 @@ cairo_pdf_surface_set_page_label (cairo_surface_t *surface,
     pdf_surface->current_page_label = utf8 ? strdup (utf8) : NULL;
 }
 
+/**
+ * cairo_pdf_surface_set_thumbnail_size:
+ * @surface: a PDF #cairo_surface_t
+ * @width: Thumbnail width.
+ * @height: Thumbnail height
+ *
+ * Set the thumbnail image size for the current and all subsequent
+ * pages. Setting a width or height of 0 disables thumbnails for the
+ * current and subsequent pages.
+ *
+ * Since: 1.16
+ **/
+void
+cairo_pdf_surface_set_thumbnail_size (cairo_surface_t *surface,
+				      int              width,
+				      int              height)
+{
+    cairo_pdf_surface_t *pdf_surface = NULL; /* hide compiler warning */
+
+    if (! _extract_pdf_surface (surface, &pdf_surface))
+	return;
+
+    pdf_surface->thumbnail_width = width;
+    pdf_surface->thumbnail_height = height;
+}
+
 static void
 _cairo_pdf_surface_clear (cairo_pdf_surface_t *surface)
 {
@@ -862,6 +891,9 @@ _cairo_pdf_surface_clear (cairo_pdf_surface_t *surface)
     _cairo_array_truncate (&surface->smask_groups, 0);
     _cairo_array_truncate (&surface->knockout_group, 0);
     _cairo_array_truncate (&surface->page_annots, 0);
+
+    cairo_surface_destroy (&surface->thumbnail_image->base);
+    surface->thumbnail_image = NULL;
 }
 
 static void
@@ -2363,6 +2395,33 @@ static cairo_bool_t
 _cairo_pdf_surface_supports_fine_grained_fallbacks (void *abstract_surface)
 {
     return TRUE;
+}
+
+static cairo_bool_t
+_cairo_pdf_surface_requires_thumbnail_image (void *abstract_surface,
+					     int  *width,
+					     int  *height)
+{
+    cairo_pdf_surface_t *surface = abstract_surface;
+
+    if (surface->thumbnail_width > 0 && surface->thumbnail_height > 0) {
+	*width = surface->thumbnail_width;
+	*height = surface->thumbnail_height;
+	return TRUE;
+    }
+
+    return FALSE;
+}
+
+static cairo_int_status_t
+_cairo_pdf_surface_set_thumbnail_image (void                  *abstract_surface,
+					cairo_image_surface_t *image)
+{
+    cairo_pdf_surface_t *surface = abstract_surface;
+
+    surface->thumbnail_image = 	(cairo_image_surface_t *)cairo_surface_reference(&image->base);
+
+    return CAIRO_STATUS_SUCCESS;
 }
 
 static cairo_int_status_t
@@ -6590,7 +6649,7 @@ _cairo_pdf_surface_write_patterns_and_smask_groups (cairo_pdf_surface_t *surface
 static cairo_int_status_t
 _cairo_pdf_surface_write_page (cairo_pdf_surface_t *surface)
 {
-    cairo_pdf_resource_t knockout, res;
+    cairo_pdf_resource_t knockout, res, thumbnail_res;
     cairo_pdf_resource_t *page;
     cairo_int_status_t status;
     unsigned int i, len, page_num, num_annots;
@@ -6651,6 +6710,16 @@ _cairo_pdf_surface_write_page (cairo_pdf_surface_t *surface)
 	    return status;
     }
 
+    thumbnail_res.id = 0;
+    if (surface->thumbnail_image) {
+	cairo_pdf_source_surface_entry_t entry;
+
+	memset (&entry, 0, sizeof (entry));
+	thumbnail_res = _cairo_pdf_surface_new_object (surface);
+	entry.surface_res = thumbnail_res;
+	_cairo_pdf_surface_emit_image (surface, surface->thumbnail_image, &entry);
+    }
+
     page_num = _cairo_array_num_elements (&surface->pages);
     page = _cairo_array_index (&surface->pages, page_num - 1);
     _cairo_pdf_surface_update_object (surface, *page);
@@ -6691,6 +6760,12 @@ _cairo_pdf_surface_write_page (cairo_pdf_surface_t *surface)
 					 res.id);
 	}
 	_cairo_output_stream_printf (surface->output, "]\n");
+    }
+
+    if (thumbnail_res.id) {
+	_cairo_output_stream_printf (surface->output,
+				     "   /Thumb %d 0 R\n",
+				     thumbnail_res.id);
     }
 
     _cairo_output_stream_printf (surface->output,
@@ -8209,4 +8284,6 @@ cairo_pdf_surface_paginated_backend = {
     NULL, /* set_bounding_box */
     _cairo_pdf_surface_has_fallback_images,
     _cairo_pdf_surface_supports_fine_grained_fallbacks,
+    _cairo_pdf_surface_requires_thumbnail_image,
+    _cairo_pdf_surface_set_thumbnail_image,
 };

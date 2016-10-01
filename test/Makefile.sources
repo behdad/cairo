@@ -417,7 +417,8 @@ quartz_surface_test_sources = quartz-surface-source.c
 pdf_surface_test_sources = \
 	pdf-features.c \
 	pdf-mime-data.c \
-	pdf-surface-source.c
+	pdf-surface-source.c \
+	pdf-tagged-text.c
 
 ps_surface_test_sources = \
 	ps-eps.c \

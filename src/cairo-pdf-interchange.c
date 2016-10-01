@@ -699,6 +699,49 @@ cairo_pdf_interchange_write_names_dict (cairo_pdf_surface_t *surface)
     return CAIRO_STATUS_SUCCESS;
 }
 
+static cairo_int_status_t
+cairo_pdf_interchange_write_docinfo (cairo_pdf_surface_t *surface)
+{
+    cairo_pdf_interchange_t *ic = &surface->interchange;
+
+    surface->docinfo_res = _cairo_pdf_surface_new_object (surface);
+    if (surface->docinfo_res.id == 0)
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    _cairo_output_stream_printf (surface->output,
+				 "%d 0 obj\n"
+				 "<< /Producer (cairo %s (http://cairographics.org))\n",
+				 surface->docinfo_res.id,
+				 cairo_version_string ());
+
+    if (ic->docinfo.title)
+	_cairo_output_stream_printf (surface->output, "   /Title %s\n", ic->docinfo.title);
+
+    if (ic->docinfo.author)
+	_cairo_output_stream_printf (surface->output, "   /Author %s\n", ic->docinfo.author);
+
+    if (ic->docinfo.subject)
+	_cairo_output_stream_printf (surface->output, "   /Subject %s\n", ic->docinfo.subject);
+
+    if (ic->docinfo.keywords)
+	_cairo_output_stream_printf (surface->output, "   /Keywords %s\n", ic->docinfo.keywords);
+
+    if (ic->docinfo.creator)
+	_cairo_output_stream_printf (surface->output, "   /Creator %s\n", ic->docinfo.creator);
+
+    if (ic->docinfo.create_date)
+	_cairo_output_stream_printf (surface->output, "   /CreationDate %s\n", ic->docinfo.create_date);
+
+    if (ic->docinfo.mod_date)
+	_cairo_output_stream_printf (surface->output, "   /ModDate %s\n", ic->docinfo.mod_date);
+
+    _cairo_output_stream_printf (surface->output,
+				 ">>\n"
+				 "endobj\n");
+
+    return CAIRO_STATUS_SUCCESS;
+}
+
 static void
 init_named_dest_key (cairo_pdf_named_dest_t *dest)
 {
@@ -1035,6 +1078,10 @@ _cairo_pdf_interchange_write_document_objects (cairo_pdf_surface_t *surface)
 	return status;
 
     status = cairo_pdf_interchange_write_names_dict (surface);
+    if (unlikely (status))
+	return status;
+
+    status = cairo_pdf_interchange_write_docinfo (surface);
 
     return status;
 }
@@ -1075,6 +1122,7 @@ _cairo_pdf_interchange_init (cairo_pdf_surface_t *surface)
     if (unlikely (outline_root == NULL))
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
+    memset (&ic->docinfo, 0, sizeof (ic->docinfo));
     status = _cairo_array_append (&ic->outline, &outline_root);
 
     return status;
@@ -1103,6 +1151,13 @@ _cairo_pdf_interchange_fini (cairo_pdf_surface_t *surface)
 	free (outline);
     }
     _cairo_array_fini (&ic->outline);
+    free (ic->docinfo.title);
+    free (ic->docinfo.author);
+    free (ic->docinfo.subject);
+    free (ic->docinfo.keywords);
+    free (ic->docinfo.creator);
+    free (ic->docinfo.create_date);
+    free (ic->docinfo.mod_date);
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -1167,6 +1222,128 @@ _cairo_pdf_interchange_add_outline (cairo_pdf_surface_t        *surface,
 	    break;
 	}
 	outline = outline->parent;
+    }
+
+    return CAIRO_STATUS_SUCCESS;
+}
+
+/*
+ * Date must be in the following format:
+ *
+ *     YYYY-MM-DDThh:mm:ss[Z+-]hh:mm
+ *
+ * Only the year is required. If a field is included all preceding
+ * fields must be included.
+ */
+static char *
+iso8601_to_pdf_date_string (const char *iso)
+{
+    char buf[40];
+    const char *p;
+    int i;
+
+    /* Check that utf8 contains only the characters "0123456789-T:Z+" */
+    p = iso;
+    while (*p) {
+       if (!_cairo_isdigit (*p) && *p != '-' && *p != 'T' &&
+           *p != ':' && *p != 'Z' && *p != '+')
+           return NULL;
+       p++;
+    }
+
+    p = iso;
+    strcpy (buf, "(");
+
+   /* YYYY (required) */
+    if (strlen (p) < 4)
+       return NULL;
+
+    strncat (buf, p, 4);
+    p += 4;
+
+    /* -MM, -DD, Thh, :mm, :ss */
+    for (i = 0; i < 5; i++) {
+	if (strlen (p) < 3)
+	    goto finish;
+
+	strncat (buf, p + 1, 2);
+	p += 3;
+    }
+
+    /* Z, +, - */
+    if (strlen (p) < 1)
+       goto finish;
+    strncat (buf, p, 1);
+    p += 1;
+
+    /* hh */
+    if (strlen (p) < 2)
+	goto finish;
+
+    strncat (buf, p, 2);
+    strcat (buf, "'");
+    p += 2;
+
+    /* :mm */
+    if (strlen (p) < 3)
+	goto finish;
+
+    strncat (buf, p + 1, 3);
+
+  finish:
+    strcat (buf, ")");
+    return strdup (buf);
+}
+
+cairo_int_status_t
+_cairo_pdf_interchange_set_metadata (cairo_pdf_surface_t  *surface,
+				     cairo_pdf_metadata_t  metadata,
+				     const char           *utf8)
+{
+    cairo_pdf_interchange_t *ic = &surface->interchange;
+    cairo_status_t status;
+    char *s = NULL;
+
+    if (utf8) {
+	if (metadata == CAIRO_PDF_METADATA_CREATE_DATE ||
+	    metadata == CAIRO_PDF_METADATA_MOD_DATE) {
+	    s = iso8601_to_pdf_date_string (utf8);
+	} else {
+	    status = _cairo_utf8_to_pdf_string (utf8, &s);
+	    if (unlikely (status))
+		return status;
+	}
+    }
+
+    switch (metadata) {
+	case CAIRO_PDF_METADATA_TITLE:
+	    free (ic->docinfo.title);
+	    ic->docinfo.title = s;
+	    break;
+	case CAIRO_PDF_METADATA_AUTHOR:
+	    free (ic->docinfo.author);
+	    ic->docinfo.author = s;
+	    break;
+	case CAIRO_PDF_METADATA_SUBJECT:
+	    free (ic->docinfo.subject);
+	    ic->docinfo.subject = s;
+	    break;
+	case CAIRO_PDF_METADATA_KEYWORDS:
+	    free (ic->docinfo.keywords);
+	    ic->docinfo.keywords = s;
+	    break;
+	case CAIRO_PDF_METADATA_CREATOR:
+	    free (ic->docinfo.creator);
+	    ic->docinfo.creator = s;
+	    break;
+	case CAIRO_PDF_METADATA_CREATE_DATE:
+	    free (ic->docinfo.create_date);
+	    ic->docinfo.create_date = s;
+	    break;
+	case CAIRO_PDF_METADATA_MOD_DATE:
+	    free (ic->docinfo.mod_date);
+	    ic->docinfo.mod_date = s;
+	    break;
     }
 
     return CAIRO_STATUS_SUCCESS;

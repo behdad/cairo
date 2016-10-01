@@ -239,9 +239,6 @@ static void
 _cairo_pdf_surface_write_pages (cairo_pdf_surface_t *surface);
 
 static cairo_pdf_resource_t
-_cairo_pdf_surface_write_info (cairo_pdf_surface_t *surface);
-
-static cairo_pdf_resource_t
 _cairo_pdf_surface_write_catalog (cairo_pdf_surface_t *surface);
 
 static long
@@ -771,6 +768,42 @@ cairo_pdf_surface_add_outline (cairo_surface_t	         *surface,
 	status = _cairo_surface_set_error (surface, status);
 
     return id;
+}
+
+/**
+ * cairo_pdf_surface_set_metadata:
+ * @surface: a PDF #cairo_surface_t
+ * @metadata: The metadata item to set.
+ * @utf8: metadata value
+ *
+ * Set document metadata. The %CAIRO_PDF_METADATA_CREATE_DATE and
+ * %CAIRO_PDF_METADATA_MOD_DATE values must be in ISO-8601 format:
+ * YYYY-MM-DDThh:mm:ss. An optional timezone of the form "[+/-]hh:mm"
+ * or "Z" for UTC time can be appended. All other metadata values can be any UTF-8
+ * string.
+ *
+ * For example:
+ * <informalexample><programlisting>
+ * cairo_pdf_surface_set_metadata (surface, CAIRO_PDF_METADATA_TITLE, "My Document");
+ * cairo_pdf_surface_set_metadata (surface, CAIRO_PDF_METADATA_CREATE_DATE, "2015-12-31T23:59+02:00");
+ * </programlisting></informalexample>
+ *
+ * Since: 1.16
+ **/
+void
+cairo_pdf_surface_set_metadata (cairo_surface_t      *surface,
+				cairo_pdf_metadata_t  metadata,
+                                const char           *utf8)
+{
+    cairo_pdf_surface_t *pdf_surface = NULL; /* hide compiler warning */
+    cairo_status_t status;
+
+    if (! _extract_pdf_surface (surface, &pdf_surface))
+	return;
+
+    status = _cairo_pdf_interchange_set_metadata (pdf_surface, metadata, utf8);
+    if (status)
+	status = _cairo_surface_set_error (surface, status);
 }
 
 static void
@@ -2121,7 +2154,7 @@ _cairo_pdf_surface_finish (void *abstract_surface)
 {
     cairo_pdf_surface_t *surface = abstract_surface;
     long offset;
-    cairo_pdf_resource_t info, catalog;
+    cairo_pdf_resource_t catalog;
     cairo_status_t status, status2;
     int size, i;
     cairo_pdf_jbig2_global_t *global;
@@ -2135,10 +2168,6 @@ _cairo_pdf_surface_finish (void *abstract_surface)
     status = _cairo_pdf_interchange_write_document_objects (surface);
     if (unlikely (status))
 	return status;
-
-    info = _cairo_pdf_surface_write_info (surface);
-    if (info.id == 0 && status == CAIRO_STATUS_SUCCESS)
-	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
     catalog = _cairo_pdf_surface_write_catalog (surface);
     if (catalog.id == 0 && status == CAIRO_STATUS_SUCCESS)
@@ -2154,7 +2183,7 @@ _cairo_pdf_surface_finish (void *abstract_surface)
 				 ">>\n",
 				 surface->next_available_resource.id,
 				 catalog.id,
-				 info.id);
+				 surface->docinfo_res.id);
 
     _cairo_output_stream_printf (surface->output,
 				 "startxref\n"
@@ -4795,28 +4824,6 @@ _cairo_pdf_surface_get_font_options (void                  *abstract_surface,
     cairo_font_options_set_hint_metrics (options, CAIRO_HINT_METRICS_OFF);
     cairo_font_options_set_antialias (options, CAIRO_ANTIALIAS_GRAY);
     _cairo_font_options_set_round_glyph_positions (options, CAIRO_ROUND_GLYPH_POS_OFF);
-}
-
-static cairo_pdf_resource_t
-_cairo_pdf_surface_write_info (cairo_pdf_surface_t *surface)
-{
-    cairo_pdf_resource_t info;
-
-    info = _cairo_pdf_surface_new_object (surface);
-    if (info.id == 0)
-	return info;
-
-    _cairo_output_stream_printf (surface->output,
-				 "%d 0 obj\n"
-				 "<< /Creator (cairo %s (http://cairographics.org))\n"
-				 "   /Producer (cairo %s (http://cairographics.org))\n"
-				 ">>\n"
-				 "endobj\n",
-				 info.id,
-                                 cairo_version_string (),
-                                 cairo_version_string ());
-
-    return info;
 }
 
 static void

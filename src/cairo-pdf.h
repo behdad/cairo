@@ -113,6 +113,37 @@ cairo_pdf_surface_add_outline (cairo_surface_t	          *surface,
 			       const char                 *dest,
 			       cairo_pdf_outline_flags_t  flags);
 
+/**
+ * cairo_pdf_metadata_t:
+ * @CAIRO_PDF_METADATA_TITLE: The document title (Since 1.16)
+ * @CAIRO_PDF_METADATA_AUTHOR: The document author (Since 1.16)
+ * @CAIRO_PDF_METADATA_SUBJECT: The document subject (Since 1.16)
+ * @CAIRO_PDF_METADATA_KEYWORDS: The document keywords (Since 1.16)
+ * @CAIRO_PDF_METADATA_CREATOR: The document creator (Since 1.16)
+ * @CAIRO_PDF_METADATA_TITLE: The document title (Since 1.16)
+ * @CAIRO_PDF_METADATA_CREATE_DATE: The document creation date (Since 1.16)
+ * @CAIRO_PDF_METADATA_MOD_DATE: The document modification date (Since 1.16)
+ *
+ * #cairo_pdf_metadata_t is used by the
+ * cairo_pdf_surface_set_metadata() function specify the metadata to set.
+ *
+ * Since: 1.16
+ **/
+typedef enum _cairo_pdf_metadata {
+    CAIRO_PDF_METADATA_TITLE,
+    CAIRO_PDF_METADATA_AUTHOR,
+    CAIRO_PDF_METADATA_SUBJECT,
+    CAIRO_PDF_METADATA_KEYWORDS,
+    CAIRO_PDF_METADATA_CREATOR,
+    CAIRO_PDF_METADATA_CREATE_DATE,
+    CAIRO_PDF_METADATA_MOD_DATE,
+} cairo_pdf_metadata_t;
+
+void
+cairo_pdf_surface_set_metadata (cairo_surface_t	     *surface,
+				cairo_pdf_metadata_t  metadata,
+                                const char           *utf8);
+
 CAIRO_END_DECLS
 
 #else  /* CAIRO_HAS_PDF_SURFACE */

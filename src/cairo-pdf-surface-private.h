@@ -206,6 +206,16 @@ typedef struct _cairo_pdf_outline_entry {
     int count;
 } cairo_pdf_outline_entry_t;
 
+struct docinfo {
+    char *title;
+    char *author;
+    char *subject;
+    char *keywords;
+    char *creator;
+    char *create_date;
+    char *mod_date;
+};
+
 typedef struct _cairo_pdf_interchange {
     cairo_tag_stack_t analysis_tag_stack;
     cairo_tag_stack_t render_tag_stack;
@@ -225,6 +235,7 @@ typedef struct _cairo_pdf_interchange {
     cairo_pdf_resource_t dests_res;
     int annot_page;
     cairo_array_t outline; /* array of pointers to cairo_pdf_outline_entry_t; */
+    struct docinfo docinfo;
 
 } cairo_pdf_interchange_t;
 
@@ -314,6 +325,7 @@ struct _cairo_pdf_surface {
     cairo_bool_t tagged;
     cairo_pdf_resource_t outlines_dict_res;
     cairo_pdf_resource_t names_dict_res;
+    cairo_pdf_resource_t docinfo_res;
 
     cairo_surface_t *paginated_surface;
 };
@@ -366,5 +378,10 @@ _cairo_pdf_interchange_add_outline (cairo_pdf_surface_t        *surface,
 				    const char                 *dest,
 				    cairo_pdf_outline_flags_t   flags,
 				    int                        *id);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_interchange_set_metadata (cairo_pdf_surface_t  *surface,
+				     cairo_pdf_metadata_t  metadata,
+				     const char           *utf8);
 
 #endif /* CAIRO_PDF_SURFACE_PRIVATE_H */

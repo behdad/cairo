@@ -4513,7 +4513,7 @@ _cairo_ps_surface_get_supported_mime_types (void		 *abstract_surface)
     return _cairo_ps_supported_mime_types;
 }
 
-static void
+static cairo_int_status_t
 _cairo_ps_surface_set_paginated_mode (void			*abstract_surface,
 				      cairo_paginated_mode_t	 paginated_mode)
 {
@@ -4536,6 +4536,8 @@ _cairo_ps_surface_set_paginated_mode (void			*abstract_surface,
 	    _cairo_surface_clipper_reset (&surface->clipper);
 	}
     }
+
+    return CAIRO_STATUS_SUCCESS;
 }
 
 static cairo_int_status_t

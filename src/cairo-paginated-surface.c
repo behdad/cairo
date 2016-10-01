@@ -352,8 +352,11 @@ _paint_page (cairo_paginated_surface_t *surface)
     if (unlikely (analysis->status))
 	return _cairo_surface_set_error (surface->target, analysis->status);
 
-    surface->backend->set_paginated_mode (surface->target,
+    status = surface->backend->set_paginated_mode (surface->target,
 	                                  CAIRO_PAGINATED_MODE_ANALYZE);
+    if (unlikely (status))
+	goto FAIL;
+
     status = _cairo_recording_surface_replay_and_create_regions (surface->recording_surface,
 								 NULL, analysis, FALSE);
     if (status)
@@ -401,8 +404,10 @@ _paint_page (cairo_paginated_surface_t *surface)
     }
 
     if (has_supported) {
-	surface->backend->set_paginated_mode (surface->target,
-		                              CAIRO_PAGINATED_MODE_RENDER);
+	status = surface->backend->set_paginated_mode (surface->target,
+						       CAIRO_PAGINATED_MODE_RENDER);
+	if (unlikely (status))
+	    goto FAIL;
 
 	status = _cairo_recording_surface_replay_region (surface->recording_surface,
 							 NULL,
@@ -417,8 +422,10 @@ _paint_page (cairo_paginated_surface_t *surface)
 	cairo_rectangle_int_t extents;
 	cairo_bool_t is_bounded;
 
-	surface->backend->set_paginated_mode (surface->target,
-		                              CAIRO_PAGINATED_MODE_FALLBACK);
+	status = surface->backend->set_paginated_mode (surface->target,
+						       CAIRO_PAGINATED_MODE_FALLBACK);
+	if (unlikely (status))
+	    goto FAIL;
 
 	is_bounded = _cairo_surface_get_extents (surface->target, &extents);
 	if (! is_bounded) {
@@ -435,8 +442,10 @@ _paint_page (cairo_paginated_surface_t *surface)
         cairo_region_t *region;
         int num_rects, i;
 
-	surface->backend->set_paginated_mode (surface->target,
+	status = surface->backend->set_paginated_mode (surface->target,
 		                              CAIRO_PAGINATED_MODE_FALLBACK);
+	if (unlikely (status))
+	    goto FAIL;
 
 	region = _cairo_analysis_surface_get_unsupported (analysis);
 
@@ -660,6 +669,26 @@ _cairo_paginated_surface_get_supported_mime_types (void *abstract_surface)
     return NULL;
 }
 
+static cairo_int_status_t
+_cairo_paginated_surface_tag (void			 *abstract_surface,
+			      cairo_bool_t                begin,
+			      const char                 *tag_name,
+			      const char                 *attributes,
+			      const cairo_pattern_t	 *source,
+			      const cairo_stroke_style_t *style,
+			      const cairo_matrix_t	 *ctm,
+			      const cairo_matrix_t	 *ctm_inverse,
+			      const cairo_clip_t	 *clip)
+{
+    cairo_paginated_surface_t *surface = abstract_surface;
+
+    return _cairo_surface_tag (surface->recording_surface,
+			       begin, tag_name, attributes,
+			       source, style,
+			       ctm, ctm_inverse,
+			       clip);
+}
+
 static cairo_surface_t *
 _cairo_paginated_surface_snapshot (void *abstract_other)
 {
@@ -714,4 +743,5 @@ static const cairo_surface_backend_t cairo_paginated_surface_backend = {
     _cairo_paginated_surface_has_show_text_glyphs,
     _cairo_paginated_surface_show_text_glyphs,
     _cairo_paginated_surface_get_supported_mime_types,
+    _cairo_paginated_surface_tag,
 };

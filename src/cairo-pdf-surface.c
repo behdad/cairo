@@ -7917,7 +7917,7 @@ _cairo_pdf_surface_get_supported_mime_types (void		 *abstract_surface)
     return _cairo_pdf_supported_mime_types;
 }
 
-static void
+static cairo_int_status_t
 _cairo_pdf_surface_set_paginated_mode (void			*abstract_surface,
 				       cairo_paginated_mode_t	 paginated_mode)
 {
@@ -7930,6 +7930,8 @@ _cairo_pdf_surface_set_paginated_mode (void			*abstract_surface,
 	surface->surface_extents.width  = ceil (surface->width);
 	surface->surface_extents.height = ceil (surface->height);
     }
+
+    return CAIRO_INT_STATUS_SUCCESS;
 }
 
 static const cairo_surface_backend_t cairo_pdf_surface_backend = {

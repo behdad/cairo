@@ -56,7 +56,7 @@ struct _cairo_paginated_surface_backend {
      * CAIRO_PAGINATED_MODE_RENDER. See more details in the
      * documentation for _cairo_paginated_surface_create below.
      */
-    void
+    cairo_warn cairo_int_status_t
     (*set_paginated_mode)	(void			*surface,
 				 cairo_paginated_mode_t	 mode);
 

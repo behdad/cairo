@@ -728,6 +728,39 @@ _cairo_analysis_surface_show_text_glyphs (void			    *abstract_surface,
     return _add_operation (surface, &extents, backend_status);
 }
 
+static cairo_int_status_t
+_cairo_analysis_surface_tag (void	                *abstract_surface,
+			     cairo_bool_t                begin,
+			     const char                 *tag_name,
+			     const char                 *attributes,
+			     const cairo_pattern_t	*source,
+			     const cairo_stroke_style_t	*stroke_style,
+			     const cairo_matrix_t	*ctm,
+			     const cairo_matrix_t	*ctm_inverse,
+			     const cairo_clip_t	        *clip)
+{
+    cairo_analysis_surface_t *surface = abstract_surface;
+    cairo_int_status_t	     backend_status;
+
+    backend_status = CAIRO_INT_STATUS_SUCCESS;
+    if (surface->target->backend->tag != NULL) {
+	backend_status =
+	    surface->target->backend->tag (surface->target,
+					   begin,
+					   tag_name,
+					   attributes,
+					   source,
+					   stroke_style,
+					   ctm,
+					   ctm_inverse,
+					   clip);
+	if (_cairo_int_status_is_error (backend_status))
+	    return backend_status;
+    }
+
+    return backend_status;
+}
+
 static const cairo_surface_backend_t cairo_analysis_surface_backend = {
     CAIRO_INTERNAL_SURFACE_TYPE_ANALYSIS,
 
@@ -760,7 +793,9 @@ static const cairo_surface_backend_t cairo_analysis_surface_backend = {
     NULL, /* fill_stroke */
     _cairo_analysis_surface_show_glyphs,
     _cairo_analysis_surface_has_show_text_glyphs,
-    _cairo_analysis_surface_show_text_glyphs
+    _cairo_analysis_surface_show_text_glyphs,
+    NULL, /* get_supported_mime_types */
+    _cairo_analysis_surface_tag
 };
 
 cairo_surface_t *

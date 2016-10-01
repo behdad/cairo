@@ -483,7 +483,16 @@ _cairo_recording_surface_finish (void *abstract_surface)
 	    cairo_scaled_font_destroy (command->show_text_glyphs.scaled_font);
 	    break;
 
-	default:
+	case CAIRO_COMMAND_TAG:
+	    free (command->tag.tag_name);
+	    if (command->tag.begin) {
+		free (command->tag.attributes);
+		_cairo_pattern_fini (&command->tag.source.base);
+		_cairo_stroke_style_fini (&command->tag.style);
+	    }
+	    break;
+
+	    default:
 	    ASSERT_NOT_REACHED;
 	}
 
@@ -1076,6 +1085,90 @@ CLEANUP_COMPOSITE:
     return status;
 }
 
+static cairo_int_status_t
+_cairo_recording_surface_tag (void			 *abstract_surface,
+			      cairo_bool_t                begin,
+			      const char                 *tag_name,
+			      const char                 *attributes,
+			      const cairo_pattern_t	 *source,
+			      const cairo_stroke_style_t *style,
+			      const cairo_matrix_t	 *ctm,
+			      const cairo_matrix_t	 *ctm_inverse,
+			      const cairo_clip_t	 *clip)
+{
+    cairo_status_t status;
+    cairo_recording_surface_t *surface = abstract_surface;
+    cairo_command_tag_t *command;
+    cairo_composite_rectangles_t composite;
+
+    TRACE ((stderr, "%s: surface=%d\n", __FUNCTION__, surface->base.unique_id));
+
+    status = _cairo_composite_rectangles_init_for_paint (&composite,
+							 &surface->base,
+							 CAIRO_OPERATOR_SOURCE,
+							 source ? source : &_cairo_pattern_black.base,
+							 clip);
+    if (unlikely (status))
+	return status;
+
+    command = calloc (1, sizeof (cairo_command_tag_t));
+    if (unlikely (command == NULL)) {
+	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	goto CLEANUP_COMPOSITE;
+    }
+
+    status = _command_init (surface,
+			    &command->header, CAIRO_COMMAND_TAG, CAIRO_OPERATOR_SOURCE,
+			    &composite);
+    if (unlikely (status))
+	goto CLEANUP_COMMAND;
+
+    command->begin = begin;
+    command->tag_name = strdup (tag_name);
+    if (begin) {
+	if (attributes)
+	    command->attributes = strdup (attributes);
+
+	status = _cairo_pattern_init_snapshot (&command->source.base, source);
+	if (unlikely (status))
+	    goto CLEANUP_STRINGS;
+
+	status = _cairo_stroke_style_init_copy (&command->style, style);
+	if (unlikely (status))
+	    goto CLEANUP_SOURCE;
+
+	command->ctm = *ctm;
+	command->ctm_inverse = *ctm_inverse;
+    }
+
+    status = _cairo_recording_surface_commit (surface, &command->header);
+    if (unlikely (status)) {
+	if (begin)
+	    goto CLEANUP_STRINGS;
+	else
+	    goto CLEANUP_STYLE;
+    }
+
+    _cairo_recording_surface_destroy_bbtree (surface);
+
+    _cairo_composite_rectangles_fini (&composite);
+    return CAIRO_STATUS_SUCCESS;
+
+  CLEANUP_STYLE:
+    _cairo_stroke_style_fini (&command->style);
+  CLEANUP_SOURCE:
+    _cairo_pattern_fini (&command->source.base);
+  CLEANUP_STRINGS:
+    free (command->tag_name);
+    free (command->attributes);
+  CLEANUP_COMMAND:
+    _cairo_clip_destroy (command->header.clip);
+    free (command);
+  CLEANUP_COMPOSITE:
+    _cairo_composite_rectangles_fini (&composite);
+    return status;
+}
+
 static void
 _command_init_copy (cairo_recording_surface_t *surface,
 		    cairo_command_header_t *dst,
@@ -1342,6 +1435,63 @@ err:
 }
 
 static cairo_status_t
+_cairo_recording_surface_copy__tag (cairo_recording_surface_t *surface,
+				    const cairo_command_t *src)
+{
+    cairo_command_tag_t *command;
+    cairo_status_t status;
+
+    command = calloc (1, sizeof (*command));
+    if (unlikely (command == NULL)) {
+	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	goto err;
+    }
+
+    _command_init_copy (surface, &command->header, &src->header);
+
+    command->begin = src->tag.begin;
+    command->tag_name = strdup (src->tag.tag_name);
+    if (src->tag.begin) {
+	if (src->tag.attributes)
+	    command->attributes = strdup (src->tag.attributes);
+
+	status = _cairo_pattern_init_copy (&command->source.base,
+					   &src->stroke.source.base);
+	if (unlikely (status))
+	    goto err_command;
+
+	status = _cairo_stroke_style_init_copy (&command->style,
+						&src->stroke.style);
+	if (unlikely (status))
+	    goto err_source;
+
+	command->ctm = src->stroke.ctm;
+	command->ctm_inverse = src->stroke.ctm_inverse;
+    }
+
+    status = _cairo_recording_surface_commit (surface, &command->header);
+    if (unlikely (status)) {
+	if (src->tag.begin)
+	    goto err_command;
+	else
+	    goto err_style;
+    }
+
+    return CAIRO_STATUS_SUCCESS;
+
+err_style:
+    _cairo_stroke_style_fini (&command->style);
+err_source:
+    _cairo_pattern_fini (&command->source.base);
+err_command:
+    free(command->tag_name);
+    free(command->attributes);
+    free(command);
+err:
+    return status;
+}
+
+static cairo_status_t
 _cairo_recording_surface_copy (cairo_recording_surface_t *dst,
 			       cairo_recording_surface_t *src)
 {
@@ -1373,6 +1523,10 @@ _cairo_recording_surface_copy (cairo_recording_surface_t *dst,
 
 	case CAIRO_COMMAND_SHOW_TEXT_GLYPHS:
 	    status = _cairo_recording_surface_copy__glyphs (dst, command);
+	    break;
+
+	case CAIRO_COMMAND_TAG:
+	    status = _cairo_recording_surface_copy__tag (dst, command);
 	    break;
 
 	default:
@@ -1490,6 +1644,8 @@ static const cairo_surface_backend_t cairo_recording_surface_backend = {
     NULL,
     _cairo_recording_surface_has_show_text_glyphs,
     _cairo_recording_surface_show_text_glyphs,
+    NULL, /* get_supported_mime_types */
+    _cairo_recording_surface_tag,
 };
 
 cairo_int_status_t
@@ -1553,6 +1709,9 @@ _cairo_recording_surface_get_path (cairo_surface_t    *abstract_surface,
 						    path);
 	    break;
 	}
+
+	case CAIRO_COMMAND_TAG:
+	    break;
 
 	default:
 	    ASSERT_NOT_REACHED;
@@ -1851,6 +2010,18 @@ _cairo_recording_surface_replay_internal (cairo_recording_surface_t	*surface,
 	    }
 	    break;
 
+	case CAIRO_COMMAND_TAG:
+	    status = _cairo_surface_wrapper_tag (&wrapper,
+						 command->tag.begin,
+						 command->tag.tag_name,
+						 command->tag.attributes,
+						 &command->tag.source.base,
+						 &command->tag.style,
+						 &command->tag.ctm,
+						 &command->tag.ctm_inverse,
+						 command->header.clip);
+	    break;
+
 	default:
 	    ASSERT_NOT_REACHED;
 	}
@@ -1956,6 +2127,18 @@ _cairo_recording_surface_replay_one (cairo_recording_surface_t	*surface,
 							  command->show_text_glyphs.cluster_flags,
 							  command->show_text_glyphs.scaled_font,
 							  command->header.clip);
+	break;
+
+    case CAIRO_COMMAND_TAG:
+	status = _cairo_surface_wrapper_tag (&wrapper,
+					     command->tag.begin,
+					     command->tag.tag_name,
+					     command->tag.attributes,
+					     &command->tag.source.base,
+					     &command->tag.style,
+					     &command->tag.ctm,
+					     &command->tag.ctm_inverse,
+					     command->header.clip);
 	break;
 
     default:

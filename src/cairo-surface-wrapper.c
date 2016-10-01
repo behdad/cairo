@@ -501,6 +501,53 @@ _cairo_surface_wrapper_show_text_glyphs (cairo_surface_wrapper_t *wrapper,
     return status;
 }
 
+cairo_status_t
+_cairo_surface_wrapper_tag (cairo_surface_wrapper_t     *wrapper,
+			    cairo_bool_t                 begin,
+			    const char                  *tag_name,
+			    const char                  *attributes,
+			    const cairo_pattern_t	*source,
+			    const cairo_stroke_style_t	*stroke_style,
+			    const cairo_matrix_t	*ctm,
+			    const cairo_matrix_t	*ctm_inverse,
+			    const cairo_clip_t		*clip)
+{
+    cairo_status_t status;
+    cairo_clip_t *dev_clip;
+    cairo_matrix_t dev_ctm = *ctm;
+    cairo_matrix_t dev_ctm_inverse = *ctm_inverse;
+    cairo_pattern_union_t source_copy;
+
+    if (unlikely (wrapper->target->status))
+	return wrapper->target->status;
+
+    dev_clip = _cairo_surface_wrapper_get_clip (wrapper, clip);
+    if (wrapper->needs_transform) {
+	cairo_matrix_t m;
+
+	_cairo_surface_wrapper_get_transform (wrapper, &m);
+
+	cairo_matrix_multiply (&dev_ctm, &dev_ctm, &m);
+
+	status = cairo_matrix_invert (&m);
+	assert (status == CAIRO_STATUS_SUCCESS);
+
+	cairo_matrix_multiply (&dev_ctm_inverse, &m, &dev_ctm_inverse);
+
+	_copy_transformed_pattern (&source_copy.base, source, &m);
+	source = &source_copy.base;
+    }
+
+    status = _cairo_surface_tag (wrapper->target,
+				 begin, tag_name, attributes,
+				 source, stroke_style,
+				 &dev_ctm, &dev_ctm_inverse,
+				 dev_clip);
+
+    _cairo_clip_destroy (dev_clip);
+    return status;
+}
+
 cairo_surface_t *
 _cairo_surface_wrapper_create_similar (cairo_surface_wrapper_t *wrapper,
 				       cairo_content_t	content,

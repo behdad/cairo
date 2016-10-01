@@ -599,6 +599,117 @@ cairo_pdf_interchange_write_outline (cairo_pdf_surface_t *surface)
     return status;
 }
 
+/*
+ * Split a page label into a text prefix and numeric suffix. Leading '0's are
+ * included in the prefix. eg
+ *  "3"     => NULL,    3
+ *  "cover" => "cover", 0
+ *  "A-2"   => "A-",    2
+ *  "A-002" => "A-00",  2
+ */
+static char *
+split_label (const char* label, int *num)
+{
+    int len, i;
+
+    *num = 0;
+    len = strlen (label);
+    if (len == 0)
+	return NULL;
+
+    i = len;
+    while (i > 0 && _cairo_isdigit (label[i-1]))
+	   i--;
+
+    while (i < len && label[i] == '0')
+	i++;
+
+    if (i < len)
+	sscanf (label + i, "%d", num);
+
+    if (i > 0)
+	return strndup (label, i);
+
+    return NULL;
+}
+
+/* strcmp that handles NULL arguments */
+static cairo_bool_t
+strcmp_null (const char *s1, const char *s2)
+{
+    if (s1 && s2)
+	return strcmp (s1, s2) == 0;
+
+    if (!s1 && !s2)
+	return TRUE;
+
+    return FALSE;
+}
+
+static cairo_int_status_t
+cairo_pdf_interchange_write_page_labels (cairo_pdf_surface_t *surface)
+{
+    int num_elems, i;
+    char *label;
+    char *prefix;
+    char *prev_prefix;
+    int num, prev_num;
+    cairo_int_status_t status;
+
+    num_elems = _cairo_array_num_elements (&surface->page_labels);
+    if (num_elems > 0) {
+	surface->page_labels_res = _cairo_pdf_surface_new_object (surface);
+	_cairo_output_stream_printf (surface->output,
+				     "%d 0 obj\n"
+				     "<< /Nums [\n",
+				     surface->page_labels_res.id);
+	prefix = NULL;
+	prev_prefix = NULL;
+	num = 0;
+	prev_num = 0;
+	for (i = 0; i < num_elems; i++) {
+	    _cairo_array_copy_element (&surface->page_labels, i, &label);
+	    if (label) {
+		prefix = split_label (label, &num);
+	    } else {
+		prefix = NULL;
+		num = i + 1;
+	    }
+
+	    if (!strcmp_null (prefix, prev_prefix) || num != prev_num + 1) {
+		_cairo_output_stream_printf (surface->output,  "   %d << ", i);
+
+		if (num)
+		    _cairo_output_stream_printf (surface->output,  "/S /D /St %d ", num);
+
+		if (prefix) {
+		    char *s;
+		    status = _cairo_utf8_to_pdf_string (prefix, &s);
+		    if (unlikely (status))
+			return status;
+
+		    _cairo_output_stream_printf (surface->output,  "/P %s ", s);
+		    free (s);
+		}
+
+		_cairo_output_stream_printf (surface->output,  ">>\n");
+	    }
+	    free (prev_prefix);
+	    prev_prefix = prefix;
+	    prefix = NULL;
+	    prev_num = num;
+	}
+	free (prefix);
+	free (prev_prefix);
+	_cairo_output_stream_printf (surface->output,
+				     "  ]\n"
+				     ">>\n"
+				     "endobj\n");
+    }
+
+    return CAIRO_STATUS_SUCCESS;
+}
+
 static void
 _collect_dest (void *entry, void *closure)
 {
@@ -1074,6 +1185,10 @@ _cairo_pdf_interchange_write_document_objects (cairo_pdf_surface_t *surface)
 	surface->tagged = TRUE;
 
     status = cairo_pdf_interchange_write_outline (surface);
+    if (unlikely (status))
+	return status;
+
+    status = cairo_pdf_interchange_write_page_labels (surface);
     if (unlikely (status))
 	return status;
 

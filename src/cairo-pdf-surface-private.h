@@ -323,9 +323,12 @@ struct _cairo_pdf_surface {
     int page_parent_tree; /* -1 if not used */
     cairo_array_t page_annots;
     cairo_bool_t tagged;
+    char *current_page_label;
+    cairo_array_t page_labels;
     cairo_pdf_resource_t outlines_dict_res;
     cairo_pdf_resource_t names_dict_res;
     cairo_pdf_resource_t docinfo_res;
+    cairo_pdf_resource_t page_labels_res;
 
     cairo_surface_t *paginated_surface;
 };

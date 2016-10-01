@@ -144,6 +144,10 @@ cairo_pdf_surface_set_metadata (cairo_surface_t	     *surface,
 				cairo_pdf_metadata_t  metadata,
                                 const char           *utf8);
 
+void
+cairo_pdf_surface_set_page_label (cairo_surface_t *surface,
+                                  const char      *utf8);
+
 CAIRO_END_DECLS
 
 #else  /* CAIRO_HAS_PDF_SURFACE */

@@ -447,8 +447,12 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     surface->page_parent_tree = -1;
     _cairo_array_init (&surface->page_annots, sizeof (cairo_pdf_resource_t));
     surface->tagged = FALSE;
+    surface->current_page_label = NULL;
+    _cairo_array_init (&surface->page_labels, sizeof (char *));
     surface->outlines_dict_res.id = 0;
     surface->names_dict_res.id = 0;
+    surface->docinfo_res.id = 0;
+    surface->page_labels_res.id = 0;
 
     surface->paginated_surface =  _cairo_paginated_surface_create (
 	                                  &surface->base,
@@ -804,6 +808,28 @@ cairo_pdf_surface_set_metadata (cairo_surface_t      *surface,
     status = _cairo_pdf_interchange_set_metadata (pdf_surface, metadata, utf8);
     if (status)
 	status = _cairo_surface_set_error (surface, status);
+}
+
+/**
+ * cairo_pdf_surface_set_page_label:
+ * @surface: a PDF #cairo_surface_t
+ * @utf8: The page label.
+ *
+ * Set page label for the current page.
+ *
+ * Since: 1.16
+ **/
+void
+cairo_pdf_surface_set_page_label (cairo_surface_t *surface,
+                                  const char      *utf8)
+{
+    cairo_pdf_surface_t *pdf_surface = NULL; /* hide compiler warning */
+
+    if (! _extract_pdf_surface (surface, &pdf_surface))
+	return;
+
+    free (pdf_surface->current_page_label);
+    pdf_surface->current_page_label = utf8 ? strdup (utf8) : NULL;
 }
 
 static void
@@ -2158,6 +2184,7 @@ _cairo_pdf_surface_finish (void *abstract_surface)
     cairo_status_t status, status2;
     int size, i;
     cairo_pdf_jbig2_global_t *global;
+    char *label;
 
     status = surface->base.status;
     if (status == CAIRO_STATUS_SUCCESS)
@@ -2254,6 +2281,13 @@ _cairo_pdf_surface_finish (void *abstract_surface)
 	    return _cairo_error (CAIRO_STATUS_JBIG2_GLOBAL_MISSING);
     }
     _cairo_array_fini (&surface->jbig2_global);
+
+    size = _cairo_array_num_elements (&surface->page_labels);
+    for (i = 0; i < size; i++) {
+	_cairo_array_copy_element (&surface->page_labels, i, &label);
+	free (label);
+    }
+    _cairo_array_fini (&surface->page_labels);
 
     _cairo_array_truncate (&surface->page_surfaces, 0);
 
@@ -4783,6 +4817,9 @@ _cairo_pdf_surface_show_page (void *abstract_surface)
     cairo_pdf_surface_t *surface = abstract_surface;
     cairo_int_status_t status;
 
+    status = _cairo_array_append (&surface->page_labels, &surface->current_page_label);
+    surface->current_page_label = NULL;
+
     status = _cairo_pdf_interchange_end_page_content (surface);
     if (unlikely (status))
 	return status;
@@ -6171,6 +6208,12 @@ _cairo_pdf_surface_write_catalog (cairo_pdf_surface_t *surface)
 	_cairo_output_stream_printf (surface->output,
 				     "   /Outlines %d 0 R\n",
 				     surface->outlines_dict_res.id);
+    }
+
+    if (surface->page_labels_res.id != 0) {
+	_cairo_output_stream_printf (surface->output,
+				     "   /PageLabels %d 0 R\n",
+				     surface->page_labels_res.id);
     }
 
     if (surface->names_dict_res.id != 0) {

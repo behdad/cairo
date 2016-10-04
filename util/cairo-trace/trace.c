@@ -1585,6 +1585,7 @@ _status_to_string (cairo_status_t status)
 	f(PNG_ERROR);
 	f(FREETYPE_ERROR);
 	f(WIN32_GDI_ERROR);
+	f(TAG_ERROR);
     case CAIRO_STATUS_LAST_STATUS:
 	break;
     }

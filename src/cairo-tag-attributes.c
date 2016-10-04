@@ -314,7 +314,7 @@ parse_attributes (const char *attributes, attribute_spec_t *attrib_def, cairo_li
 {
     attribute_spec_t *def;
     attribute_t *attrib;
-    char *name;
+    char *name = NULL;
     cairo_int_status_t status;
     const char *p = attributes;
 

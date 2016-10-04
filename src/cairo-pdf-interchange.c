@@ -757,7 +757,7 @@ _cairo_pdf_interchange_write_document_dests (cairo_pdf_surface_t *surface)
 	cairo_pdf_named_dest_t *dest = ic->sorted_dests[i];
 	cairo_pdf_resource_t page_res;
 	double x = 0;
-	double y = y;
+	double y = 0;
 
 	if (dest->extents.valid) {
 	    x = dest->extents.extents.x;
@@ -959,7 +959,7 @@ _cairo_pdf_interchange_tag_begin (cairo_pdf_surface_t    *surface,
 				  const char             *name,
 				  const char             *attributes)
 {
-    cairo_int_status_t status;
+    cairo_int_status_t status = CAIRO_STATUS_SUCCESS;
     cairo_tag_type_t tag_type;
     cairo_pdf_interchange_t *ic = &surface->interchange;
     void *ptr;
@@ -1061,7 +1061,7 @@ cairo_int_status_t
 _cairo_pdf_interchange_tag_end (cairo_pdf_surface_t *surface,
 				const char          *name)
 {
-    cairo_int_status_t status;
+    cairo_int_status_t status = CAIRO_STATUS_SUCCESS;
     cairo_pdf_interchange_t *ic = &surface->interchange;
     cairo_tag_type_t tag_type;
     cairo_tag_stack_elem_t *elem;

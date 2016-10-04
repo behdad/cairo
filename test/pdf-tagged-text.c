@@ -123,6 +123,7 @@ layout_paragraph (cairo_t *cr)
     text = strdup (ipsum_lorem);
     begin = text;
     end = text;
+    prev_end = end;
     while (*begin) {
 	end = strchr(end, ' ');
 	if (!end) {

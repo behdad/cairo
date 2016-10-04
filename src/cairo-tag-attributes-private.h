@@ -37,6 +37,9 @@
 #ifndef CAIRO_TAG_ATTRIBUTES_PRIVATE_H
 #define CAIRO_TAG_ATTRIBUTES_PRIVATE_H
 
+#include "cairo-array-private.h"
+#include "cairo-error-private.h"
+
 typedef enum {
     TAG_LINK_INVALID = 0,
     TAG_LINK_EMPTY,
@@ -47,7 +50,7 @@ typedef enum {
 
 typedef struct _cairo_link_attrs {
     cairo_tag_link_type_t link_type;
-    cairo_array_t rects; /* array of cairo_rectangle_t */
+    cairo_array_t rects;
     char *dest;
     char *uri;
     char *file;

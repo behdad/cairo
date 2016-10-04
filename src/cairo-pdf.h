@@ -139,16 +139,16 @@ typedef enum _cairo_pdf_metadata {
     CAIRO_PDF_METADATA_MOD_DATE,
 } cairo_pdf_metadata_t;
 
-void
+cairo_public void
 cairo_pdf_surface_set_metadata (cairo_surface_t	     *surface,
 				cairo_pdf_metadata_t  metadata,
                                 const char           *utf8);
 
-void
+cairo_public void
 cairo_pdf_surface_set_page_label (cairo_surface_t *surface,
                                   const char      *utf8);
 
-void
+cairo_public void
 cairo_pdf_surface_set_thumbnail_size (cairo_surface_t *surface,
 				      int              width,
 				      int              height);

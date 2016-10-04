@@ -344,7 +344,7 @@ cairo_private void
 _cairo_pdf_surface_update_object (cairo_pdf_surface_t	*surface,
 				  cairo_pdf_resource_t	 resource);
 
-cairo_int_status_t
+cairo_private cairo_int_status_t
 _cairo_utf8_to_pdf_string (const char *utf8, char **str_out);
 
 cairo_private cairo_int_status_t

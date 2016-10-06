@@ -627,8 +627,16 @@ split_label (const char* label, int *num)
     if (i < len)
 	sscanf (label + i, "%d", num);
 
-    if (i > 0)
-	return strndup (label, i);
+    if (i > 0) {
+	char *s;
+	s = _cairo_malloc (i + 1);
+	if (!s)
+	    return NULL;
+
+	memcpy (s, label, i);
+	s[i] = 0;
+	return s;
+    }
 
     return NULL;
 }

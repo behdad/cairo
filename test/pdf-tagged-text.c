@@ -134,7 +134,11 @@ layout_paragraph (cairo_t *cr)
 	cairo_text_extents (cr, begin, &text_extents);
 	*end = ' ';
 	if (text_extents.width + 2*MARGIN > PAGE_WIDTH) {
-	    paragraph_text[paragraph_num_lines++] = strndup (begin, prev_end - begin);
+	    int len = prev_end - begin;
+	    char *s = malloc (len);
+	    memcpy (s, begin, len);
+	    s[0] = 0;
+	    paragraph_text[paragraph_num_lines++] = s;
 	    begin = prev_end + 1;
 	}
 	prev_end = end;

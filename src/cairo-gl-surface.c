@@ -868,11 +868,53 @@ _cairo_gl_surface_draw_image (cairo_gl_surface_t *dst,
     cairo_image_surface_t *clone = NULL;
     cairo_gl_context_t *ctx;
     int cpp;
+    cairo_image_surface_t *rgba_clone = NULL;
     cairo_int_status_t status = CAIRO_INT_STATUS_SUCCESS;
 
     status = _cairo_gl_context_acquire (dst->base.device, &ctx);
     if (unlikely (status))
 	return status;
+
+    if (_cairo_gl_get_flavor () == CAIRO_GL_FLAVOR_ES2) {
+	pixman_format_code_t pixman_format;
+	cairo_surface_pattern_t pattern;
+	cairo_bool_t require_conversion = FALSE;
+	pixman_format = _cairo_is_little_endian () ? PIXMAN_a8b8g8r8 : PIXMAN_r8g8b8a8;
+
+	if (src->base.content != CAIRO_CONTENT_ALPHA) {
+	    if (src->pixman_format != pixman_format)
+		require_conversion = TRUE;
+	}
+	else if (dst->base.content != CAIRO_CONTENT_ALPHA)
+	    require_conversion = TRUE;
+	else {
+	    if (src->pixman_format == PIXMAN_a1) {
+		pixman_format = PIXMAN_a8;
+		require_conversion = TRUE;
+	    }
+	}
+
+	if (require_conversion) {
+	    rgba_clone = (cairo_image_surface_t *)
+		_cairo_image_surface_create_with_pixman_format (NULL,
+								pixman_format,
+								src->width,
+								src->height,
+								0);
+	    if (unlikely (rgba_clone->base.status))
+		goto FAIL;
+
+	    _cairo_pattern_init_for_surface (&pattern, &src->base);
+	    status = _cairo_surface_paint (&rgba_clone->base,
+					   CAIRO_OPERATOR_SOURCE,
+					   &pattern.base, NULL);
+	    _cairo_pattern_fini (&pattern.base);
+	    if (unlikely (status))
+		goto FAIL;
+
+	    src = rgba_clone;
+	}
+    }
 
     if (! _cairo_gl_get_image_format_and_type (ctx->gl_flavor,
 					       src->pixman_format,
@@ -1007,6 +1049,9 @@ FAIL:
 
     if (clone)
         cairo_surface_destroy (&clone->base);
+
+    if (rgba_clone)
+	cairo_surface_destroy (&rgba_clone->base);
 
     return status;
 }

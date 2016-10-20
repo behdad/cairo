@@ -71,7 +71,7 @@ struct _cairo_image_surface {
 
     int width;
     int height;
-    int stride;
+    ptrdiff_t stride;
     int depth;
 
     unsigned owns_data : 1;

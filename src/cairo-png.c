@@ -678,7 +678,7 @@ read_png (struct png_read_closure_t *png_closure)
     }
 
     for (i = 0; i < png_height; i++)
-        row_pointers[i] = &data[i * stride];
+        row_pointers[i] = &data[i * (ptrdiff_t)stride];
 
     png_read_image (png, row_pointers);
     png_read_end (png, info);

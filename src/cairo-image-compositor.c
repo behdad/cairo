@@ -1581,7 +1581,7 @@ typedef struct _cairo_image_span_renderer {
     pixman_image_t *src, *mask;
     union {
 	struct fill {
-	    int stride;
+	    ptrdiff_t stride;
 	    uint8_t *data;
 	    uint32_t pixel;
 	} fill;
@@ -1600,7 +1600,7 @@ typedef struct _cairo_image_span_renderer {
 	struct finish {
 	    cairo_rectangle_int_t extents;
 	    int src_x, src_y;
-	    int stride;
+	    ptrdiff_t stride;
 	    uint8_t *data;
 	} mask;
     } u;

@@ -30,7 +30,7 @@ None
 
 Bug Fixes
 ---------
-* All the bug fixes from 1.14.2, 1.14.4, and 14.6
+* All the bug fixes from 1.14.2, 1.14.4, and 1.14.6
 
 * Fix xcb/xlib compilation and calls.  Make image boxes behave when SHM
   is not available.
@@ -55,7 +55,7 @@ Bug Fixes
   doing anything.
   (Bug #90984)
 
-* Improve rendering with Quarts to better match pixman's blending and
+* Improve rendering with Quartz to better match pixman's blending and
   filtering behavior.
 
 

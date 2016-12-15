@@ -551,8 +551,8 @@ cairo_surface_create_similar (cairo_surface_t  *other,
  * cairo_surface_create_similar_image:
  * @other: an existing surface used to select the preference of the new surface
  * @format: the format for the new surface
- * @width: width of the new surface, (in device-space units)
- * @height: height of the new surface (in device-space units)
+ * @width: width of the new surface, (in pixels)
+ * @height: height of the new surface (in pixels)
  *
  * Create a new image surface that is as compatible as possible for uploading
  * to and the use in conjunction with an existing surface. However, this surface

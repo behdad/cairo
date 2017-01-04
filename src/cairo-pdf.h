@@ -120,7 +120,6 @@ cairo_pdf_surface_add_outline (cairo_surface_t	          *surface,
  * @CAIRO_PDF_METADATA_SUBJECT: The document subject (Since 1.16)
  * @CAIRO_PDF_METADATA_KEYWORDS: The document keywords (Since 1.16)
  * @CAIRO_PDF_METADATA_CREATOR: The document creator (Since 1.16)
- * @CAIRO_PDF_METADATA_TITLE: The document title (Since 1.16)
  * @CAIRO_PDF_METADATA_CREATE_DATE: The document creation date (Since 1.16)
  * @CAIRO_PDF_METADATA_MOD_DATE: The document modification date (Since 1.16)
  *

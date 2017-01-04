@@ -579,9 +579,9 @@ cairo_pdf_interchange_write_outline (cairo_pdf_surface_t *surface)
 
 	if (outline->flags) {
 	    int flags = 0;
-	    if (outline->flags & CAIRO_BOOKMARK_FLAG_ITALIC)
+	    if (outline->flags & CAIRO_PDF_OUTLINE_FLAG_ITALIC)
 		flags |= 1;
-	    if (outline->flags & CAIRO_BOOKMARK_FLAG_BOLD)
+	    if (outline->flags & CAIRO_PDF_OUTLINE_FLAG_BOLD)
 		flags |= 2;
 	    _cairo_output_stream_printf (surface->output,
 					 "   /F %d\n",
@@ -1338,7 +1338,7 @@ _cairo_pdf_interchange_add_outline (cairo_pdf_surface_t        *surface,
     /* Update Count */
     outline = outline->parent;
     while (outline) {
-	if (outline->flags & CAIRO_BOOKMARK_FLAG_OPEN) {
+	if (outline->flags & CAIRO_PDF_OUTLINE_FLAG_OPEN) {
 	    outline->count++;
 	} else {
 	    outline->count--;

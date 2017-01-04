@@ -244,7 +244,7 @@ draw_section (cairo_surface_t *surface, cairo_t *cr, const struct section *secti
 	cairo_tag_end (cr, CAIRO_TAG_DEST);
 	cairo_tag_end (cr, "H1");
 	y_pos = MARGIN + HEADING_HEIGHT;
-	flags = CAIRO_BOOKMARK_FLAG_BOLD | CAIRO_BOOKMARK_FLAG_OPEN;
+	flags = CAIRO_PDF_OUTLINE_FLAG_BOLD | CAIRO_PDF_OUTLINE_FLAG_OPEN;
 	outline_parents[0] = cairo_pdf_surface_add_outline (surface,
 							    CAIRO_PDF_OUTLINE_ROOT,
 							    section->heading,
@@ -256,7 +256,7 @@ draw_section (cairo_surface_t *surface, cairo_t *cr, const struct section *secti
 	    flags = 0;
 	} else {
 	    cairo_set_font_size(cr, HEADING3_SIZE);
-	    flags = CAIRO_BOOKMARK_FLAG_ITALIC;
+	    flags = CAIRO_PDF_OUTLINE_FLAG_ITALIC;
 	}
 
 	if (y_pos + HEADING_HEIGHT + paragraph_height + MARGIN > PAGE_HEIGHT) {
@@ -335,7 +335,8 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
 
     cairo_pdf_surface_add_outline (surface,
 				   CAIRO_PDF_OUTLINE_ROOT,
-				   "Contents", "TOC", CAIRO_BOOKMARK_FLAG_BOLD);
+				   "Contents", "TOC",
+                                   CAIRO_PDF_OUTLINE_FLAG_BOLD);
 
     cairo_tag_begin (cr, CAIRO_TAG_DEST, "name='TOC'");
     cairo_tag_begin (cr, "TOC", NULL);

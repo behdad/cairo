@@ -397,7 +397,7 @@ cairo_pdf_interchange_walk_struct_tree (cairo_pdf_surface_t          *surface,
 	    return status;
     }
 
-    return status;
+    return CAIRO_STATUS_SUCCESS;
 }
 
 static cairo_int_status_t

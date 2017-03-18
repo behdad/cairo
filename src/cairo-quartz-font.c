@@ -766,12 +766,13 @@ _cairo_quartz_ucs4_to_index (void *abstract_font,
 {
     cairo_quartz_scaled_font_t *font = (cairo_quartz_scaled_font_t*) abstract_font;
     cairo_quartz_font_face_t *ffont = _cairo_quartz_scaled_to_face(font);
-    UniChar u = (UniChar) ucs4;
-    CGGlyph glyph;
+    CGGlyph glyph[2];
+    UniChar utf16[2];
 
-    CGFontGetGlyphsForUnicharsPtr (ffont->cgFont, &u, &glyph, 1);
+    int len = _cairo_ucs4_to_utf16 (ucs4, utf16);
+    CGFontGetGlyphsForUnicharsPtr (ffont->cgFont, utf16, glyph, len);
 
-    return glyph;
+    return glyph[0];
 }
 
 static cairo_int_status_t

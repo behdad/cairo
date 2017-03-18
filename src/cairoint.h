@@ -1872,6 +1872,10 @@ cairo_private int
 _cairo_ucs4_to_utf8 (uint32_t    unicode,
 		     char       *utf8);
 
+cairo_private int
+_cairo_ucs4_to_utf16 (uint32_t    unicode,
+		      uint16_t   *utf16);
+
 #if CAIRO_HAS_WIN32_FONT || CAIRO_HAS_QUARTZ_FONT || CAIRO_HAS_PDF_OPERATORS
 # define CAIRO_HAS_UTF8_TO_UTF16 1
 #endif

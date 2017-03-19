@@ -106,6 +106,10 @@ static ATSFontRef (*FMGetATSFontRefFromFontPtr) (FMFont iFont) = NULL;
 static cairo_bool_t _cairo_quartz_font_symbol_lookup_done = FALSE;
 static cairo_bool_t _cairo_quartz_font_symbols_present = FALSE;
 
+/* Defined in 10.11 */
+#define CGGLYPH_MAX ((CGGlyph) 0xFFFE) /* kCGFontIndexMax */
+#define CGGLYPH_INVALID ((CGGlyph) 0xFFFF) /* kCGFontIndexInvalid */
+
 static void
 quartz_font_ensure_symbols(void)
 {
@@ -403,14 +407,10 @@ _cairo_quartz_scaled_font_fini(void *abstract_font)
 {
 }
 
-#define INVALID_GLYPH 0x00
-
 static inline CGGlyph
 _cairo_quartz_scaled_glyph_index (cairo_scaled_glyph_t *scaled_glyph) {
     unsigned long index = _cairo_scaled_glyph_index (scaled_glyph);
-    if (index > 0xffff)
-	return INVALID_GLYPH;
-    return (CGGlyph) index;
+    return index <= CGGLYPH_MAX ? index : CGGLYPH_INVALID;
 }
 
 static cairo_int_status_t
@@ -427,7 +427,7 @@ _cairo_quartz_init_glyph_metrics (cairo_quartz_scaled_font_t *font,
     double emscale = CGFontGetUnitsPerEmPtr (font_face->cgFont);
     double xmin, ymin, xmax, ymax;
 
-    if (glyph == INVALID_GLYPH)
+    if (unlikely (glyph == CGGLYPH_INVALID))
 	goto FAIL;
 
     if (!CGFontGetGlyphAdvancesPtr (font_face->cgFont, &glyph, 1, &advance) ||
@@ -561,7 +561,7 @@ _cairo_quartz_init_glyph_path (cairo_quartz_scaled_font_t *font,
     CGPathRef glyphPath;
     cairo_path_fixed_t *path;
 
-    if (glyph == INVALID_GLYPH) {
+    if (unlikely (glyph == CGGLYPH_INVALID)) {
 	_cairo_scaled_glyph_set_path (scaled_glyph, &font->base, _cairo_path_fixed_create());
 	return CAIRO_STATUS_SUCCESS;
     }
@@ -627,7 +627,7 @@ _cairo_quartz_init_glyph_surface (cairo_quartz_scaled_font_t *font,
      * Maybe we should draw a better missing-glyph slug or something,
      * but this is ok for now.
      */
-    if (glyph == INVALID_GLYPH) {
+    if (unlikely (glyph == CGGLYPH_INVALID)) {
 	surface = (cairo_image_surface_t*) cairo_image_surface_create (CAIRO_FORMAT_A8, 2, 2);
 	status = cairo_surface_status ((cairo_surface_t *) surface);
 	if (status)

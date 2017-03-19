@@ -323,6 +323,7 @@ test_sources = \
 	smask-paint.c					\
 	smask-stroke.c					\
 	smask-text.c					\
+	smp-glyph.c					\
 	solid-pattern-cache-stress.c			\
 	source-clip.c					\
 	source-clip-scale.c				\

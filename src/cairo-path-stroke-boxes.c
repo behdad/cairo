@@ -98,6 +98,8 @@ _cairo_rectilinear_stroker_init (cairo_rectilinear_stroker_t	*stroker,
 				 cairo_antialias_t		 antialias,
 				 cairo_boxes_t			*boxes)
 {
+    double half_line_width;
+
     /* This special-case rectilinear stroker only supports
      * miter-joined lines (not curves) and a translation-only matrix
      * (though it could probably be extended to support a matrix with
@@ -127,14 +129,21 @@ _cairo_rectilinear_stroker_init (cairo_rectilinear_stroker_t	*stroker,
     if (! _cairo_matrix_is_scale (ctm))
 	return FALSE;
 
+    half_line_width = stroke_style->line_width / 2.0;
+
+    if (! _cairo_fixed_from_double_safe (&stroker->half_line_x,
+					 fabs(ctm->xx) * half_line_width))
+	    return FALSE;
+    assert (stroker->half_line_x > 0);
+
+    if (! _cairo_fixed_from_double_safe (&stroker->half_line_y,
+					 fabs(ctm->yy) * half_line_width))
+	    return FALSE;
+    assert (stroker->half_line_y > 0);
+
     stroker->stroke_style = stroke_style;
     stroker->ctm = ctm;
     stroker->antialias = antialias;
-
-    stroker->half_line_x =
-	_cairo_fixed_from_double (fabs(ctm->xx) * stroke_style->line_width / 2.0);
-    stroker->half_line_y =
-	_cairo_fixed_from_double (fabs(ctm->yy) * stroke_style->line_width / 2.0);
 
     stroker->open_sub_path = FALSE;
     stroker->segments = stroker->segments_embedded;
@@ -287,6 +296,8 @@ _cairo_rectilinear_stroker_emit_segments (cairo_rectilinear_stroker_t *stroker)
 	    box.p1.x = b->x;
 	    box.p2.x = a->x;
 	}
+	assert (box.p1.x < box.p2.x);
+
 	if (a->y < b->y) {
 	    box.p1.y = a->y;
 	    box.p2.y = b->y;
@@ -294,6 +305,7 @@ _cairo_rectilinear_stroker_emit_segments (cairo_rectilinear_stroker_t *stroker)
 	    box.p1.y = b->y;
 	    box.p2.y = a->y;
 	}
+	assert (box.p1.y < box.p2.y);
 
 	status = _cairo_boxes_add (stroker->boxes, stroker->antialias, &box);
 	if (unlikely (status))
@@ -404,6 +416,8 @@ _cairo_rectilinear_stroker_emit_segments_dashed (cairo_rectilinear_stroker_t *st
 	    box.p1.x = b->x;
 	    box.p2.x = a->x;
 	}
+	assert (box.p1.x < box.p2.x);
+
 	if (a->y < b->y) {
 	    box.p1.y = a->y;
 	    box.p2.y = b->y;
@@ -411,6 +425,7 @@ _cairo_rectilinear_stroker_emit_segments_dashed (cairo_rectilinear_stroker_t *st
 	    box.p1.y = b->y;
 	    box.p2.y = a->y;
 	}
+	assert (box.p1.y < box.p2.y);
 
 	status = _cairo_boxes_add (stroker->boxes, stroker->antialias, &box);
 	if (unlikely (status))

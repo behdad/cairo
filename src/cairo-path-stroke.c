@@ -110,6 +110,7 @@ _cairo_stroker_limit (cairo_stroker_t *stroker,
     _cairo_stroke_style_max_distance_from_path (&stroker->style, path,
 						stroker->ctm, &dx, &dy);
 
+    /* XXX report overflow! */
     fdx = _cairo_fixed_from_double (dx);
     fdy = _cairo_fixed_from_double (dy);
 

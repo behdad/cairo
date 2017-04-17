@@ -314,11 +314,6 @@ intel_bo_init_for_name (const intel_device_t *dev,
 			uint32_t size,
 			uint32_t name);
 
-cairo_private cairo_surface_t *
-intel_bo_get_image (const intel_device_t *device,
-		    intel_bo_t *bo,
-		    const cairo_drm_surface_t *surface);
-
 cairo_private cairo_status_t
 intel_bo_put_image (intel_device_t *dev,
 		    intel_bo_t *bo,

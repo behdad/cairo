@@ -530,50 +530,6 @@ intel_bo_set_tiling (const intel_device_t *device,
     bo->_stride = bo->stride;
 }
 
-cairo_surface_t *
-intel_bo_get_image (const intel_device_t *device,
-		    intel_bo_t *bo,
-		    const cairo_drm_surface_t *surface)
-{
-    cairo_image_surface_t *image;
-    uint8_t *dst;
-    int size, row;
-
-    image = (cairo_image_surface_t *)
-	cairo_image_surface_create (surface->format,
-				    surface->width,
-				    surface->height);
-    if (unlikely (image->base.status))
-	return &image->base;
-
-    intel_bo_set_tiling (device, bo);
-
-    if (bo->tiling == I915_TILING_NONE && image->stride == surface->stride) {
-	size = surface->stride * surface->height;
-	intel_bo_read (device, bo, 0, size, image->data);
-    } else {
-	const uint8_t *src;
-
-	src = intel_bo_map (device, bo);
-	if (unlikely (src == NULL))
-	    return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
-
-	size = surface->width;
-	if (surface->format != CAIRO_FORMAT_A8)
-	    size *= 4;
-
-	row = surface->height;
-	dst = image->data;
-	while (row--) {
-	    memcpy (dst, src, size);
-	    dst += image->stride;
-	    src += surface->stride;
-	}
-    }
-
-    return &image->base;
-}
-
 static cairo_status_t
 _intel_bo_put_a1_image (intel_device_t *device,
 			intel_bo_t *bo,

@@ -39,6 +39,7 @@
 #include "cairo-mutex-private.h"
 #include "cairo-rtree-private.h"
 #include "cairo-types-private.h"
+#include "cairo-pattern-private.h"
 
 #include "cairo-drm-intel-ioctl-private.h"
 

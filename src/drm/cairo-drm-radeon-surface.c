@@ -34,6 +34,7 @@
 
 #include "cairo-default-context-private.h"
 #include "cairo-error-private.h"
+#include "cairo-image-surface-private.h"
 
 /* Basic stub surface for radeon chipsets */
 

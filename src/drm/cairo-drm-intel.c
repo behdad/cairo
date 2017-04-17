@@ -36,6 +36,8 @@
 
 #include "cairo-error-private.h"
 #include "cairo-freelist-private.h"
+#include "cairo-pattern-private.h"
+#include "cairo-image-surface-private.h"
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>

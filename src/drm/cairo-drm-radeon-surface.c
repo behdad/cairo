@@ -304,7 +304,8 @@ radeon_surface_init (radeon_surface_t *surface,
     _cairo_surface_init (&surface->base.base,
 			 &radeon_surface_backend,
 			 &device->base,
-			 _cairo_content_from_format (format));
+			 _cairo_content_from_format (format),
+			FALSE);
     _cairo_drm_surface_init (&surface->base, format, width, height);
 }
 

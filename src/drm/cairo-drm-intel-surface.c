@@ -296,7 +296,9 @@ intel_surface_init (intel_surface_t *surface,
     _cairo_surface_init (&surface->drm.base,
 			 backend,
 			 &device->base,
-			 _cairo_content_from_format (format));
+			 _cairo_content_from_format (format),
+			 FALSE);
+
     _cairo_drm_surface_init (&surface->drm, format, width, height);
 
     surface->snapshot_cache_entry.hash = 0;

@@ -30,7 +30,6 @@
 #include "cairoint.h"
 
 #include "cairo-drm-private.h"
-#include "cairo-drm-ioctl-private.h"
 #include "cairo-drm-intel-private.h"
 #include "cairo-drm-intel-ioctl-private.h"
 
@@ -42,6 +41,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <drm/i915_drm.h>
 
 #define GLYPH_CACHE_WIDTH 1024
 #define GLYPH_CACHE_HEIGHT 1024
@@ -54,7 +54,7 @@
 int
 intel_get (int fd, int param)
 {
-    struct intel_getparam gp;
+    struct drm_i915_getparam gp;
     int value;
 
     gp.param = param;

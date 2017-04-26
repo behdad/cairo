@@ -100,6 +100,24 @@ typedef struct _cairo_win32_surface {
      * that match bounds of the clipped region.
      */
     cairo_rectangle_int_t extents;
+
+    /* Offset added to extents, used when the extents start with a negative
+     * offset, which occur on Windows for, and only for, desktop DC.  This 
+     * occurs when you have multiple monitors, and at least one monitor 
+     * extends to the left, or above, the primaty monitor.  The primary 
+     * monitor on Windows always start with offset (0,0), and any other points 
+     * to the left, or above, have negative offset.  So the 'desktop DC' is 
+     * in fact a 'virtual desktop' which can start with extents in the negative 
+     * range. 
+     *  
+     * Why use new variables, and not the device transform?  Simply because since 
+     * the device transform functions are exposed, a lot of 3rd party libraries 
+     * simply overwrite those, disregarding the prior content, instead of actually 
+     * adding the offset.  GTK for example simply reset the device transform of the 
+     * desktop cairo surface to zero.  So make some private member variables for 
+     * this, which will not be fiddled with externally. 
+     */
+    int x_ofs, y_ofs;
 } cairo_win32_surface_t;
 #define to_win32_surface(S) ((cairo_win32_surface_t *)(S))
 

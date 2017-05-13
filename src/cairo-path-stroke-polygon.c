@@ -1276,7 +1276,6 @@ _cairo_path_fixed_stroke_to_polygon (const cairo_path_fixed_t	*path,
 	for (i = 1; i < polygon->num_limits; i++)
 	     _cairo_box_add_box (&stroker.bounds, &polygon->limits[i]);
 
-	/* XXX check overflow */
 	_cairo_stroke_style_max_distance_from_path (style, path, ctm, &dx, &dy);
 	fdx = _cairo_fixed_from_double (dx);
 	fdy = _cairo_fixed_from_double (dy);

@@ -146,7 +146,6 @@ stroker_init (struct stroker		*stroker,
 	_cairo_stroke_style_max_line_distance_from_path (stroker->style, path,
 							 stroker->ctm, &dx, &dy);
 
-	/* XXX check overflow */
 	fdx = _cairo_fixed_from_double (dx);
 	fdy = _cairo_fixed_from_double (dy);
 

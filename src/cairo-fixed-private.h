@@ -53,9 +53,6 @@
 #define CAIRO_FIXED_ONE_DOUBLE ((double)(1 << CAIRO_FIXED_FRAC_BITS))
 #define CAIRO_FIXED_EPSILON    ((cairo_fixed_t)(1))
 
-#define CAIRO_FIXED_MAX		(~0u >> (CAIRO_FIXED_FRAC_BITS + 1))
-#define CAIRO_FIXED_MIN		(-(int)CAIRO_FIXED_MAX)
-
 #define CAIRO_FIXED_ERROR_DOUBLE (1. / (2 * CAIRO_FIXED_ONE_DOUBLE))
 
 #define CAIRO_FIXED_FRAC_MASK  ((cairo_fixed_t)(((cairo_fixed_unsigned_t)(-1)) >> (CAIRO_FIXED_BITS - CAIRO_FIXED_FRAC_BITS)))
@@ -124,16 +121,6 @@ _cairo_fixed_from_double (double d)
 #else
     return u.i[0];
 #endif
-}
-
-static inline cairo_bool_t
-_cairo_fixed_from_double_safe (cairo_fixed_t *f, double d)
-{
-    if (unlikely (d < CAIRO_FIXED_MIN || d > CAIRO_FIXED_MAX))
-	return FALSE;
-
-    *f = _cairo_fixed_from_double (d);
-    return TRUE;
 }
 
 #else

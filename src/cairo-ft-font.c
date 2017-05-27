@@ -58,6 +58,7 @@
 #include FT_BITMAP_H
 #include FT_TRUETYPE_TABLES_H
 #include FT_XFREE86_H
+#include FT_MULTIPLE_MASTERS_H
 #if HAVE_FT_GLYPHSLOT_EMBOLDEN
 #include FT_SYNTHESIS_H
 #endif
@@ -2595,11 +2596,71 @@ _cairo_ft_index_to_ucs4(void	        *abstract_font,
     return CAIRO_STATUS_SUCCESS;
 }
 
-static cairo_bool_t
-_cairo_ft_is_synthetic (void	        *abstract_font)
+static cairo_int_status_t
+_cairo_ft_is_synthetic (void	        *abstract_font,
+			cairo_bool_t    *is_synthetic)
 {
+    cairo_int_status_t status = CAIRO_STATUS_SUCCESS;
     cairo_ft_scaled_font_t *scaled_font = abstract_font;
-    return scaled_font->ft_options.synth_flags != 0;
+    cairo_ft_unscaled_font_t *unscaled = scaled_font->unscaled;
+    FT_Face face;
+    FT_Error error;
+
+    if (scaled_font->ft_options.synth_flags != 0) {
+	*is_synthetic = TRUE;
+	return status;
+    }
+
+    *is_synthetic = FALSE;
+    face = _cairo_ft_unscaled_font_lock_face (unscaled);
+    if (!face)
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    if (face->face_flags & FT_FACE_FLAG_MULTIPLE_MASTERS) {
+	FT_MM_Var *mm_var = NULL;
+	FT_Fixed *coords = NULL;
+	int num_axis, i;
+
+	/* If this is an MM or variable font we can't assume the current outlines
+	 * are the same as the font tables */
+	*is_synthetic = TRUE;
+
+	error = FT_Get_MM_Var (face, &mm_var);
+	if (error) {
+	    status = _cairo_error (_ft_to_cairo_error (error));
+	    goto cleanup;
+	}
+
+	num_axis = mm_var->num_axis;
+	coords = _cairo_malloc_ab (num_axis, sizeof(FT_Fixed));
+	if (!coords) {
+	    status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	    goto cleanup;
+	}
+
+#if FREETYPE_MAJOR > 2 || ( FREETYPE_MAJOR == 2 &&  FREETYPE_MINOR >= 8)
+	/* If FT_Get_Var_Design_Coordinates() is available, we can check if the
+	 * current design coordinates are the default coordinates. In this case
+	 * the current outlines match the font tables.
+	 */
+	FT_Get_Var_Design_Coordinates (face, num_axis, coords);
+	*is_synthetic = FALSE;
+	for (i = 0; i < num_axis; i++) {
+	    if (coords[i] != mm_var->axis[i].def) {
+		*is_synthetic = TRUE;
+		break;
+	    }
+	}
+#endif
+
+      cleanup:
+	free (coords);
+	free (mm_var);
+    }
+
+    _cairo_ft_unscaled_font_unlock_face (unscaled);
+
+    return status;
 }
 
 static cairo_int_status_t

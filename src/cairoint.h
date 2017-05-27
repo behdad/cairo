@@ -562,8 +562,12 @@ struct _cairo_scaled_font_backend {
 		     unsigned long               index,
                      uint32_t                   *ucs4);
 
-    cairo_warn cairo_bool_t
-    (*is_synthetic)(void                       *scaled_font);
+    /* Determine if this scaled font differs from the outlines in the font tables.
+     * eg synthesized bold/italic or a non default variant of a variable font.
+     */
+    cairo_warn cairo_int_status_t
+    (*is_synthetic)(void                       *scaled_font,
+		    cairo_bool_t               *is_synthetic);
 
     /* For type 1 fonts, return the glyph name for a given glyph index.
      * A glyph index and list of glyph names in the Type 1 fonts is provided.

@@ -138,6 +138,7 @@ _cairo_truetype_font_create (cairo_scaled_font_subset_t  *scaled_font_subset,
 			     cairo_truetype_font_t      **font_return)
 {
     cairo_status_t status;
+    cairo_bool_t is_synthetic;
     cairo_truetype_font_t *font;
     const cairo_scaled_font_backend_t *backend;
     tt_head_t head;
@@ -158,9 +159,15 @@ _cairo_truetype_font_create (cairo_scaled_font_subset_t  *scaled_font_subset,
      *   return CAIRO_INT_STATUS_UNSUPPORTED;
      */
 
-    /* We need to use a fallback font generated from the synthesized outlines. */
-    if (backend->is_synthetic && backend->is_synthetic (scaled_font_subset->scaled_font))
-       return CAIRO_INT_STATUS_UNSUPPORTED;
+    /* We need to use a fallback font if this font differs from the glyf outlines. */
+    if (backend->is_synthetic) {
+	status = backend->is_synthetic (scaled_font_subset->scaled_font, &is_synthetic);
+	if (unlikely (status))
+	    return status;
+
+	if (is_synthetic)
+	    return CAIRO_INT_STATUS_UNSUPPORTED;
+    }
 
     size = sizeof (tt_head_t);
     status = backend->load_truetype_table (scaled_font_subset->scaled_font,

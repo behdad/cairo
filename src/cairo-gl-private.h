@@ -106,7 +106,7 @@ typedef enum cairo_gl_flavor {
     CAIRO_GL_FLAVOR_ES2 = 2
 } cairo_gl_flavor_t;
 
-/* Indices for vertex attributes used by BindAttribLocation etc */
+/* Indices for vertex attributes used by BindAttribLocation, etc. */
 enum {
     CAIRO_GL_VERTEX_ATTRIB_INDEX = 0,
     CAIRO_GL_COLOR_ATTRIB_INDEX  = 1,

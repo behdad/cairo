@@ -1,3 +1,64 @@
+Release 1.15.6     (2017-06-13 Bryce Harrington <bryce@osg.samsung.com>)
+========================================================================
+This new snapshot incorporates changes over the past half-year since the
+1.15.4 snapshot, including all the fixes from the 1.14 release series.
+
+The PDF code continues to be enhanced, and we're restored MacOSX 10.4
+support.  Font-related fixes and improved error handling for X round out
+the release.
+
+For a complete log of changes, please see
+
+    http://cairographics.org/releases/ChangeLog.1.15.6
+
+
+Features and Enhancements
+-------------------------
+* Detect if variable fonts have	synthesized bold/italic	or non-default
+  variants, and	     use a fallback font where needed.
+
+* Restore MacOSX 10.4 support.	    Cairo had dropped 10.4 support when
+  moving to the CoreText API.  Now we automatically detect which API to
+  use via dynamic linking, so can resume supporting this older version
+  of MacOSX.
+
+
+API Changes
+-----------
+None
+
+Dependency Changes
+------------------
+None
+
+Performance Optimizations
+-------------------------
+None
+
+Bug Fixes
+---------
+* Fix error reporting in the xcb backend if fallback fails.  Instead of
+  returning NULL when the X11 server can't do some operation, return a
+  surface in an error state.
+
+* Call XSync in the xlib backend before setting the error handler to
+  ignore errors for certain requests, to make sure all pending errors
+  are handled first.
+
+* Fix text-glyph-range for quartz-font.	 Use 0xFFFF instead of 0 for
+  invalid index	       tracking.
+
+* Fix handling of Supplementary Multilingual Plane (SMP) Unicode
+  characters in quartz-font.
+
+* Fix various issues in the drm backend	including updating API usage and
+  general code cleanup.
+
+* Clarify documentation	regarding device scale inheritance and the units
+  used in cairo_surface_create_similar_image.
+  Bug #99094.
+
+
 Release 1.15.4     (2016-12-9 Bryce Harrington <bryce@osg.samsung.com>)
 =======================================================================
 This new snapshot incorporates changes over the past year since the

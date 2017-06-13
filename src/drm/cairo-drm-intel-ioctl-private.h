@@ -30,9 +30,9 @@
 #ifndef CAIRO_DRM_INTEL_IOCTL_PRIVATE_H
 #define CAIRO_DRM_INTEL_IOCTL_PRIVATE_H
 
-#include <drm/i915_drm.h>
-
 #include "cairo-drm-intel-command-private.h"
+
+#include <drm/i915_drm.h>
 
 struct drm_i915_gem_real_size {
 	uint32_t handle;

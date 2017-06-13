@@ -27,10 +27,6 @@
  *
  */
 
-#include <stddef.h>
-#include <inttypes.h>		/* workaround for broken <drm/radeon_drm.h> */
-#include <drm/radeon_drm.h>
-
 #include "cairoint.h"
 
 #include "cairo-drm-private.h"
@@ -39,6 +35,10 @@
 #include "cairo-default-context-private.h"
 #include "cairo-error-private.h"
 #include "cairo-image-surface-private.h"
+
+#include <stddef.h>
+#include <inttypes.h>		/* workaround for broken <drm/radeon_drm.h> */
+#include <drm/radeon_drm.h>
 
 /* Basic stub surface for radeon chipsets */
 

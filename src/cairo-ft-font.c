@@ -2283,8 +2283,10 @@ _cairo_ft_scaled_glyph_init (void			*abstract_font,
     load_flags |= FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH;
 
     if ((info & CAIRO_SCALED_GLYPH_INFO_PATH) != 0 &&
-	(info & CAIRO_SCALED_GLYPH_INFO_SURFACE) == 0)
+	(info & (CAIRO_SCALED_GLYPH_INFO_SURFACE |
+                 CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE)) == 0) {
 	load_flags |= FT_LOAD_NO_BITMAP;
+    }
 
     /*
      * Don't pass FT_LOAD_VERTICAL_LAYOUT to FT_Load_Glyph here as
@@ -2306,7 +2308,7 @@ _cairo_ft_scaled_glyph_init (void			*abstract_font,
      * Moreover, none of our backends and compositors currently support
      * color glyphs.  As such, this is currently disabled.
      */
-    /* load_flags |= FT_LOAD_COLOR; */
+    load_flags |= FT_LOAD_COLOR;
 #endif
 
 
@@ -2420,7 +2422,8 @@ _cairo_ft_scaled_glyph_init (void			*abstract_font,
 					 &fs_metrics);
     }
 
-    if ((info & CAIRO_SCALED_GLYPH_INFO_SURFACE) != 0) {
+LOAD:
+    if (info & (CAIRO_SCALED_GLYPH_INFO_SURFACE | CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE)) {
 	cairo_image_surface_t	*surface;
 
 	if (!scaled_glyph_loaded) {
@@ -2448,17 +2451,38 @@ _cairo_ft_scaled_glyph_init (void			*abstract_font,
 	    {
 		status = _transform_glyph_bitmap (&unscaled->current_shape,
 						  &surface);
-		if (unlikely (status))
-		    cairo_surface_destroy (&surface->base);
-	    }
+                if (unlikely (status))
+                    cairo_surface_destroy (&surface->base);
+            }
 	}
 	if (unlikely (status))
 	    goto FAIL;
 
-	_cairo_scaled_glyph_set_surface (scaled_glyph,
-					 &scaled_font->base,
-					 surface);
+        if ((pixman_image_get_format (surface->pixman_image) == PIXMAN_a8r8g8b8) &&
+            !pixman_image_get_component_alpha (surface->pixman_image)) {
+            _cairo_scaled_glyph_set_color_surface (scaled_glyph,
+                                                   &scaled_font->base,
+                                                   surface);
+        } else {
+            _cairo_scaled_glyph_set_surface (scaled_glyph,
+                                             &scaled_font->base,
+                                             surface);
+        }
     }
+
+#ifdef FT_LOAD_COLOR
+    if (((info & (CAIRO_SCALED_GLYPH_INFO_SURFACE | CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE)) != 0) &&
+        ((scaled_glyph->has_info & CAIRO_SCALED_GLYPH_INFO_SURFACE) == 0)) {
+        /*
+         * A kludge -- load again, without color.
+         * No need to load the metrics again, though
+         */
+	scaled_glyph_loaded = FALSE;
+        info &= ~CAIRO_SCALED_GLYPH_INFO_METRICS;
+        load_flags &= ~FT_LOAD_COLOR;
+        goto LOAD;
+    }
+#endif
 
     if (info & CAIRO_SCALED_GLYPH_INFO_PATH) {
 	cairo_path_fixed_t *path = NULL; /* hide compiler warning */
@@ -2467,7 +2491,7 @@ _cairo_ft_scaled_glyph_init (void			*abstract_font,
 	 * A kludge -- the above code will trash the outline,
 	 * so reload it. This will probably never occur though
 	 */
-	if ((info & CAIRO_SCALED_GLYPH_INFO_SURFACE) != 0) {
+	if ((info & (CAIRO_SCALED_GLYPH_INFO_SURFACE | CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE)) != 0) {
 	    scaled_glyph_loaded = FALSE;
 	    load_flags |= FT_LOAD_NO_BITMAP;
 	}

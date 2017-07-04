@@ -504,12 +504,8 @@ cairo_surface_create_similar (cairo_surface_t  *other,
 	return _cairo_surface_create_in_error (CAIRO_STATUS_SURFACE_FINISHED);
     if (unlikely (width < 0 || height < 0))
 	return _cairo_surface_create_in_error (CAIRO_STATUS_INVALID_SIZE);
-
     if (unlikely (! CAIRO_CONTENT_VALID (content)))
 	return _cairo_surface_create_in_error (CAIRO_STATUS_INVALID_CONTENT);
-
-    if (unlikely (other->status))
-	return _cairo_surface_create_in_error (other->status);
 
     /* We inherit the device scale, so create a larger surface */
     width = width * other->device_transform.xx;

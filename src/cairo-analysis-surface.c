@@ -118,7 +118,7 @@ attach_proxy (cairo_surface_t *source,
 {
     struct proxy *proxy;
 
-    proxy = malloc (sizeof (*proxy));
+    proxy = _cairo_malloc (sizeof (*proxy));
     if (unlikely (proxy == NULL))
 	return _cairo_surface_create_in_error (CAIRO_STATUS_NO_MEMORY);
 
@@ -830,7 +830,7 @@ _cairo_analysis_surface_create (cairo_surface_t		*target)
     if (unlikely (status))
 	return _cairo_surface_create_in_error (status);
 
-    surface = malloc (sizeof (cairo_analysis_surface_t));
+    surface = _cairo_malloc (sizeof (cairo_analysis_surface_t));
     if (unlikely (surface == NULL))
 	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
 
@@ -1020,7 +1020,7 @@ _cairo_null_surface_create (cairo_content_t content)
 {
     cairo_surface_t *surface;
 
-    surface = malloc (sizeof (cairo_surface_t));
+    surface = _cairo_malloc (sizeof (cairo_surface_t));
     if (unlikely (surface == NULL)) {
 	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
     }

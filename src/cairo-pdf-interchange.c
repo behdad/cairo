@@ -100,7 +100,7 @@ add_tree_node (cairo_pdf_surface_t           *surface,
 {
     cairo_pdf_struct_tree_node_t *node;
 
-    node = malloc (sizeof(cairo_pdf_struct_tree_node_t));
+    node = _cairo_malloc (sizeof(cairo_pdf_struct_tree_node_t));
     if (unlikely (node == NULL))
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 

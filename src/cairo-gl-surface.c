@@ -1259,7 +1259,7 @@ _cairo_gl_surface_map_to_image (void      *abstract_surface,
 	uint8_t *bot = image->data + (image->height-1)*image->stride;
 
 	if (image->stride > (int)sizeof(stack)) {
-	    row = malloc (image->stride);
+	    row = _cairo_malloc (image->stride);
 	    if (unlikely (row == NULL)) {
 		cairo_surface_destroy (&image->base);
 		return _cairo_image_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));

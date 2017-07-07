@@ -504,7 +504,7 @@ _pool_chunk_create(struct pool *pool, size_t size)
 {
     struct _pool_chunk *p;
 
-    p = malloc(size + sizeof(struct _pool_chunk));
+    p = _cairo_malloc (size + sizeof(struct _pool_chunk));
     if (unlikely (NULL == p))
 	longjmp (*pool->jmp, _cairo_error (CAIRO_STATUS_NO_MEMORY));
 
@@ -1682,7 +1682,7 @@ _cairo_tor22_scan_converter_create (int			xmin,
     cairo_tor22_scan_converter_t *self;
     cairo_status_t status;
 
-    self = malloc (sizeof(struct _cairo_tor22_scan_converter));
+    self = _cairo_malloc (sizeof(struct _cairo_tor22_scan_converter));
     if (unlikely (self == NULL)) {
 	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
 	goto bail_nomem;

@@ -248,7 +248,7 @@ _cairo_gl_gradient_create (cairo_gl_context_t           *ctx,
 	return CAIRO_STATUS_SUCCESS;
     }
 
-    gradient = malloc (sizeof (cairo_gl_gradient_t) + sizeof (cairo_gradient_stop_t) * (n_stops - 1));
+    gradient = _cairo_malloc (sizeof (cairo_gl_gradient_t) + sizeof (cairo_gradient_stop_t) * (n_stops - 1));
     if (gradient == NULL)
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 

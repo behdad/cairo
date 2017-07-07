@@ -1060,7 +1060,7 @@ _cairo_gl_get_shader_by_type (cairo_gl_context_t *ctx,
     if (unlikely (status))
 	return status;
 
-    entry = malloc (sizeof (cairo_shader_cache_entry_t));
+    entry = _cairo_malloc (sizeof (cairo_shader_cache_entry_t));
     if (unlikely (entry == NULL)) {
         free (fs_source);
         return _cairo_error (CAIRO_STATUS_NO_MEMORY);

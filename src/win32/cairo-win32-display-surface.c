@@ -298,7 +298,7 @@ _cairo_win32_display_surface_create_for_dc (HDC             original_dc,
     unsigned char *bits;
     int rowstride;
 
-    surface = malloc (sizeof (*surface));
+    surface = _cairo_malloc (sizeof (*surface));
     if (surface == NULL)
 	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
 
@@ -719,7 +719,7 @@ _cairo_win32_display_surface_set_clip (cairo_win32_display_surface_t *surface,
 
     data_size = sizeof (RGNDATAHEADER) + num_rects * sizeof (RECT);
     if (data_size > sizeof (stack)) {
-	data = malloc (data_size);
+	data = _cairo_malloc (data_size);
 	if (!data)
 	    return _cairo_error(CAIRO_STATUS_NO_MEMORY);
     } else
@@ -988,7 +988,7 @@ cairo_win32_surface_create_with_format (HDC hdc, cairo_format_t format)
 	break;
     }
 
-    surface = malloc (sizeof (*surface));
+    surface = _cairo_malloc (sizeof (*surface));
     if (surface == NULL)
 	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
 

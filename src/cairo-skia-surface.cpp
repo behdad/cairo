@@ -1043,7 +1043,7 @@ _cairo_skia_surface_create_internal (SkBitmap::Config config,
     cairo_skia_surface_t *surface;
     cairo_format_t format;
 
-    surface = (cairo_skia_surface_t *) malloc (sizeof (cairo_skia_surface_t));
+    surface = (cairo_skia_surface_t *) _cairo_malloc (sizeof (cairo_skia_surface_t));
     if (surface == NULL)
 	return (cairo_skia_surface_t *) _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
 

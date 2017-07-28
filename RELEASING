@@ -1,5 +1,18 @@
 Here are the steps to follow to create a new cairo release:
 
+0) Decide type of release and checkout the appropriate branch.
+
+	The Cairo project makes three types of releases: Development
+	snapshot releases, stable minor releases, and stable micro (aka
+	"point") releases.  Micro releases should be only bugfixes and
+	no API additions.  If there are API additions consider making a
+	Minor release.  Snapshot releases can be done of the current
+	development tree between Minor releases, as desired.
+
+	For stable releases (both minor and micro), the work should be
+	done on the given release branch.  E.g. for 1.14.12, check out
+	the 1.14 branch via "git checkout origin/1.14 -b 1.14".
+
 1) Ensure that there are no local, uncommitted/unpushed mods.
 
 	You're probably in a good state if both "git diff
@@ -45,12 +58,6 @@ Here are the steps to follow to create a new cairo release:
 
 3) Decide what the new version number for the release will be.
 
-	There are three types of releases:  Minor, Micro, and
-	Snapshot.  Micro releases should be only bugfixes and no API
-	additions.  If there are API additions consider making a Minor
-	release.  Snapshot releases can be done of the current
-	development tree between Minor releases, as desired.
-
 	Cairo uses even numbers for official releases, and odd numbers
 	for development snapshots.  Thus, for a Minor release it would
 	be:
@@ -75,8 +82,6 @@ Here are the steps to follow to create a new cairo release:
 
 		LAST_RELEASE="X.Y.Z"     # e.g. 1.15.2
 		THIS_RELEASE="X.Y.Z+2"   # e.g. 1.15.4
-
-
 
 4) Fill out an entry in the NEWS file
 

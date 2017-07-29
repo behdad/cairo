@@ -1438,6 +1438,7 @@ _render_glyph_outline (FT_Face                    face,
 
 	(*surface) = (cairo_image_surface_t *)
 	    cairo_image_surface_create_for_data (NULL, format, 0, 0, 0);
+	pixman_image_set_component_alpha ((*surface)->pixman_image, TRUE);
 	if ((*surface)->base.status)
 	    return (*surface)->base.status;
     } else {
@@ -1662,6 +1663,10 @@ _transform_glyph_bitmap (cairo_matrix_t         * shape,
 
     old_image = (*surface);
     (*surface) = (cairo_image_surface_t *)image;
+
+    /* Note: we converted subpixel-rendered RGBA images to grayscale,
+     * so, no need to copy component alpha to new image. */
+
     cairo_surface_destroy (&old_image->base);
 
     cairo_surface_set_device_offset (&(*surface)->base,
@@ -2309,16 +2314,6 @@ _cairo_ft_scaled_glyph_init (void			*abstract_font,
     }
 
 #ifdef FT_LOAD_COLOR
-    /* Color-glyph support:
-     *
-     * This flags needs plumbing through fontconfig (does it?), and
-     * maybe we should cache color and grayscale bitmaps separately
-     * such that users of the font (ie. the surface) can choose which
-     * version to use based on target content type.
-     *
-     * Moreover, none of our backends and compositors currently support
-     * color glyphs.  As such, this is currently disabled.
-     */
     load_flags |= FT_LOAD_COLOR;
 #endif
 
@@ -2469,7 +2464,7 @@ LOAD:
 	if (unlikely (status))
 	    goto FAIL;
 
-        if ((pixman_image_get_format (surface->pixman_image) == PIXMAN_a8r8g8b8) &&
+        if (pixman_image_get_format (surface->pixman_image) == PIXMAN_a8r8g8b8 &&
             !pixman_image_get_component_alpha (surface->pixman_image)) {
             _cairo_scaled_glyph_set_color_surface (scaled_glyph,
                                                    &scaled_font->base,

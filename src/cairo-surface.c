@@ -2530,7 +2530,7 @@ ensure_scaled_glyph (cairo_scaled_font_t   *scaled_font,
                      cairo_scaled_glyph_t **scaled_glyph)
 {
     int cache_index;
-    cairo_int_status_t status;
+    cairo_int_status_t status = CAIRO_INT_STATUS_SUCCESS;
 
     cache_index = glyph->index % GLYPH_CACHE_SIZE;
     *scaled_glyph = glyph_cache[cache_index];
@@ -2561,7 +2561,7 @@ composite_one_color_glyph (cairo_surface_t       *surface,
     cairo_pattern_t *pattern;
     cairo_matrix_t matrix;
 
-    status = CAIRO_STATUS_SUCCESS;
+    status = CAIRO_INT_STATUS_SUCCESS;
 
     glyph_surface = scaled_glyph->color_surface;
 
@@ -2608,7 +2608,7 @@ composite_color_glyphs (cairo_surface_t             *surface,
 
     memset (glyph_cache, 0, sizeof (glyph_cache));
 
-    status = CAIRO_STATUS_SUCCESS;
+    status = CAIRO_INT_STATUS_SUCCESS;
 
     _cairo_scaled_font_freeze_cache (scaled_font);
 

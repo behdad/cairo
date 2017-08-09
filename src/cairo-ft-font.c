@@ -1255,6 +1255,15 @@ _get_bitmap_surface (FT_Bitmap		     *bitmap,
 
 	    memcpy (data, bitmap->buffer, stride * height);
 	}
+
+	if (!_cairo_is_little_endian ())
+	{
+	    /* Byteswap. */
+	    unsigned int i, count = height * width;
+	    uint32_t *p = (uint32_t *) data;
+	    for (i = 0; i < count; i++)
+		p[i] = be32_to_cpu (p[i]);
+	}
 	format = CAIRO_FORMAT_ARGB32;
 	break;
 #endif

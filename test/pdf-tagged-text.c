@@ -137,7 +137,7 @@ layout_paragraph (cairo_t *cr)
 	    int len = prev_end - begin;
 	    char *s = malloc (len);
 	    memcpy (s, begin, len);
-	    s[0] = 0;
+	    s[len-1] = 0;
 	    paragraph_text[paragraph_num_lines++] = s;
 	    begin = prev_end + 1;
 	}

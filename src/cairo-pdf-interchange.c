@@ -238,16 +238,7 @@ cairo_pdf_interchange_write_annot (cairo_pdf_surface_t            *surface,
     cairo_pdf_interchange_t *ic = &surface->interchange;
     int sp;
     char *dest = NULL;
-    int i, num_rects, num_mcid;
-    struct page_mcid *mcid_elem;
-
-    num_mcid = _cairo_array_num_elements (&node->mcid);
-    if (num_mcid == 0 )
-	return status;
-
-    mcid_elem = _cairo_array_index (&node->mcid, 0);
-    if (mcid_elem->page != ic->annot_page)
-	return status;
+    int i, num_rects;
 
     num_rects = _cairo_array_num_elements (&node->annot.link_attrs.rects);
     if (strcmp (node->name, CAIRO_TAG_LINK) == 0 &&

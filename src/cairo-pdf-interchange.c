@@ -654,57 +654,69 @@ cairo_pdf_interchange_write_page_labels (cairo_pdf_surface_t *surface)
     char *prev_prefix;
     int num, prev_num;
     cairo_int_status_t status;
+    cairo_bool_t has_labels;
 
+    /* Check if any labels defined */
     num_elems = _cairo_array_num_elements (&surface->page_labels);
-    if (num_elems > 0) {
-	surface->page_labels_res = _cairo_pdf_surface_new_object (surface);
-	_cairo_output_stream_printf (surface->output,
-				     "%d 0 obj\n"
-				     "<< /Nums [\n",
-				     surface->page_labels_res.id);
-	prefix = NULL;
-	prev_prefix = NULL;
-	num = 0;
-	prev_num = 0;
-	for (i = 0; i < num_elems; i++) {
-	    _cairo_array_copy_element (&surface->page_labels, i, &label);
-	    if (label) {
-		prefix = split_label (label, &num);
-	    } else {
-		prefix = NULL;
-		num = i + 1;
-	    }
-
-	    if (!strcmp_null (prefix, prev_prefix) || num != prev_num + 1) {
-		_cairo_output_stream_printf (surface->output,  "   %d << ", i);
-
-		if (num)
-		    _cairo_output_stream_printf (surface->output,  "/S /D /St %d ", num);
-
-		if (prefix) {
-		    char *s;
-		    status = _cairo_utf8_to_pdf_string (prefix, &s);
-		    if (unlikely (status))
-			return status;
-
-		    _cairo_output_stream_printf (surface->output,  "/P %s ", s);
-		    free (s);
-		}
-
-		_cairo_output_stream_printf (surface->output,  ">>\n");
-	    }
-	    free (prev_prefix);
-	    prev_prefix = prefix;
-	    prefix = NULL;
-	    prev_num = num;
+    has_labels = FALSE;
+    for (i = 0; i < num_elems; i++) {
+	_cairo_array_copy_element (&surface->page_labels, i, &label);
+	if (label) {
+	    has_labels = TRUE;
+	    break;
 	}
-	free (prefix);
-	free (prev_prefix);
-	_cairo_output_stream_printf (surface->output,
-				     "  ]\n"
-				     ">>\n"
-				     "endobj\n");
     }
+
+    if (!has_labels)
+	return CAIRO_STATUS_SUCCESS;
+
+    surface->page_labels_res = _cairo_pdf_surface_new_object (surface);
+    _cairo_output_stream_printf (surface->output,
+				 "%d 0 obj\n"
+				 "<< /Nums [\n",
+				 surface->page_labels_res.id);
+    prefix = NULL;
+    prev_prefix = NULL;
+    num = 0;
+    prev_num = 0;
+    for (i = 0; i < num_elems; i++) {
+	_cairo_array_copy_element (&surface->page_labels, i, &label);
+	if (label) {
+	    prefix = split_label (label, &num);
+	} else {
+	    prefix = NULL;
+	    num = i + 1;
+	}
+
+	if (!strcmp_null (prefix, prev_prefix) || num != prev_num + 1) {
+	    _cairo_output_stream_printf (surface->output,  "   %d << ", i);
+
+	    if (num)
+		_cairo_output_stream_printf (surface->output,  "/S /D /St %d ", num);
+
+	    if (prefix) {
+		char *s;
+		status = _cairo_utf8_to_pdf_string (prefix, &s);
+		if (unlikely (status))
+		    return status;
+
+		_cairo_output_stream_printf (surface->output,  "/P %s ", s);
+		free (s);
+	    }
+
+	    _cairo_output_stream_printf (surface->output,  ">>\n");
+	}
+	free (prev_prefix);
+	prev_prefix = prefix;
+	prefix = NULL;
+	prev_num = num;
+    }
+    free (prefix);
+    free (prev_prefix);
+    _cairo_output_stream_printf (surface->output,
+				 "  ]\n"
+				 ">>\n"
+				 "endobj\n");
 
     return CAIRO_STATUS_SUCCESS;
 }

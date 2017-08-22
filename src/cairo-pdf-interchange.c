@@ -1183,17 +1183,22 @@ _cairo_pdf_interchange_write_document_objects (cairo_pdf_surface_t *surface)
 {
     cairo_pdf_interchange_t *ic = &surface->interchange;
     cairo_int_status_t status = CAIRO_STATUS_SUCCESS;
+    cairo_tag_stack_structure_type_t tag_type;
 
-    status = cairo_pdf_interchange_write_parent_tree (surface);
-    if (unlikely (status))
-	return status;
+    tag_type = _cairo_tag_stack_get_structure_type (&ic->analysis_tag_stack);
+    if (tag_type == TAG_TREE_TYPE_TAGGED || tag_type == TAG_TREE_TYPE_STRUCTURE) {
 
-    status = cairo_pdf_interchange_write_struct_tree (surface);
-    if (unlikely (status))
-	return status;
+	status = cairo_pdf_interchange_write_parent_tree (surface);
+	if (unlikely (status))
+	    return status;
 
-    if (_cairo_tag_stack_get_structure_type (&ic->analysis_tag_stack) == TAG_TREE_TYPE_TAGGED)
-	surface->tagged = TRUE;
+	status = cairo_pdf_interchange_write_struct_tree (surface);
+	if (unlikely (status))
+	    return status;
+
+	if (tag_type == TAG_TREE_TYPE_TAGGED)
+	    surface->tagged = TRUE;
+    }
 
     status = cairo_pdf_interchange_write_outline (surface);
     if (unlikely (status))

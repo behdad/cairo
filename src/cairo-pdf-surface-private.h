@@ -194,7 +194,7 @@ typedef struct _cairo_pdf_named_dest {
 
 typedef struct _cairo_pdf_outline_entry {
     char *name;
-    char *dest;
+    cairo_link_attrs_t link_attrs;
     cairo_pdf_outline_flags_t flags;
     cairo_pdf_resource_t res;
     struct _cairo_pdf_outline_entry *parent;

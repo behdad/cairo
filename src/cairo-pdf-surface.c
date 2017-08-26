@@ -739,14 +739,15 @@ cairo_pdf_surface_set_size (cairo_surface_t	*surface,
  * @surface: a PDF #cairo_surface_t
  * @parent_id: the id of the parent item or %CAIRO_PDF_OUTLINE_ROOT if this is a top level item.
  * @utf8: the name of the outline
- * @dest: the name of the destination
+ * @link_attribs: the link attributes specifying where this outline links to
  * @flags: outline item flags
  *
- * Add an item to the document outline hierarchy with the name @utf8 that links to the
- * destinaton @dest. Destinations are created using
- * cairo_tag_begin()/cairo_tag_end() with the
- * %CAIRO_TAG_DEST. The item will be a child of the item with id @parent_id. Use %CAIRO_PDF_OUTLINE_ROOT
- * as the parent id of top level items.
+ * Add an item to the document outline hierarchy with the name @utf8
+ * that links to the location specified by @link_attribs. Link
+ * attributes have the same keys and values as the [Link Tag][link],
+ * excluding the "rect" attribute. The item will be a child of the
+ * item with id @parent_id. Use %CAIRO_PDF_OUTLINE_ROOT as the parent
+ * id of top level items.
  *
  * Return value: the id for the added item.
  *
@@ -756,7 +757,7 @@ int
 cairo_pdf_surface_add_outline (cairo_surface_t	         *surface,
 			       int                        parent_id,
 			       const char                *utf8,
-			       const char                *dest,
+			       const char                *link_attribs,
 			       cairo_pdf_outline_flags_t  flags)
 {
     cairo_pdf_surface_t *pdf_surface = NULL; /* hide compiler warning */
@@ -769,7 +770,7 @@ cairo_pdf_surface_add_outline (cairo_surface_t	         *surface,
     status = _cairo_pdf_interchange_add_outline (pdf_surface,
 						 parent_id,
 						 utf8,
-						 dest,
+						 link_attribs,
 						 flags,
 						 &id);
     if (status)

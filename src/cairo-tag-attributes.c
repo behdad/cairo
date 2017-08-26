@@ -495,6 +495,7 @@ _cairo_tag_parse_link_attributes (const char *attributes, cairo_link_attrs_t *li
 	    link_attrs->pos.x = val.f;
 	    _cairo_array_copy_element (&attr->array, 1, &val);
 	    link_attrs->pos.y = val.f;
+	    link_attrs->has_pos = TRUE;
 	} else if (strcmp (attr->name, "rect") == 0) {
 	    cairo_rectangle_t rect;
 	    int i;

@@ -387,6 +387,7 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     _cairo_array_init (&surface->page_patterns, sizeof (cairo_pdf_pattern_t));
     _cairo_array_init (&surface->page_surfaces, sizeof (cairo_pdf_source_surface_t));
     _cairo_array_init (&surface->jbig2_global, sizeof (cairo_pdf_jbig2_global_t));
+    _cairo_array_init (&surface->page_heights, sizeof (double));
     surface->all_surfaces = _cairo_hash_table_create (_cairo_pdf_source_surface_equal);
     if (unlikely (surface->all_surfaces == NULL)) {
 	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
@@ -2313,6 +2314,7 @@ _cairo_pdf_surface_finish (void *abstract_surface)
 	    return _cairo_error (CAIRO_STATUS_JBIG2_GLOBAL_MISSING);
     }
     _cairo_array_fini (&surface->jbig2_global);
+    _cairo_array_fini (&surface->page_heights);
 
     size = _cairo_array_num_elements (&surface->page_labels);
     for (i = 0; i < size; i++) {
@@ -4876,7 +4878,14 @@ _cairo_pdf_surface_show_page (void *abstract_surface)
     cairo_pdf_surface_t *surface = abstract_surface;
     cairo_int_status_t status;
 
+    status = _cairo_array_append (&surface->page_heights, &surface->height);
+    if (unlikely (status))
+	return status;
+
     status = _cairo_array_append (&surface->page_labels, &surface->current_page_label);
+    if (unlikely (status))
+	return status;
+
     surface->current_page_label = NULL;
 
     status = _cairo_pdf_interchange_end_page_content (surface);

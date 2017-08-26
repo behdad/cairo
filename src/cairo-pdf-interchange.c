@@ -239,6 +239,7 @@ cairo_pdf_interchange_write_annot (cairo_pdf_surface_t            *surface,
     int sp;
     char *dest = NULL;
     int i, num_rects;
+    double height;
 
     num_rects = _cairo_array_num_elements (&node->annot.link_attrs.rects);
     if (strcmp (node->name, CAIRO_TAG_LINK) == 0 &&
@@ -266,6 +267,7 @@ cairo_pdf_interchange_write_annot (cairo_pdf_surface_t            *surface,
 				     res.id,
 				     sp);
 
+	_cairo_array_copy_element (&surface->page_heights, node->annot.src_page - 1, &height);
 	if (num_rects > 0) {
 	    cairo_rectangle_int_t bbox_rect;
 
@@ -282,18 +284,18 @@ cairo_pdf_interchange_write_annot (cairo_pdf_surface_t            *surface,
 		else
 		    _cairo_rectangle_union (&bbox_rect, &recti);
 
-		write_rect_to_pdf_quad_points (surface->output, &rectf, node->annot.page_height);
+		write_rect_to_pdf_quad_points (surface->output, &rectf, height);
 		_cairo_output_stream_printf (surface->output, " ");
 	    }
 	    _cairo_output_stream_printf (surface->output,
 					 "]\n"
 					 "   /Rect [ ");
-	    write_rect_int_to_pdf_bbox (surface->output, &bbox_rect, node->annot.page_height);
+	    write_rect_int_to_pdf_bbox (surface->output, &bbox_rect, height);
 	    _cairo_output_stream_printf (surface->output, " ]\n");
 	} else {
 	    _cairo_output_stream_printf (surface->output,
 					 "   /Rect [ ");
-	    write_rect_int_to_pdf_bbox (surface->output, &node->annot.extents.extents, node->annot.page_height);
+	    write_rect_int_to_pdf_bbox (surface->output, &node->annot.extents.extents, height);
 	    _cairo_output_stream_printf (surface->output, " ]\n");
 	}
 
@@ -315,12 +317,19 @@ cairo_pdf_interchange_write_annot (cairo_pdf_surface_t            *surface,
 		if (page < 1 || page > (int)_cairo_array_num_elements (&surface->pages))
 		    return CAIRO_INT_STATUS_TAG_ERROR;
 
+		_cairo_array_copy_element (&surface->page_heights, page - 1, &height);
 		_cairo_array_copy_element (&surface->pages, page - 1, &res);
-		_cairo_output_stream_printf (surface->output,
-					     "   /Dest [%d 0 R /XYZ %f %f 0]\n",
-					     res.id,
-					     node->annot.link_attrs.pos.x,
-					     node->annot.page_height - node->annot.link_attrs.pos.y);
+		if (node->annot.link_attrs.has_pos) {
+		    _cairo_output_stream_printf (surface->output,
+						 "   /Dest [%d 0 R /XYZ %f %f 0]\n",
+						 res.id,
+						 node->annot.link_attrs.pos.x,
+						 height - node->annot.link_attrs.pos.y);
+		} else {
+		    _cairo_output_stream_printf (surface->output,
+						 "   /Dest [%d 0 R /XYZ null null 0]\n",
+						 res.id);
+		}
 	    }
 	} else if (node->annot.link_attrs.link_type == TAG_LINK_URI) {
 	    _cairo_output_stream_printf (surface->output,
@@ -342,11 +351,17 @@ cairo_pdf_interchange_write_annot (cairo_pdf_surface_t            *surface,
 					     "      /D %s\n",
 					     dest);
 	    } else {
-		_cairo_output_stream_printf (surface->output,
-					     "      /D [%d %f %f ]\n",
-					     node->annot.link_attrs.page,
-					     node->annot.link_attrs.pos.x,
-					     node->annot.link_attrs.pos.y);
+		if (node->annot.link_attrs.has_pos) {
+		    _cairo_output_stream_printf (surface->output,
+						 "      /D [%d %f %f 0]\n",
+						 node->annot.link_attrs.page,
+						 node->annot.link_attrs.pos.x,
+						 node->annot.link_attrs.pos.y);
+		} else {
+		    _cairo_output_stream_printf (surface->output,
+						 "      /D [%d null null 0]\n",
+						 node->annot.link_attrs.page);
+		}
 	    }
 	    _cairo_output_stream_printf (surface->output,
 					 "   >>\n");
@@ -769,6 +784,7 @@ _cairo_pdf_interchange_write_document_dests (cairo_pdf_surface_t *surface)
 	cairo_pdf_resource_t page_res;
 	double x = 0;
 	double y = 0;
+	double height;
 
 	if (dest->extents.valid) {
 	    x = dest->extents.extents.x;
@@ -782,12 +798,13 @@ _cairo_pdf_interchange_write_document_dests (cairo_pdf_surface_t *surface)
 	    y = dest->attrs.y;
 
 	_cairo_array_copy_element (&surface->pages, dest->page - 1, &page_res);
+	_cairo_array_copy_element (&surface->page_heights, dest->page - 1, &height);
 	_cairo_output_stream_printf (surface->output,
-				     "   (%s) [ %d 0 R /XYZ %f %f ]\n",
+				     "   (%s) [%d 0 R /XYZ %f %f 0]\n",
 				     dest->attrs.name,
 				     page_res.id,
 				     x,
-				     surface->height - y);
+				     height - y);
     }
     _cairo_output_stream_printf (surface->output,
 				     "  ]\n"
@@ -914,7 +931,7 @@ _cairo_pdf_interchange_begin_structure_tag (cairo_pdf_surface_t    *surface,
 	    if (unlikely (status))
 		return status;
 
-	    ic->current_node->annot.page_height = surface->height;
+	    ic->current_node->annot.src_page = _cairo_array_num_elements (&surface->pages);;
 	    cairo_list_add_tail (&ic->current_node->annot.extents.link, &ic->extents_list);
 	}
 
@@ -950,7 +967,6 @@ _cairo_pdf_interchange_begin_dest_tag (cairo_pdf_surface_t    *surface,
 	if (unlikely (status))
 	    return status;
 
-	dest->page_height = surface->height;
 	dest->page = _cairo_array_num_elements (&surface->pages);
 	init_named_dest_key (dest);
 	status = _cairo_hash_table_insert (ic->named_dests, &dest->base);

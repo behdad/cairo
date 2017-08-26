@@ -55,6 +55,7 @@ typedef struct _cairo_link_attrs {
     char *uri;
     char *file;
     int page;
+    cairo_bool_t has_pos;
     cairo_point_double_t pos;
 } cairo_link_attrs_t;
 

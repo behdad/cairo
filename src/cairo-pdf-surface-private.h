@@ -179,7 +179,7 @@ typedef struct _cairo_pdf_struct_tree_node {
 	struct tag_extents extents;
 	cairo_pdf_resource_t res;
 	cairo_link_attrs_t link_attrs;
-	double page_height;
+	int src_page; /* page number containing the link */
     } annot;
     cairo_list_t link;
 } cairo_pdf_struct_tree_node_t;
@@ -189,7 +189,6 @@ typedef struct _cairo_pdf_named_dest {
     struct tag_extents extents;
     cairo_dest_attrs_t attrs;
     int page;
-    double page_height;
     cairo_bool_t referenced;
 } cairo_pdf_named_dest_t;
 
@@ -267,6 +266,7 @@ struct _cairo_pdf_surface {
     cairo_array_t smask_groups;
     cairo_array_t knockout_group;
     cairo_array_t jbig2_global;
+    cairo_array_t page_heights;
 
     cairo_scaled_font_subsets_t *font_subsets;
     cairo_array_t fonts;

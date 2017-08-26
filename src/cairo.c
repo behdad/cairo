@@ -193,7 +193,7 @@
  * @page: An integer specifying the page number in the PDF file to link to.
  *
  * @pos: [optional] An array of two floats specifying the x,y position
- * on the page. Default is 0,0.
+ * on the page.
  *
  * An example of the link attributes to link to a page and x,y position:
  * <programlisting>
@@ -227,8 +227,9 @@
  *
  *  @page: An integer specifying the page number in the PDF file.
  *
- *  @pos: [optional] An array of two floats specifying the x,y position
- *  on the page. Default is 0,0.
+ *  @pos: [optional] An array of two floats specifying the x,y
+ *  position on the page. Position coordinates in external files are in PDF
+ *  coordinates (0,0 at bottom left).
  *
  * An example of the link attributes to PDF file:
  * <programlisting>

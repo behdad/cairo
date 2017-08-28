@@ -1,3 +1,49 @@
+Release 1.15.8     (2017-08-29 Bryce Harrington <bryce@osg.samsung.com>)
+========================================================================
+This small snapshot provides new colored emoji glyph support, and a
+handful of minor fixes.
+
+For a complete log of changes, please see
+
+    http://cairographics.org/releases/ChangeLog.1.15.8
+
+Features and Enhancements
+-------------------------
+* Support colored emoji glyphs, stored as PNG images in OpenType fonts.
+
+
+API Changes
+-----------
+None
+
+Dependency Changes
+------------------
+None
+
+Performance Optimizations
+-------------------------
+None
+
+Bug Fixes
+---------
+
+* pdf: Fix internal links pointing to other pages, by pre-calculating
+  page heights so that link positions can be calculated more accurately.
+
+* image: Fix crash on negative lengths
+
+* win32: Fix initialization of mutexes for static builds
+
+* pdf: Don't emit /PageLabel dict when no labels defined
+
+* font: Fix color font loading on big-endian systems
+
+* font:	Fix color font support infinite-loop with empty glyphs
+
+* Fix off by one check in cairo-image-info.c
+
+
+
 Release 1.15.6     (2017-06-13 Bryce Harrington <bryce@osg.samsung.com>)
 ========================================================================
 This new snapshot incorporates changes over the past half-year since the

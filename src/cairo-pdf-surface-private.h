@@ -189,7 +189,6 @@ typedef struct _cairo_pdf_named_dest {
     struct tag_extents extents;
     cairo_dest_attrs_t attrs;
     int page;
-    cairo_bool_t referenced;
 } cairo_pdf_named_dest_t;
 
 typedef struct _cairo_pdf_outline_entry {

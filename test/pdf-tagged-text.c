@@ -344,7 +344,7 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
 				   "Contents", "dest='TOC'",
                                    CAIRO_PDF_OUTLINE_FLAG_BOLD);
 
-    cairo_tag_begin (cr, CAIRO_TAG_DEST, "name='TOC'");
+    cairo_tag_begin (cr, CAIRO_TAG_DEST, "name='TOC' internal");
     cairo_tag_begin (cr, "TOC", NULL);
     const struct section *sect = contents;
     while (sect->heading) {

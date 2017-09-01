@@ -173,7 +173,7 @@ Here are the steps to follow to create a new cairo release:
 	previous versions, remove manual-${THIS_RELEASE} and
 	release/cairo-${THIS_RELEASE}.
 
-8) Update trunk (or the stable branch) version number.
+8) Update master (or the stable branch) version number.
 
 	For Micro releases (X.Y.Z), increment cairo_version_micro to the
 	next larger (odd) number in cairo-version.h, commit, and push.

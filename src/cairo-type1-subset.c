@@ -311,7 +311,7 @@ cairo_type1_font_subset_get_matrix (cairo_type1_font_subset_t *font,
     const char *decimal_point;
     int decimal_point_len;
 
-    decimal_point = cairo_get_locale_decimal_point ();
+    decimal_point = _cairo_get_locale_decimal_point ();
     decimal_point_len = strlen (decimal_point);
 
     assert (decimal_point_len != 0);

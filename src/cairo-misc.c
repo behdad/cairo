@@ -41,6 +41,11 @@
 #include "cairoint.h"
 #include "cairo-error-private.h"
 
+#include <locale.h>
+#ifdef HAVE_XLOCALE_H
+#include <xlocale.h>
+#endif
+
 COMPILE_TIME_ASSERT ((int)CAIRO_STATUS_LAST_STATUS < (int)CAIRO_INT_STATUS_UNSUPPORTED);
 COMPILE_TIME_ASSERT (CAIRO_INT_STATUS_LAST_STATUS <= 127);
 
@@ -786,6 +791,38 @@ _cairo_get_locale_decimal_point (void)
 }
 #endif
 
+#if defined (HAVE_NEWLOCALE) && defined (HAVE_STRTOD_L)
+
+static locale_t C_locale;
+
+static locale_t
+get_C_locale (void)
+{
+    locale_t C;
+
+retry:
+    C = (locale_t) _cairo_atomic_ptr_get (&C_locale);
+
+    if (unlikely (!C)) {
+        C = newlocale (LC_ALL_MASK, "C", NULL);
+
+        if (!_cairo_atomic_ptr_cmpxchg (&C_locale, NULL, C)) {
+            freelocale (C_locale);
+            goto retry;
+        }
+    }
+
+    return C;
+}
+
+double
+_cairo_strtod (const char *nptr, char **endptr)
+{
+    return strtod_l (nptr, endptr, get_C_locale ());
+}
+
+#else
+
 /* strtod replacement that ignores locale and only accepts decimal points */
 double
 _cairo_strtod (const char *nptr, char **endptr)
@@ -841,6 +878,7 @@ _cairo_strtod (const char *nptr, char **endptr)
 
     return value;
 }
+#endif
 
 #ifdef _WIN32
 

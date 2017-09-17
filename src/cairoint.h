@@ -913,7 +913,10 @@ cairo_private void
 _cairo_intern_string_reset_static_data (void);
 
 cairo_private const char *
-cairo_get_locale_decimal_point (void);
+_cairo_get_locale_decimal_point (void);
+
+cairo_private double
+_cairo_strtod (const char *nptr, char **endptr);
 
 /* cairo-path-fixed.c */
 cairo_private cairo_path_fixed_t *

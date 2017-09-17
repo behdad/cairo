@@ -312,7 +312,7 @@ _cairo_dtostr (char *buffer, size_t size, double d, cairo_bool_t limited_precisi
     if (d == 0.0)
 	d = 0.0;
 
-    decimal_point = cairo_get_locale_decimal_point ();
+    decimal_point = _cairo_get_locale_decimal_point ();
     decimal_point_len = strlen (decimal_point);
 
     assert (decimal_point_len != 0);

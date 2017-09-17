@@ -912,6 +912,9 @@ _cairo_validate_text_clusters (const char		   *utf8,
 			       int			    num_clusters,
 			       cairo_text_cluster_flags_t   cluster_flags);
 
+cairo_private unsigned long
+_cairo_string_hash (const char *str, int len);
+
 cairo_private cairo_status_t
 _cairo_intern_string (const char **str_inout, int len);
 

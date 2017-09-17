@@ -980,8 +980,8 @@ typedef struct _cairo_intern_string {
 
 static cairo_hash_table_t *_cairo_intern_string_ht;
 
-static unsigned long
-_intern_string_hash (const char *str, int len)
+unsigned long
+_cairo_string_hash (const char *str, int len)
 {
     const signed char *p = (const signed char *) str;
     unsigned int h = *p;
@@ -1016,7 +1016,7 @@ _cairo_intern_string (const char **str_inout, int len)
 
     if (len < 0)
 	len = strlen (str);
-    tmpl.hash_entry.hash = _intern_string_hash (str, len);
+    tmpl.hash_entry.hash = _cairo_string_hash (str, len);
     tmpl.len = len;
     tmpl.string = (char *) str;
 

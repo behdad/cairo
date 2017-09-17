@@ -3624,6 +3624,70 @@ cairo_ft_font_face_get_synthesize (cairo_font_face_t *font_face)
     return ft->ft_options.synth_flags;
 }
 
+static void
+cairo_ft_apply_variations (FT_Face     face,
+                           const char *variations)
+{
+    FT_MM_Var *ft_mm_var;
+    FT_Error ret;
+
+    ret = FT_Get_MM_Var (face, &ft_mm_var);
+    if (ret == 0) {
+        FT_Fixed *coords;
+        unsigned int i;
+        const char *p;
+
+        coords = malloc (sizeof (FT_Fixed) * ft_mm_var->num_axis);
+
+        for (i = 0; i < ft_mm_var->num_axis; i++)
+            coords[i] = ft_mm_var->axis[i].def;
+
+        p = variations;
+        while (p && *p) {
+            char *start;
+            char *end, *end2;
+            FT_ULong tag;
+            double value;
+
+            while (_cairo_isspace (*p)) p++;
+
+            start = p;
+            end = strchr (p, ',');
+            if (end && (end - p < 6))
+                goto skip;
+
+            tag = FT_MAKE_TAG(p[0], p[1], p[2], p[3]);
+
+            p += 4;
+            while (_cairo_isspace (*p)) p++;
+            if (*p == '=') p++;
+
+            if (p - start < 5)
+                goto skip;
+
+            value = _cairo_strtod (p, &end2);
+
+            while (end2 && _cairo_isspace (*end2)) end2++;
+
+            if (end2 && (*end2 != ',' && *end2 != '\0'))
+                goto skip;
+
+            for (i = 0; i < ft_mm_var->num_axis; i++) {
+                if (ft_mm_var->axis[i].tag == tag) {
+                    coords[i] = (FT_Fixed)(value*65536);
+                    break;
+                }
+            }
+
+skip:
+            p = end ? end + 1 : NULL;
+        }
+
+        FT_Set_Var_Design_Coordinates (face, ft_mm_var->num_axis, coords);
+        free (coords);
+    }
+}
+
 /**
  * cairo_ft_scaled_font_lock_face:
  * @scaled_font: A #cairo_scaled_font_t from the FreeType font backend. Such an
@@ -3632,7 +3696,8 @@ cairo_ft_font_face_get_synthesize (cairo_font_face_t *font_face)
  *   cairo_ft_font_face_create_for_ft_face()).
  *
  * cairo_ft_scaled_font_lock_face() gets the #FT_Face object from a FreeType
- * backend font and scales it appropriately for the font. You must
+ * backend font and scales it appropriately for the font and applies OpenType
+ * font variations if applicable. You must
  * release the face with cairo_ft_scaled_font_unlock_face()
  * when you are done using it.  Since the #FT_Face object can be
  * shared between multiple #cairo_scaled_font_t objects, you must not
@@ -3684,6 +3749,8 @@ cairo_ft_scaled_font_lock_face (cairo_scaled_font_t *abstract_font)
 	status = _cairo_scaled_font_set_error (&scaled_font->base, status);
 	return NULL;
     }
+
+    cairo_ft_apply_variations (face, scaled_font->base.options.variations);
 
     /* Note: We deliberately release the unscaled font's mutex here,
      * so that we are not holding a lock across two separate calls to

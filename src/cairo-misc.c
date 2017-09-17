@@ -868,7 +868,7 @@ _intern_string_hash (const char *str, int len)
     const signed char *p = (const signed char *) str;
     unsigned int h = *p;
 
-    for (p += 1; --len; p++)
+    for (p += 1; len > 0; len--, p++)
 	h = (h << 5) - h + *p;
 
     return h;

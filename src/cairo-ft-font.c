@@ -1714,6 +1714,7 @@ _get_pattern_ft_options (FcPattern *pattern, cairo_ft_options_t *ret)
 #ifdef FC_HINT_STYLE
     int hintstyle;
 #endif
+    char *variations;
 
     _cairo_font_options_init_default (&ft_options.base);
     ft_options.load_flags = FT_LOAD_DEFAULT;
@@ -1854,6 +1855,13 @@ _get_pattern_ft_options (FcPattern *pattern, cairo_ft_options_t *ret)
 
     if (embolden)
 	ft_options.synth_flags |= CAIRO_FT_SYNTHESIZE_BOLD;
+
+#ifndef FC_FONT_VARIATIONS
+#define FC_FONT_VARIATIONS "fontvariations"
+#endif
+    if (FcPatternGetString (pattern, FC_FONT_VARIATIONS, 0, (FcChar8 **) &variations) == FcResultMatch) {
+      ft_options.base.variations = strdup (variations);
+    }
 
     *ret = ft_options;
 }

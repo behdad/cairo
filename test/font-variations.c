@@ -28,7 +28,9 @@
 #include <assert.h>
 
 #if CAIRO_HAS_FC_FONT
-#include <freetype/ftmm.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include FT_MULTIPLE_MASTERS_H
 #include <fontconfig/fontconfig.h>
 #include "cairo-ft.h"
 #endif
@@ -57,9 +59,14 @@ test_variation (cairo_test_context_t *ctx,
 #if CAIRO_HAS_FC_FONT
     FcPattern *pattern;
 
+#ifndef FC_FONT_VARIATIONS
+#define FC_FONT_VARIATIONS "fontvariations"
+#endif
+
     /* we need a font that has variations */
     pattern = FcPatternBuild (NULL,
                               FC_FAMILY, FcTypeString, (FcChar8*)"Adobe Variable Font Prototype",
+                              FC_FONT_VARIATIONS, FcTypeString, input,
                               NULL);
     font_face = cairo_ft_font_face_create_for_pattern (pattern);
     status = cairo_font_face_status (font_face);
@@ -120,22 +127,22 @@ test_variation (cairo_test_context_t *ctx,
 
     for (i = 0; i < ft_mm_var->num_axis; i++) {
         FT_Var_Axis *axis = &ft_mm_var->axis[i];
-        cairo_test_log (ctx, "axis %s, value %ld\n", axis->name, coords[i]);
+        cairo_test_log (ctx, "axis %s, value %g\n", axis->name, coords[i] / 65536.);
     }
     for (i = 0; i < ft_mm_var->num_axis; i++) {
         FT_Var_Axis *axis = &ft_mm_var->axis[i];
         if (axis->tag == FT_MAKE_TAG(tag[0], tag[1], tag[2], tag[3])) {
             if (def) {
                 if (coords[i] != axis->def) {
-                    cairo_test_log (ctx, "Axis %s: not default value (%ld != %ld)",
-                                    axis->name, coords[i], axis->def);
+                    cairo_test_log (ctx, "Axis %s: not default value (%g != %g)",
+                                    axis->name, coords[i] / 65536., axis->def / 65536.);
                     return CAIRO_TEST_FAILURE;
                 }
             }
             else {
                 if (coords[i] != FloatToFixed(expected_value)) {
-                    cairo_test_log (ctx, "Axis %s: not expected value (%ld != %ld)",
-                                    axis->name, coords[i], FloatToFixed(expected_value));
+                    cairo_test_log (ctx, "Axis %s: not expected value (%g != %g)",
+                                    axis->name, coords[i] / 65536., expected_value);
                     return CAIRO_TEST_FAILURE;
                 }
             }

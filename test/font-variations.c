@@ -59,14 +59,9 @@ test_variation (cairo_test_context_t *ctx,
 #if CAIRO_HAS_FC_FONT
     FcPattern *pattern;
 
-#ifndef FC_FONT_VARIATIONS
-#define FC_FONT_VARIATIONS "fontvariations"
-#endif
-
     /* we need a font that has variations */
     pattern = FcPatternBuild (NULL,
                               FC_FAMILY, FcTypeString, (FcChar8*)"Adobe Variable Font Prototype",
-                              FC_FONT_VARIATIONS, FcTypeString, input,
                               NULL);
     font_face = cairo_ft_font_face_create_for_pattern (pattern);
     status = cairo_font_face_status (font_face);
@@ -84,13 +79,13 @@ test_variation (cairo_test_context_t *ctx,
         return CAIRO_TEST_FAILURE;
     }
 
-    cairo_font_options_set_variations (options, "wdth=200,wght=300");
+    cairo_font_options_set_variations (options, input);
     if (cairo_font_options_status (options) != CAIRO_STATUS_SUCCESS) {
         cairo_test_log (ctx, "Failed to set variations");
         return CAIRO_TEST_FAILURE;
     }
 
-    if (strcmp (cairo_font_options_get_variations (options), "wdth=200,wght=300") != 0) {
+    if (strcmp (cairo_font_options_get_variations (options), input) != 0) {
         cairo_test_log (ctx, "Failed to verify variations");
         return CAIRO_TEST_FAILURE;
     }
@@ -172,10 +167,10 @@ preamble (cairo_test_context_t *ctx)
              int expected_default;
              float expected_value;
     } tests[] = {
-      { "wdth=200,wght=300", "wght", 0, 200.0 }, // valid
-      { "wdth=200.5,wght=300", "wght", 0, 200.5 }, // valid, using decimal dot
-      { "wdth 200 , wght=300", "wght", 0, 200.0 }, // valid, without =
-      { "wdth = 200", "wght", 0, 200.0 }, // valid, whitespace and =
+      { "wdth=200,wght=300", "wdth", 0, 200.0 }, // valid
+      { "wdth=200.5,wght=300", "wdth", 0, 200.5 }, // valid, using decimal dot
+      { "wdth 200 , wght=300", "wdth", 0, 200.0 }, // valid, without =
+      { "wdth = 200", "wdth", 0, 200.0 }, // valid, whitespace and =
       { "CNTR=20", "wght", 1, 0.0 }, // valid, not setting wght
       { "weight=100", "wght", 1, 0.0 }, // not a valid tag
       { NULL, 0 }

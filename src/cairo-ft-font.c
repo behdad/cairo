@@ -1940,6 +1940,24 @@ _cairo_ft_options_merge (cairo_ft_options_t *options,
 	}
     }
 
+    if (other->base.variations) {
+      if (options->base.variations) {
+        char *p;
+
+        /* 'merge' variations by concatenating - later entries win */
+        p = malloc (strlen (other->base.variations) + strlen (options->base.variations) + 2);
+        p[0] = 0;
+        strcat (p, options->base.variations);
+        strcat (p, ",");
+        strcat (p, other->base.variations);
+        free (options->base.variations);
+        options->base.variations = p;
+      }
+      else {
+        options->base.variations = strdup (other->base.variations);
+      }
+    }
+
     options->load_flags = load_flags | load_target;
     options->synth_flags = other->synth_flags;
 }

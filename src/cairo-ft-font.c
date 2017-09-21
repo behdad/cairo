@@ -2704,14 +2704,14 @@ _cairo_ft_is_synthetic (void	        *abstract_font,
 	}
 
 #if FREETYPE_MAJOR > 2 || ( FREETYPE_MAJOR == 2 &&  FREETYPE_MINOR >= 8)
-	/* If FT_Get_Var_Design_Coordinates() is available, we can check if the
+	/* If FT_Get_Var_Blend_Coordinates() is available, we can check if the
 	 * current design coordinates are the default coordinates. In this case
 	 * the current outlines match the font tables.
 	 */
-	FT_Get_Var_Design_Coordinates (face, num_axis, coords);
+	FT_Get_Var_Blend_Coordinates (face, num_axis, coords);
 	*is_synthetic = FALSE;
 	for (i = 0; i < num_axis; i++) {
-	    if (coords[i] != mm_var->axis[i].def) {
+	    if (coords[i]) {
 		*is_synthetic = TRUE;
 		break;
 	    }

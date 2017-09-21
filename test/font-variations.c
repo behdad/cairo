@@ -167,10 +167,10 @@ preamble (cairo_test_context_t *ctx)
              int expected_default;
              float expected_value;
     } tests[] = {
-      { "wdth=200,wght=300", "wdth", 0, 200.0 }, // valid
-      { "wdth=200.5,wght=300", "wdth", 0, 200.5 }, // valid, using decimal dot
-      { "wdth 200 , wght=300", "wdth", 0, 200.0 }, // valid, without =
-      { "wdth = 200", "wdth", 0, 200.0 }, // valid, whitespace and =
+      { "wdth=200,wght=300", "wght", 0, 300.0 }, // valid
+      { "wdth=200.5,wght=300.5", "wght", 0, 300.5 }, // valid, using decimal dot
+      { "wdth 200 , wght 300", "wght", 0, 300.0 }, // valid, without =
+      { "wght = 200", "wght", 0, 200.0 }, // valid, whitespace and =
       { "CNTR=20", "wght", 1, 0.0 }, // valid, not setting wght
       { "weight=100", "wght", 1, 0.0 }, // not a valid tag
       { NULL, 0 }

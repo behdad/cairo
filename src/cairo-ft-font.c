@@ -3656,11 +3656,19 @@ cairo_ft_apply_variations (FT_Face     face,
         FT_Fixed *coords;
         unsigned int i;
         const char *p;
+	unsigned int instance_id = face->face_index >> 16;
 
         coords = malloc (sizeof (FT_Fixed) * ft_mm_var->num_axis);
+	/* FIXME check coords. */
 
-        for (i = 0; i < ft_mm_var->num_axis; i++)
-            coords[i] = ft_mm_var->axis[i].def;
+	if (instance_id && instance_id <= ft_mm_var->num_namedstyles)
+	{
+	    FT_Var_Named_Style *instance = &ft_mm_var->namedstyle[instance_id - 1];
+	    memcpy (coords, instance->coords, ft_mm_var->num_axis & sizeof (*coords));
+	}
+	else
+	    for (i = 0; i < ft_mm_var->num_axis; i++)
+		coords[i] = ft_mm_var->axis[i].def;
 
         p = variations;
         while (p && *p) {

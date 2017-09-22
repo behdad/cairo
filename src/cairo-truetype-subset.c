@@ -208,13 +208,17 @@ _cairo_truetype_font_create (cairo_scaled_font_subset_t  *scaled_font_subset,
     if (unlikely (status))
 	goto fail1;
 
-    font->glyphs = calloc (font->num_glyphs_in_face + 1, sizeof (subset_glyph_t));
+    /* Add 2: +1 case font does not contain .notdef, and +1 because an extra
+     * entry is required to contain the end location of the last glyph.
+     */
+    font->glyphs = calloc (font->num_glyphs_in_face + 2, sizeof (subset_glyph_t));
     if (unlikely (font->glyphs == NULL)) {
 	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
 	goto fail1;
     }
 
-    font->parent_to_subset = calloc (font->num_glyphs_in_face, sizeof (int));
+    /* Add 1 in case font does not contain .notdef */
+    font->parent_to_subset = calloc (font->num_glyphs_in_face + 1, sizeof (int));
     if (unlikely (font->parent_to_subset == NULL)) {
 	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
 	goto fail2;
@@ -253,7 +257,8 @@ _cairo_truetype_font_create (cairo_scaled_font_subset_t  *scaled_font_subset,
                  scaled_font_subset->subset_id);
     }
 
-    font->base.widths = calloc (font->num_glyphs_in_face, sizeof (int));
+    /* Add 1 in case font does not contain .notdef */
+    font->base.widths = calloc (font->num_glyphs_in_face + 1, sizeof (int));
     if (unlikely (font->base.widths == NULL)) {
 	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
 	goto fail4;

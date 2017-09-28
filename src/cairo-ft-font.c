@@ -428,7 +428,7 @@ _cairo_ft_unscaled_font_init (cairo_ft_unscaled_font_t *unscaled,
 
     if (from_face) {
 	unscaled->from_face = TRUE;
-	_cairo_ft_unscaled_font_init_key (unscaled, TRUE, NULL, 0, face);
+	_cairo_ft_unscaled_font_init_key (unscaled, TRUE, NULL, face->face_index, face);
 
         unscaled->have_color = FT_HAS_COLOR (face) != 0;
         unscaled->have_color_set = TRUE;
@@ -487,7 +487,7 @@ _cairo_ft_unscaled_font_keys_equal (const void *key_a,
 
     if (unscaled_a->id == unscaled_b->id &&
 	unscaled_a->from_face == unscaled_b->from_face)
-    {
+     {
         if (unscaled_a->from_face)
 	    return unscaled_a->face == unscaled_b->face;
 
@@ -3758,6 +3758,7 @@ cairo_ft_scaled_font_lock_face (cairo_scaled_font_t *abstract_font)
 {
     cairo_ft_scaled_font_t *scaled_font = (cairo_ft_scaled_font_t *) abstract_font;
     FT_Face face;
+    int instance_id;
     cairo_status_t status;
 
     if (! _cairo_scaled_font_is_ft (abstract_font)) {

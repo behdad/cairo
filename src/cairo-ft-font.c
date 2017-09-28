@@ -3644,6 +3644,7 @@ cairo_ft_font_face_get_synthesize (cairo_font_face_t *font_face)
 
 static void
 cairo_ft_apply_variations (FT_Face     face,
+                           int         instance_id,
                            const char *variations)
 {
     FT_MM_Var *ft_mm_var;
@@ -3656,7 +3657,6 @@ cairo_ft_apply_variations (FT_Face     face,
         FT_Fixed *coords;
         unsigned int i;
         const char *p;
-	unsigned int instance_id = face->face_index >> 16;
 
         coords = malloc (sizeof (FT_Fixed) * ft_mm_var->num_axis);
 	/* FIXME check coords. */
@@ -3664,7 +3664,7 @@ cairo_ft_apply_variations (FT_Face     face,
 	if (instance_id && instance_id <= ft_mm_var->num_namedstyles)
 	{
 	    FT_Var_Named_Style *instance = &ft_mm_var->namedstyle[instance_id - 1];
-	    memcpy (coords, instance->coords, ft_mm_var->num_axis & sizeof (*coords));
+	    memcpy (coords, instance->coords, ft_mm_var->num_axis * sizeof (*coords));
 	}
 	else
 	    for (i = 0; i < ft_mm_var->num_axis; i++)
@@ -3778,7 +3778,7 @@ cairo_ft_scaled_font_lock_face (cairo_scaled_font_t *abstract_font)
 	return NULL;
     }
 
-    cairo_ft_apply_variations (face, scaled_font->base.options.variations);
+    cairo_ft_apply_variations (face, scaled_font->unscaled->id, scaled_font->base.options.variations);
 
     /* Note: We deliberately release the unscaled font's mutex here,
      * so that we are not holding a lock across two separate calls to

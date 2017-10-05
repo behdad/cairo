@@ -55,6 +55,7 @@ typedef struct cairo_svg_surface {
 
     double width;
     double height;
+    cairo_bool_t surface_bounded;
 
     cairo_svg_document_t *document;
 

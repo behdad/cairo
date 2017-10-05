@@ -176,7 +176,9 @@ static cairo_surface_t *
 _cairo_svg_surface_create_for_document (cairo_svg_document_t	*document,
 					cairo_content_t		 content,
 					double			 width,
-					double			 height);
+					double			 height,
+					cairo_bool_t             bounded);
+
 static cairo_surface_t *
 _cairo_svg_surface_create_for_stream_internal (cairo_output_stream_t	*stream,
 					       double			 width,
@@ -470,7 +472,8 @@ static cairo_surface_t *
 _cairo_svg_surface_create_for_document (cairo_svg_document_t	*document,
 					cairo_content_t		 content,
 					double			 width,
-					double			 height)
+					double			 height,
+					cairo_bool_t             bounded)
 {
     cairo_svg_surface_t *surface;
     cairo_surface_t *paginated;
@@ -488,6 +491,7 @@ _cairo_svg_surface_create_for_document (cairo_svg_document_t	*document,
 
     surface->width = width;
     surface->height = height;
+    surface->surface_bounded = bounded;
 
     surface->document = _cairo_svg_document_reference (document);
 
@@ -561,7 +565,7 @@ _cairo_svg_surface_create_for_stream_internal (cairo_output_stream_t	*stream,
     }
 
     surface = _cairo_svg_surface_create_for_document (document, CAIRO_CONTENT_COLOR_ALPHA,
-						      width, height);
+						      width, height, TRUE);
     if (surface->status) {
 	status = _cairo_svg_document_destroy (document);
 	return surface;
@@ -1396,6 +1400,8 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t      *document,
     cairo_surface_t *paginated_surface;
     cairo_svg_surface_t *svg_surface;
     cairo_array_t *page_set;
+    cairo_rectangle_int_t extents;
+    cairo_bool_t bounded;
 
     cairo_output_stream_t *contents;
 
@@ -1405,10 +1411,12 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t      *document,
 	return CAIRO_STATUS_SUCCESS;
     }
 
+    bounded = _cairo_surface_get_extents (&source->base, &extents);
     paginated_surface = _cairo_svg_surface_create_for_document (document,
 								source->base.content,
-								source->extents_pixels.width,
-								source->extents_pixels.height);
+								extents.width,
+								extents.height,
+								bounded);
     if (unlikely (paginated_surface->status))
 	return paginated_surface->status;
 
@@ -1436,13 +1444,17 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t      *document,
 
     if (! svg_surface->is_base_clip_emitted) {
 	svg_surface->is_base_clip_emitted = TRUE;
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "<clipPath id=\"clip%d\">\n"
-				     "  <rect width=\"%f\" height=\"%f\"/>\n"
-				     "</clipPath>\n",
-				     svg_surface->base_clip,
-				     svg_surface->width,
-				     svg_surface->height);
+	if (_cairo_surface_get_extents (&svg_surface->base, &extents)) {
+	    _cairo_output_stream_printf (document->xml_node_defs,
+					 "<clipPath id=\"clip%d\">\n"
+					 "  <rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\"/>\n"
+					 "</clipPath>\n",
+					 svg_surface->base_clip,
+					 extents.x,
+					 extents.y,
+					 extents.width,
+					 extents.height);
+	}
     }
 
     if (source->base.content == CAIRO_CONTENT_ALPHA) {
@@ -2258,7 +2270,7 @@ _cairo_svg_surface_get_extents (void		        *abstract_surface,
     rectangle->width  = ceil (surface->width);
     rectangle->height = ceil (surface->height);
 
-    return TRUE;
+    return surface->surface_bounded;
 }
 
 static cairo_status_t

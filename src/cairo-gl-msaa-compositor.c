@@ -944,10 +944,13 @@ _cairo_gl_msaa_compositor_init (cairo_compositor_t	 *compositor,
 const cairo_compositor_t *
 _cairo_gl_msaa_compositor_get (void)
 {
+    static cairo_atomic_once_t once = CAIRO_ATOMIC_ONCE_INIT;
     static cairo_compositor_t compositor;
-    if (compositor.delegate == NULL)
+    if (_cairo_atomic_init_once_enter(&once)) {
 	_cairo_gl_msaa_compositor_init (&compositor,
 					_cairo_gl_span_compositor_get ());
+	_cairo_atomic_init_once_leave(&once);
+    }
 
     return &compositor;
 }

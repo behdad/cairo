@@ -45,6 +45,8 @@
 #include "config.h"
 #endif
 
+#include <assert.h>
+
 /* The autoconf on OpenBSD 4.5 produces the malformed constant name
  * SIZEOF_VOID__ rather than SIZEOF_VOID_P.  Work around that here. */
 #if !defined(SIZEOF_VOID_P) && defined(SIZEOF_VOID__)
@@ -392,6 +394,37 @@ _cairo_atomic_ptr_cmpxchg_return_old_fallback(void **x, void *oldv, void *newv)
     ret__ = _cairo_atomic_int_cmpxchg ((cairo_atomic_int_t *) status, CAIRO_STATUS_SUCCESS, err); \
     (void) ret__; \
 } while (0)
+
+typedef cairo_atomic_int_t cairo_atomic_once_t;
+
+#define CAIRO_ATOMIC_ONCE_UNINITIALIZED (0)
+#define CAIRO_ATOMIC_ONCE_INITIALIZING  (1)
+#define CAIRO_ATOMIC_ONCE_INITIALIZED   (2)
+#define CAIRO_ATOMIC_ONCE_INIT          CAIRO_ATOMIC_ONCE_UNINITIALIZED
+
+static cairo_always_inline cairo_bool_t
+_cairo_atomic_init_once_enter(cairo_atomic_once_t *once)
+{
+    if (likely(_cairo_atomic_int_get(once) == CAIRO_ATOMIC_ONCE_INITIALIZED))
+	return 0;
+
+    if (_cairo_atomic_int_cmpxchg(once,
+				  CAIRO_ATOMIC_ONCE_UNINITIALIZED,
+				  CAIRO_ATOMIC_ONCE_INITIALIZING))
+	return 1;
+
+    while (_cairo_atomic_int_get(once) != CAIRO_ATOMIC_ONCE_INITIALIZED) {}
+    return 0;
+}
+
+static cairo_always_inline void
+_cairo_atomic_init_once_leave(cairo_atomic_once_t *once)
+{
+    if (unlikely(!_cairo_atomic_int_cmpxchg(once,
+					    CAIRO_ATOMIC_ONCE_INITIALIZING,
+					    CAIRO_ATOMIC_ONCE_INITIALIZED)))
+	assert (0 && "incorrect use of _cairo_atomic_init_once API (once != CAIRO_ATOMIC_ONCE_INITIALIZING)");
+}
 
 CAIRO_END_DECLS
 

@@ -387,9 +387,10 @@ composite_boxes (void			*_dst,
 const cairo_compositor_t *
 _cairo_image_mask_compositor_get (void)
 {
+    static cairo_atomic_once_t once = CAIRO_ATOMIC_ONCE_INIT;
     static cairo_mask_compositor_t compositor;
 
-    if (compositor.base.delegate == NULL) {
+    if (_cairo_atomic_init_once_enter(&once)) {
 	_cairo_mask_compositor_init (&compositor,
 				     _cairo_image_traps_compositor_get ());
 	compositor.acquire = acquire;
@@ -405,6 +406,8 @@ _cairo_image_mask_compositor_get (void)
 	compositor.composite = composite;
 	//compositor.check_composite_boxes = check_composite_boxes;
 	compositor.composite_boxes = composite_boxes;
+
+	_cairo_atomic_init_once_leave(&once);
     }
 
     return &compositor.base;

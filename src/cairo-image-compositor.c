@@ -1244,11 +1244,12 @@ check_composite (const cairo_composite_rectangles_t *extents)
 const cairo_compositor_t *
 _cairo_image_traps_compositor_get (void)
 {
+    static cairo_atomic_once_t once = CAIRO_ATOMIC_ONCE_INIT;
     static cairo_traps_compositor_t compositor;
 
-    if (compositor.base.delegate == NULL) {
-	_cairo_traps_compositor_init (&compositor,
-				      &__cairo_no_compositor);
+    if (_cairo_atomic_init_once_enter(&once)) {
+	_cairo_traps_compositor_init(&compositor,
+				     &__cairo_no_compositor);
 	compositor.acquire = acquire;
 	compositor.release = release;
 	compositor.set_clip_region = set_clip_region;
@@ -1269,6 +1270,8 @@ _cairo_image_traps_compositor_get (void)
 #endif
 	compositor.check_composite_glyphs = check_composite_glyphs;
 	compositor.composite_glyphs = composite_glyphs;
+
+	_cairo_atomic_init_once_leave(&once);
     }
 
     return &compositor.base;
@@ -1277,9 +1280,10 @@ _cairo_image_traps_compositor_get (void)
 const cairo_compositor_t *
 _cairo_image_mask_compositor_get (void)
 {
+    static cairo_atomic_once_t once = CAIRO_ATOMIC_ONCE_INIT;
     static cairo_mask_compositor_t compositor;
 
-    if (compositor.base.delegate == NULL) {
+    if (_cairo_atomic_init_once_enter(&once)) {
 	_cairo_mask_compositor_init (&compositor,
 				     _cairo_image_traps_compositor_get ());
 	compositor.acquire = acquire;
@@ -1296,6 +1300,8 @@ _cairo_image_mask_compositor_get (void)
 	compositor.composite_boxes = composite_boxes;
 	compositor.check_composite_glyphs = check_composite_glyphs;
 	compositor.composite_glyphs = composite_glyphs;
+
+	_cairo_atomic_init_once_leave(&once);
     }
 
     return &compositor.base;
@@ -3105,10 +3111,11 @@ span_renderer_fini (cairo_abstract_span_renderer_t *_r,
 const cairo_compositor_t *
 _cairo_image_spans_compositor_get (void)
 {
+    static cairo_atomic_once_t once = CAIRO_ATOMIC_ONCE_INIT;
     static cairo_spans_compositor_t spans;
     static cairo_compositor_t shape;
 
-    if (spans.base.delegate == NULL) {
+    if (_cairo_atomic_init_once_enter(&once)) {
 	_cairo_shape_mask_compositor_init (&shape,
 					   _cairo_image_traps_compositor_get());
 	shape.glyphs = NULL;
@@ -3131,6 +3138,8 @@ _cairo_image_spans_compositor_get (void)
 	//spans.check_span_renderer = check_span_renderer;
 	spans.renderer_init = span_renderer_init;
 	spans.renderer_fini = span_renderer_fini;
+
+	_cairo_atomic_init_once_leave(&once);
     }
 
     return &spans.base;

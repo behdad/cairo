@@ -46,12 +46,6 @@
 #include "cairo-scaled-font-private.h"
 #include "cairo-surface-backend-private.h"
 
-#if _XOPEN_SOURCE >= 600 || defined (_ISOC99_SOURCE)
-#define ISFINITE(x) isfinite (x)
-#else
-#define ISFINITE(x) ((x) * (x) >= 0.) /* check for NaNs */
-#endif
-
 /**
  * SECTION:cairo-scaled-font
  * @Title: cairo_scaled_font_t

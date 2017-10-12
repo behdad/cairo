@@ -107,6 +107,12 @@ _cairo_win32_tmpfile (void);
 #undef MAX
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+#if _XOPEN_SOURCE >= 600 || defined (_ISOC99_SOURCE)
+#define ISFINITE(x) isfinite (x)
+#else
+#define ISFINITE(x) ((x) * (x) >= 0.) /* check for NaNs */
+#endif
+
 #ifndef FALSE
 #define FALSE 0
 #endif

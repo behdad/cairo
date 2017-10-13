@@ -1431,6 +1431,12 @@ cleanup:
     return status;
 }
 
+/*
+ * Sanity check on font name length as some broken fonts may return very long
+ * strings of garbage. 127 is maximum length of a PS name.
+ */
+#define MAX_FONT_NAME_LENGTH 127
+
 static cairo_status_t
 find_name (tt_name_t *name, int name_id, int platform, int encoding, int language, char **str_out)
 {
@@ -1449,11 +1455,17 @@ find_name (tt_name_t *name, int name_id, int platform, int encoding, int languag
             be16_to_cpu (record->encoding) == encoding &&
 	    (language == -1 || be16_to_cpu (record->language) == language)) {
 
-	    str = malloc (be16_to_cpu (record->length) + 1);
+	    len = be16_to_cpu (record->length);
+	    if (platform == 3 && len > MAX_FONT_NAME_LENGTH*2) /* UTF-16 name */
+		break;
+
+	    if (len > MAX_FONT_NAME_LENGTH)
+		break;
+
+	    str = malloc (len + 1);
 	    if (str == NULL)
 		return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
-	    len = be16_to_cpu (record->length);
 	    memcpy (str,
 		    ((char*)name) + be16_to_cpu (name->strings_offset) + be16_to_cpu (record->offset),
 		    len);

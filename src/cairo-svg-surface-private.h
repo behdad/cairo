@@ -53,7 +53,6 @@ typedef struct _cairo_svg_source_surface {
     unsigned int id;
     unsigned char *unique_id;
     unsigned long unique_id_length;
-    cairo_surface_t *source;
 } cairo_svg_source_surface_t;
 
 typedef struct cairo_svg_surface {

@@ -435,7 +435,6 @@ _cairo_svg_source_surface_pluck (void *entry, void *closure)
     cairo_hash_table_t *patterns = closure;
 
     _cairo_hash_table_remove (patterns, &surface_entry->base);
-    cairo_surface_destroy (surface_entry->source);
     free (surface_entry->unique_id);
     free (surface_entry);
 }
@@ -486,7 +485,6 @@ _cairo_svg_surface_add_source_surface (cairo_svg_surface_t  *surface,
     source_entry->id = source_key.id;
     source_entry->unique_id_length = unique_id_length;
     source_entry->unique_id = unique_id;
-    source_entry->source = cairo_surface_reference (source_surface);
     _cairo_svg_source_surface_init_key (source_entry);
     status = _cairo_hash_table_insert (surface->source_surfaces, &source_entry->base);
     if (unlikely(status))

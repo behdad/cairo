@@ -1645,8 +1645,8 @@ _cairo_svg_surface_emit_composite_recording_pattern (cairo_output_stream_t	*outp
     if (unlikely (status))
 	return status;
 
+    recording_surface = to_recording_surface (pattern);
     if (is_new) {
-	recording_surface = to_recording_surface (pattern);
 	status = _cairo_svg_surface_emit_recording_surface (document, recording_surface, source_id);
 	if (unlikely (status))
 	    return status;

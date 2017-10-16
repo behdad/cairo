@@ -2658,7 +2658,7 @@ _cairo_ft_is_synthetic (void	        *abstract_font,
     if (face->face_flags & FT_FACE_FLAG_MULTIPLE_MASTERS) {
 	FT_MM_Var *mm_var = NULL;
 	FT_Fixed *coords = NULL;
-	int num_axis, i;
+	int num_axis;
 
 	/* If this is an MM or variable font we can't assume the current outlines
 	 * are the same as the font tables */
@@ -2682,12 +2682,16 @@ _cairo_ft_is_synthetic (void	        *abstract_font,
 	 * current design coordinates are the default coordinates. In this case
 	 * the current outlines match the font tables.
 	 */
-	FT_Get_Var_Design_Coordinates (face, num_axis, coords);
-	*is_synthetic = FALSE;
-	for (i = 0; i < num_axis; i++) {
-	    if (coords[i] != mm_var->axis[i].def) {
-		*is_synthetic = TRUE;
-		break;
+	{
+	    int i;
+
+	    FT_Get_Var_Design_Coordinates (face, num_axis, coords);
+	    *is_synthetic = FALSE;
+	    for (i = 0; i < num_axis; i++) {
+		if (coords[i] != mm_var->axis[i].def) {
+		    *is_synthetic = TRUE;
+		    break;
+		}
 	    }
 	}
 #endif

@@ -2754,7 +2754,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 	}
 
 	_cairo_output_stream_printf (surface->stream,
-				     "    /ImageMatrix [ 1 0 0 -1 0 %d ] def\n"
+				     "    /ImageMatrix [ %d 0 0 %d 0 %d ] def\n"
 				     "  end\n"
 				     "  /MaskDict 8 dict def\n"
 				     "     MaskDict begin\n"
@@ -2764,14 +2764,18 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 				     "    /Interpolate %s def\n"
 				     "    /BitsPerComponent 1 def\n"
 				     "    /Decode [ 1 0 ] def\n"
-				     "    /ImageMatrix [ 1 0 0 -1 0 %d ] def\n"
+				     "    /ImageMatrix [ %d 0 0 %d 0 %d ] def\n"
 				     "  end\n"
 				     "end\n"
 				     "image\n",
+				     ps_image->width,
+				     -ps_image->height,
 				     ps_image->height,
 				     ps_image->width,
 				     ps_image->height,
 				     interpolate,
+				     ps_image->width,
+				     -ps_image->height,
 				     ps_image->height);
     } else {
 	if (!stencil_mask) {
@@ -2808,9 +2812,11 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 	}
 
 	_cairo_output_stream_printf (surface->stream,
-				     "  /ImageMatrix [ 1 0 0 -1 0 %d ] def\n"
+				     "  /ImageMatrix [ %d 0 0 %d 0 %d ] def\n"
 				     "end\n"
 				     "%s%s\n",
+				     ps_image->width,
+				     -ps_image->height,
 				     ps_image->height,
 				     surface->use_string_datasource ? "" : "cairo_",
 				     stencil_mask ? "imagemask" : "image");
@@ -2936,9 +2942,11 @@ _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t    *surface,
     }
 
     _cairo_output_stream_printf (surface->stream,
-				 "  /ImageMatrix [ 1 0 0 -1 0 %d ] def\n"
+				 "  /ImageMatrix [ %d 0 0 %d 0 %d ] def\n"
 				 "end\n"
 				 "%simage\n",
+				 info.width,
+				 -info.height,
 				 info.height,
 				 surface->use_string_datasource ? "" : "cairo_");
 
@@ -3077,9 +3085,11 @@ _cairo_ps_surface_emit_ccitt_image (cairo_ps_surface_t   *surface,
 				 " >> /CCITTFaxDecode filter\n");
 
     _cairo_output_stream_printf (surface->stream,
-				 "  /ImageMatrix [ 1 0 0 -1 0 %d ]\n"
+				 "  /ImageMatrix [ %d 0 0 %d 0 %d ]\n"
 				 ">>\n"
 				 "%s%s\n",
+				 ccitt_params.columns,
+				 -ccitt_params.rows,
 				 ccitt_params.rows,
 				 surface->use_string_datasource ? "" : "cairo_",
 				 stencil_mask ? "imagemask" : "image");
@@ -3407,6 +3417,7 @@ _cairo_ps_surface_paint_surface (cairo_ps_surface_t     *surface,
     {
 	cairo_matrix_translate (&ps_p2d, 0.0, src_surface_extents.height);
 	cairo_matrix_scale (&ps_p2d, 1.0, -1.0);
+	cairo_matrix_scale (&ps_p2d, src_surface_extents.width, src_surface_extents.height);
     }
 
     if (! _cairo_matrix_is_identity (&ps_p2d)) {
@@ -3544,6 +3555,14 @@ _cairo_ps_surface_emit_surface_pattern (cairo_ps_surface_t      *surface,
 				 "q %d %d %d %d rectclip\n",
 				 pattern_extents.x, pattern_extents.y,
 				 pattern_extents.width, pattern_extents.height);
+
+
+    if (((cairo_surface_pattern_t *)pattern)->surface->type != CAIRO_SURFACE_TYPE_RECORDING)
+    {
+	_cairo_output_stream_printf (surface->stream,
+				     "[ %d 0 0 %d 0 0 ] concat\n",
+				     pattern_extents.width, pattern_extents.height);
+    }
 
     old_use_string_datasource = surface->use_string_datasource;
     surface->use_string_datasource = TRUE;

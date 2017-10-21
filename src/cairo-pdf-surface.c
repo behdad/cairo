@@ -1403,105 +1403,12 @@ _cairo_pdf_surface_release_source_image_from_pattern (cairo_pdf_surface_t       
 }
 
 static cairo_int_status_t
-_get_jbig2_image_info (cairo_surface_t		 *source,
-		       cairo_image_info_t	 *info)
-{
-    const unsigned char *mime_data;
-    unsigned long mime_data_length;
-
-    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_JBIG2,
-				 &mime_data, &mime_data_length);
-    if (mime_data == NULL)
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-
-    return _cairo_image_info_get_jbig2_info (info, mime_data, mime_data_length);
-}
-
-static cairo_int_status_t
-_get_jpx_image_info (cairo_surface_t		 *source,
-		     cairo_image_info_t		*info)
-{
-    const unsigned char *mime_data;
-    unsigned long mime_data_length;
-
-    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_JP2,
-				 &mime_data, &mime_data_length);
-    if (mime_data == NULL)
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-
-    return _cairo_image_info_get_jpx_info (info, mime_data, mime_data_length);
-}
-
-static cairo_int_status_t
-_get_jpeg_image_info (cairo_surface_t		 *source,
-		      cairo_image_info_t	 *info)
-{
-    const unsigned char *mime_data;
-    unsigned long mime_data_length;
-
-    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_JPEG,
-				 &mime_data, &mime_data_length);
-    if (mime_data == NULL)
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-
-    return _cairo_image_info_get_jpeg_info (info, mime_data, mime_data_length);
-}
-
-static cairo_int_status_t
-_get_ccitt_image_info (cairo_surface_t		 *source,
-		       int                       *width,
-		       int                       *height)
-{
-    cairo_status_t status;
-    const unsigned char *ccitt_data;
-    unsigned long ccitt_data_len;
-    const unsigned char *ccitt_params_string;
-    unsigned long ccitt_params_string_len;
-    char *params;
-    cairo_ccitt_params_t ccitt_params;
-
-    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_CCITT_FAX,
-				 &ccitt_data, &ccitt_data_len);
-    if (unlikely (source->status))
-	return source->status;
-    if (ccitt_data == NULL)
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-
-    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_CCITT_FAX_PARAMS,
-				 &ccitt_params_string, &ccitt_params_string_len);
-    if (unlikely (source->status))
-	return source->status;
-    if (ccitt_params_string == NULL)
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-
-    /* ensure params_string is null terminated */
-    params = malloc (ccitt_params_string_len + 1);
-    memcpy (params, ccitt_params_string, ccitt_params_string_len);
-    params[ccitt_params_string_len] = 0;
-    status = _cairo_tag_parse_ccitt_params (params, &ccitt_params);
-    if (unlikely(status))
-	return source->status;
-
-    free (params);
-
-    if (ccitt_params.columns <= 0 || ccitt_params.rows <= 0)
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-
-    *width = ccitt_params.columns;
-    *height = ccitt_params.rows;
-
-    return CAIRO_STATUS_SUCCESS;
-}
-
-static cairo_int_status_t
 _get_source_surface_extents (cairo_surface_t         *source,
 			     cairo_rectangle_int_t   *extents,
 			     cairo_bool_t            *bounded,
 			     cairo_bool_t            *subsurface)
 {
     cairo_int_status_t status;
-    cairo_image_info_t info;
-    int width, height;
 
     *bounded = TRUE;
     *subsurface = FALSE;
@@ -1532,37 +1439,6 @@ _get_source_surface_extents (cairo_surface_t         *source,
 	cairo_surface_destroy (free_me);
 
 	return CAIRO_STATUS_SUCCESS;
-    }
-
-    extents->x = 0;
-    extents->y = 0;
-
-    status = _get_jbig2_image_info (source, &info);
-    if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
-	extents->width = info.width;
-	extents->height = info.height;
-	return status;
-    }
-
-    status = _get_jpx_image_info (source, &info);
-    if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
-	extents->width = info.width;
-	extents->height = info.height;
-	return status;
-    }
-
-    status = _get_jpeg_image_info (source, &info);
-    if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
-	extents->width = info.width;
-	extents->height = info.height;
-	return status;
-    }
-
-    status = _get_ccitt_image_info (source, &width, &height);
-    if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
-	extents->width = width;
-	extents->height = height;
-	return status;
     }
 
     if (! _cairo_surface_get_extents (source, extents))

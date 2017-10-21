@@ -84,7 +84,7 @@ typedef struct _cairo_pdf_source_surface_entry {
     cairo_bool_t bounded;
     cairo_rectangle_int_t extents;
 
-    /* Union of source extents requried for all operations using this source */
+    /* Union of source extents required for all operations using this source */
     cairo_rectangle_int_t required_extents;
 } cairo_pdf_source_surface_entry_t;
 

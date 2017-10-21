@@ -113,6 +113,36 @@ static attribute_spec_t _link_attrib_spec[] =
     { NULL }
 };
 
+/*
+ * Required:
+ *   Columns - width of the image in pixels.
+ *   Rows    - height of the image in scan lines.
+ *
+ * Optional:
+ *   K - An integer identifying the encoding scheme used. < 0 is 2 dimensional
+ *       Group 4, = 0 is Group3 1 dimensional, > 0 is mixed 1 and 2 dimensional
+ *       encoding. Default: 0.
+ *   EndOfLine  - If true end-of-line bit patterns are present. Default: false.
+ *   EncodedByteAlign - If true the end of line is padded with 0 bits so the next
+ *                      line begins on a byte boundary. Default: false.
+ *   EndOfBlock - If true the data contains an end-of-block pattern. Default: true.
+ *   BlackIs1   - If true 1 bits are black pixels. Default: false.
+ *   DamagedRowsBeforeError - Number of damages rows tolerated before an error
+ *                            occurs. Default: 0.
+ */
+static attribute_spec_t _ccitt_params_spec[] =
+{
+    { "Columns",                ATTRIBUTE_INT },
+    { "Rows",                   ATTRIBUTE_INT },
+    { "K",                      ATTRIBUTE_INT },
+    { "EndOfLine",              ATTRIBUTE_BOOL },
+    { "EncodedByteAlign",       ATTRIBUTE_BOOL },
+    { "EndOfBlock",             ATTRIBUTE_BOOL },
+    { "BlackIs1",               ATTRIBUTE_BOOL },
+    { "DamagedRowsBeforeError", ATTRIBUTE_INT },
+    { NULL }
+};
+
 typedef union {
     cairo_bool_t b;
     int i;
@@ -563,6 +593,56 @@ _cairo_tag_parse_dest_attributes (const char *attributes, cairo_dest_attrs_t *de
 
     if (! dest_attrs->name)
 	status = _cairo_error (CAIRO_INT_STATUS_TAG_ERROR);
+
+  cleanup:
+    free_attributes_list (&list);
+
+    return status;
+}
+
+cairo_int_status_t
+_cairo_tag_parse_ccitt_params (const char *attributes, cairo_ccitt_params_t *ccitt_params)
+{
+    cairo_list_t list;
+    cairo_int_status_t status;
+    attribute_t *attr;
+
+    ccitt_params->columns = -1;
+    ccitt_params->rows = -1;
+
+    /* set defaults */
+    ccitt_params->k = 0;
+    ccitt_params->end_of_line = FALSE;
+    ccitt_params->encoded_byte_align = FALSE;
+    ccitt_params->end_of_block = TRUE;
+    ccitt_params->black_is_1 = FALSE;
+    ccitt_params->damaged_rows_before_error = 0;
+
+    cairo_list_init (&list);
+    status = parse_attributes (attributes, _ccitt_params_spec, &list);
+    if (unlikely (status))
+	goto cleanup;
+
+    cairo_list_foreach_entry (attr, attribute_t, &list, link)
+    {
+	if (strcmp (attr->name, "Columns") == 0) {
+	    ccitt_params->columns = attr->scalar.i;
+	} else if (strcmp (attr->name, "Rows") == 0) {
+	    ccitt_params->rows = attr->scalar.i;
+	} else if (strcmp (attr->name, "K") == 0) {
+	    ccitt_params->k = attr->scalar.i;
+	} else if (strcmp (attr->name, "EndOfLine") == 0) {
+	    ccitt_params->end_of_line = attr->scalar.b;
+	} else if (strcmp (attr->name, "EncodedByteAlign") == 0) {
+	    ccitt_params->encoded_byte_align = attr->scalar.b;
+	} else if (strcmp (attr->name, "EndOfBlock") == 0) {
+	    ccitt_params->end_of_block = attr->scalar.b;
+	} else if (strcmp (attr->name, "BlackIs1") == 0) {
+	    ccitt_params->black_is_1 = attr->scalar.b;
+	} else if (strcmp (attr->name, "DamagedRowsBeforeError") == 0) {
+	    ccitt_params->damaged_rows_before_error = attr->scalar.b;
+	}
+    }
 
   cleanup:
     free_attributes_list (&list);

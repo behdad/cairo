@@ -1225,6 +1225,24 @@ _cairo_mime_data_destroy (void *ptr)
 }
 
 /**
+ * CAIRO_MIME_TYPE_CCITT_FAX:
+ *
+ * Group 3 or Group 4 CCITT facsimile encoding (International
+ * Telecommunication Union, Recommendations T.4 and T.6.)
+ *
+ * Since: 1.16
+ **/
+
+/**
+ * CAIRO_MIME_TYPE_CCITT_FAX_PARAMS:
+ *
+ * Decode parameters for Group 3 or Group 4 CCITT facsimile encoding.
+ * See [CCITT Fax Images][ccitt].
+ *
+ * Since: 1.16
+ **/
+
+/**
  * CAIRO_MIME_TYPE_JBIG2:
  *
  * Joint Bi-level Image Experts Group image coding standard (ISO/IEC 11544).
@@ -1314,7 +1332,8 @@ _cairo_mime_data_destroy (void *ptr)
  * The recognized MIME types are the following: %CAIRO_MIME_TYPE_JPEG,
  * %CAIRO_MIME_TYPE_PNG, %CAIRO_MIME_TYPE_JP2, %CAIRO_MIME_TYPE_URI,
  * %CAIRO_MIME_TYPE_UNIQUE_ID, %CAIRO_MIME_TYPE_JBIG2,
- * %CAIRO_MIME_TYPE_JBIG2_GLOBAL, %CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID.
+ * %CAIRO_MIME_TYPE_JBIG2_GLOBAL, %CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID,
+ * %CAIRO_MIME_TYPE_CCITT_FAX, %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS.
  *
  * See corresponding backend surface docs for details about which MIME
  * types it can handle. Caution: the associated MIME data will be

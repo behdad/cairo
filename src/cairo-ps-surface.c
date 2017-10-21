@@ -77,6 +77,7 @@
 #include "cairo-output-stream-private.h"
 #include "cairo-type3-glyph-surface-private.h"
 #include "cairo-image-info-private.h"
+#include "cairo-tag-attributes-private.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -105,6 +106,13 @@
  *
  * The PostScript surface is used to render cairo graphics to Adobe
  * PostScript files and is a multi-page vector surface backend.
+ *
+ * The following mime types are supported: %CAIRO_MIME_TYPE_JPEG,
+ * %CAIRO_MIME_TYPE_UNIQUE_ID,
+ * %CAIRO_MIME_TYPE_CCITT_FAX, %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS.
+ *
+ * The %CAIRO_MIME_TYPE_CCITT_FAX and %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS mime types
+ * are documented in [CCITT Fax Images][ccitt].
  **/
 
 /**
@@ -146,6 +154,8 @@ static const char * _cairo_ps_level_strings[CAIRO_PS_LEVEL_LAST] =
 static const char *_cairo_ps_supported_mime_types[] =
 {
     CAIRO_MIME_TYPE_JPEG,
+    CAIRO_MIME_TYPE_CCITT_FAX,
+    CAIRO_MIME_TYPE_CCITT_FAX_PARAMS,
     NULL
 };
 
@@ -2440,6 +2450,28 @@ _cairo_ps_surface_emit_base85_string (cairo_ps_surface_t    *surface,
     return status;
 }
 
+static const char *
+get_interpolate (cairo_filter_t	filter)
+{
+    const char *interpolate;
+
+    switch (filter) {
+	default:
+	case CAIRO_FILTER_GOOD:
+	case CAIRO_FILTER_BEST:
+	case CAIRO_FILTER_BILINEAR:
+	    interpolate = "true";
+	    break;
+	case CAIRO_FILTER_FAST:
+	case CAIRO_FILTER_NEAREST:
+	case CAIRO_FILTER_GAUSSIAN:
+	    interpolate = "false";
+	break;
+    }
+
+    return interpolate;
+}
+
 static cairo_status_t
 _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 			      cairo_image_surface_t *image_surf,
@@ -2493,20 +2525,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
             goto bail0;
     }
     ps_image = image;
-
-    switch (filter) {
-    default:
-    case CAIRO_FILTER_GOOD:
-    case CAIRO_FILTER_BEST:
-    case CAIRO_FILTER_BILINEAR:
-	interpolate = "true";
-	break;
-    case CAIRO_FILTER_FAST:
-    case CAIRO_FILTER_NEAREST:
-    case CAIRO_FILTER_GAUSSIAN:
-	interpolate = "false";
-	break;
-    }
+    interpolate = get_interpolate (filter);
 
     if (stencil_mask) {
 	use_mask = FALSE;
@@ -2827,8 +2846,7 @@ bail0:
 static cairo_status_t
 _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t    *surface,
 				   cairo_surface_t	 *source,
-				   int                    width,
-				   int                    height)
+				   cairo_filter_t	  filter)
 {
     cairo_status_t status;
     const unsigned char *mime_data;
@@ -2895,11 +2913,13 @@ _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t    *surface,
 				 "  /Width %d def\n"
 				 "  /Height %d def\n"
 				 "  /BitsPerComponent %d def\n"
+				 "  /Interpolate %s def\n"
 				 "  /Decode [ %s ] def\n",
 				 colorspace,
 				 info.width,
 				 info.height,
 				 info.bits_per_component,
+				 get_interpolate (filter),
                                  decode);
 
     if (surface->use_string_datasource) {
@@ -2928,6 +2948,148 @@ _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t    *surface,
 	status = _cairo_ps_surface_emit_base85_string (surface,
 						       mime_data,
 						       mime_data_length,
+						       CAIRO_PS_COMPRESS_NONE,
+						       FALSE);
+    }
+
+    return status;
+}
+
+static cairo_status_t
+_cairo_ps_surface_emit_ccitt_image (cairo_ps_surface_t   *surface,
+				    cairo_surface_t	 *source,
+				    cairo_filter_t	  filter,
+				    cairo_bool_t          stencil_mask)
+{
+    cairo_status_t status;
+    const unsigned char *ccitt_data;
+    unsigned long ccitt_data_len;
+    const unsigned char *ccitt_params_string;
+    unsigned long ccitt_params_string_len;
+    char *params;
+    cairo_ccitt_params_t ccitt_params;
+
+    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_CCITT_FAX,
+				 &ccitt_data, &ccitt_data_len);
+    if (unlikely (source->status))
+	return source->status;
+    if (ccitt_data == NULL)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_CCITT_FAX_PARAMS,
+				 &ccitt_params_string, &ccitt_params_string_len);
+    if (unlikely (source->status))
+	return source->status;
+    if (ccitt_params_string == NULL)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    /* ensure params_string is null terminated */
+    params = malloc (ccitt_params_string_len + 1);
+    memcpy (params, ccitt_params_string, ccitt_params_string_len);
+    params[ccitt_params_string_len] = 0;
+    status = _cairo_tag_parse_ccitt_params (params, &ccitt_params);
+    if (unlikely(status))
+	return source->status;
+
+    free (params);
+
+    if (ccitt_params.columns <= 0 || ccitt_params.rows <= 0)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    if (surface->use_string_datasource) {
+	/* Emit the image data as a base85-encoded string which will
+	 * be used as the data source for the image operator later. */
+	_cairo_output_stream_printf (surface->stream,
+				     "/CairoImageData [\n");
+
+	status = _cairo_ps_surface_emit_base85_string (surface,
+						       ccitt_data,
+						       ccitt_data_len,
+						       CAIRO_PS_COMPRESS_NONE,
+						       TRUE);
+	if (unlikely (status))
+	    return status;
+
+	_cairo_output_stream_printf (surface->stream,
+				     "] def\n");
+	_cairo_output_stream_printf (surface->stream,
+				     "/CairoImageDataIndex 0 def\n");
+    } else {
+	_cairo_output_stream_printf (surface->stream,
+				     "/cairo_ascii85_file currentfile /ASCII85Decode filter def\n");
+    }
+
+    if (!stencil_mask) {
+	_cairo_output_stream_printf (surface->stream,
+				     "/DeviceGray setcolorspace\n");
+    }
+
+    _cairo_output_stream_printf (surface->stream,
+				 "<<\n"
+				 "  /ImageType 1\n"
+				 "  /Width %d\n"
+				 "  /Height %d\n"
+				 "  /BitsPerComponent 1\n"
+				 "  /Interpolate %s\n"
+				 "  /Decode [ 0 1 ]\n",
+				 ccitt_params.columns,
+				 ccitt_params.rows,
+				 get_interpolate (filter));
+
+    if (surface->use_string_datasource) {
+	_cairo_output_stream_printf (surface->stream,
+				     "  /DataSource {\n"
+				     "    CairoImageData CairoImageDataIndex get\n"
+				     "    /CairoImageDataIndex CairoImageDataIndex 1 add def\n"
+				     "    CairoImageDataIndex CairoImageData length 1 sub gt\n"
+				     "     { /CairoImageDataIndex 0 def } if\n"
+				     "  } /ASCII85Decode filter");
+    } else {
+	_cairo_output_stream_printf (surface->stream,
+				     "  /DataSource cairo_ascii85_file");
+    }
+
+    _cairo_output_stream_printf (surface->stream,
+				 " << /Columns %d /Rows %d /K %d",
+				 ccitt_params.columns,
+				 ccitt_params.rows,
+				 ccitt_params.k);
+
+    if (ccitt_params.end_of_line)
+	_cairo_output_stream_printf (surface->stream, " /EndOfLine true");
+
+    if (ccitt_params.encoded_byte_align)
+	_cairo_output_stream_printf (surface->stream, " /EncodedByteAlign true");
+
+    if (!ccitt_params.end_of_block)
+	_cairo_output_stream_printf (surface->stream, " /EndOfBlock false");
+
+    if (ccitt_params.black_is_1)
+	_cairo_output_stream_printf (surface->stream, " /BlackIs1 true");
+
+    if (ccitt_params.damaged_rows_before_error > 0) {
+	_cairo_output_stream_printf (surface->stream,
+				     " /DamagedRowsBeforeError %d",
+				     ccitt_params.damaged_rows_before_error);
+    }
+
+    _cairo_output_stream_printf (surface->stream,
+				 " >> /CCITTFaxDecode filter\n");
+
+    _cairo_output_stream_printf (surface->stream,
+				 "  /ImageMatrix [ 1 0 0 -1 0 %d ]\n"
+				 ">>\n"
+				 "%s%s\n",
+				 ccitt_params.rows,
+				 surface->use_string_datasource ? "" : "cairo_",
+				 stencil_mask ? "imagemask" : "image");
+
+    if (!surface->use_string_datasource) {
+	/* Emit the image data as a base85-encoded string which will
+	 * be used as the data source for the image operator. */
+	status = _cairo_ps_surface_emit_base85_string (surface,
+						       ccitt_data,
+						       ccitt_data_len,
 						       CAIRO_PS_COMPRESS_NONE,
 						       FALSE);
     }
@@ -3078,7 +3240,11 @@ _cairo_ps_surface_emit_surface (cairo_ps_surface_t          *surface,
     {
 	cairo_surface_t *surf = ((cairo_surface_pattern_t *) source_pattern)->surface;
 
-	status = _cairo_ps_surface_emit_jpeg_image (surface, surf, src_surface_extents->width, src_surface_extents->height);
+	status = _cairo_ps_surface_emit_jpeg_image (surface, surf, source_pattern->filter);
+	if (status != CAIRO_INT_STATUS_UNSUPPORTED)
+	    return status;
+
+	status = _cairo_ps_surface_emit_ccitt_image (surface, surf, source_pattern->filter, stencil_mask);
 	if (status != CAIRO_INT_STATUS_UNSUPPORTED)
 	    return status;
     }

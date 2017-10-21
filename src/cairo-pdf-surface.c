@@ -134,19 +134,62 @@
  * The following mime types are supported: %CAIRO_MIME_TYPE_JPEG,
  * %CAIRO_MIME_TYPE_JP2, %CAIRO_MIME_TYPE_UNIQUE_ID,
  * %CAIRO_MIME_TYPE_JBIG2, %CAIRO_MIME_TYPE_JBIG2_GLOBAL,
- * %CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID.
+ * %CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID,
+ * %CAIRO_MIME_TYPE_CCITT_FAX, %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS.
  *
+ * # JBIG2 Images #
  * JBIG2 data in PDF must be in the embedded format as described in
  * ISO/IEC 11544. Image specific JBIG2 data must be in
  * %CAIRO_MIME_TYPE_JBIG2.  Any global segments in the JBIG2 data
  * (segments with page association field set to 0) must be in
  * %CAIRO_MIME_TYPE_JBIG2_GLOBAL. The global data may be shared by
  * multiple images. All images sharing the same global data must set
- * %CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID to a unique identifer. At least
+ * %CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID to a unique identifier. At least
  * one of the images must provide the global data using
  * %CAIRO_MIME_TYPE_JBIG2_GLOBAL. The global data will only be
- * embedded once but shared by all JBIG2 images with the same
+ * embedded once and shared by all JBIG2 images with the same
  * %CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID.
+ *
+ * # CCITT Fax Images # {#ccitt}
+ * The %CAIRO_MIME_TYPE_CCITT_FAX mime data requires a number of decoding
+ * parameters These parameters are specified using %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS.
+ *
+ * %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS mime data must contain a string of the form
+ * "param1=value1 param2=value2 ...".
+ *
+ * @Columns: [required] An integer specifying the width of the image in pixels.
+ *
+ * @Rows: [required] An integer specifying the height of the image in scan lines.
+ *
+ * @K: [optional] An integer identifying the encoding scheme used. < 0
+ * is 2 dimensional Group 4, = 0 is Group3 1 dimensional, > 0 is mixed 1
+ * and 2 dimensional encoding. Default is 0.
+ *
+ * @EndOfLine: [optional] If true end-of-line bit patterns are present. Default is false.
+ *
+ * @EncodedByteAlign: [optional] If true the end of line is padded
+ * with 0 bits so the next line begins on a byte boundary. Default is false.
+ *
+ * @EndOfBlock: [optional] If true the data contains an end-of-block pattern. Default is true.
+ *
+ * @BlackIs1: [optional] If true 1 bits are black pixels. Default is false.
+ *
+ * @DamagedRowsBeforeError: [optional] An integer specifying the
+ * number of damages rows tolerated before an error occurs. Default is 0.
+ *
+ * Boolean values may be "true" or "false", or 1 or 0.
+ *
+ * These parameters are the same as the CCITTFaxDecode parameters in the
+ * [PostScript Language Reference](https://www.adobe.com/products/postscript/pdfs/PLRM.pdf)
+ * and [Portable Document Format (PDF)](https://www.adobe.com/content/dam/Adobe/en/devnet/pdf/pdfs/PDF32000_2008.pdf).
+ * Refer to these documents for further details.
+ *
+ * An example %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS string is:
+ *
+ * <programlisting>
+ * "Columns=10230 Rows=40000 K=1 EndOfLine=true EncodedByteAlign=1 BlackIs1=false"
+ * </programlisting>
+ *
  **/
 
 static cairo_bool_t
@@ -184,6 +227,8 @@ static const char *_cairo_pdf_supported_mime_types[] =
     CAIRO_MIME_TYPE_JBIG2,
     CAIRO_MIME_TYPE_JBIG2_GLOBAL,
     CAIRO_MIME_TYPE_JBIG2_GLOBAL_ID,
+    CAIRO_MIME_TYPE_CCITT_FAX,
+    CAIRO_MIME_TYPE_CCITT_FAX_PARAMS,
     NULL
 };
 
@@ -1359,44 +1404,93 @@ _cairo_pdf_surface_release_source_image_from_pattern (cairo_pdf_surface_t       
 
 static cairo_int_status_t
 _get_jbig2_image_info (cairo_surface_t		 *source,
-		       cairo_image_info_t	 *info,
-		       const unsigned char	**mime_data,
-		       unsigned long		 *mime_data_length)
+		       cairo_image_info_t	 *info)
 {
+    const unsigned char *mime_data;
+    unsigned long mime_data_length;
+
     cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_JBIG2,
-				 mime_data, mime_data_length);
-    if (*mime_data == NULL)
+				 &mime_data, &mime_data_length);
+    if (mime_data == NULL)
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
-    return _cairo_image_info_get_jbig2_info (info, *mime_data, *mime_data_length);
+    return _cairo_image_info_get_jbig2_info (info, mime_data, mime_data_length);
 }
 
 static cairo_int_status_t
 _get_jpx_image_info (cairo_surface_t		 *source,
-		     cairo_image_info_t		*info,
-		     const unsigned char	**mime_data,
-		     unsigned long		 *mime_data_length)
+		     cairo_image_info_t		*info)
 {
+    const unsigned char *mime_data;
+    unsigned long mime_data_length;
+
     cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_JP2,
-				 mime_data, mime_data_length);
-    if (*mime_data == NULL)
+				 &mime_data, &mime_data_length);
+    if (mime_data == NULL)
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
-    return _cairo_image_info_get_jpx_info (info, *mime_data, *mime_data_length);
+    return _cairo_image_info_get_jpx_info (info, mime_data, mime_data_length);
 }
 
 static cairo_int_status_t
 _get_jpeg_image_info (cairo_surface_t		 *source,
-		      cairo_image_info_t	 *info,
-		      const unsigned char	**mime_data,
-		      unsigned long		 *mime_data_length)
+		      cairo_image_info_t	 *info)
 {
+    const unsigned char *mime_data;
+    unsigned long mime_data_length;
+
     cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_JPEG,
-				 mime_data, mime_data_length);
-    if (*mime_data == NULL)
+				 &mime_data, &mime_data_length);
+    if (mime_data == NULL)
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
-    return _cairo_image_info_get_jpeg_info (info, *mime_data, *mime_data_length);
+    return _cairo_image_info_get_jpeg_info (info, mime_data, mime_data_length);
+}
+
+static cairo_int_status_t
+_get_ccitt_image_info (cairo_surface_t		 *source,
+		       int                       *width,
+		       int                       *height)
+{
+    cairo_status_t status;
+    const unsigned char *ccitt_data;
+    unsigned long ccitt_data_len;
+    const unsigned char *ccitt_params_string;
+    unsigned long ccitt_params_string_len;
+    char *params;
+    cairo_ccitt_params_t ccitt_params;
+
+    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_CCITT_FAX,
+				 &ccitt_data, &ccitt_data_len);
+    if (unlikely (source->status))
+	return source->status;
+    if (ccitt_data == NULL)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_CCITT_FAX_PARAMS,
+				 &ccitt_params_string, &ccitt_params_string_len);
+    if (unlikely (source->status))
+	return source->status;
+    if (ccitt_params_string == NULL)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    /* ensure params_string is null terminated */
+    params = malloc (ccitt_params_string_len + 1);
+    memcpy (params, ccitt_params_string, ccitt_params_string_len);
+    params[ccitt_params_string_len] = 0;
+    status = _cairo_tag_parse_ccitt_params (params, &ccitt_params);
+    if (unlikely(status))
+	return source->status;
+
+    free (params);
+
+    if (ccitt_params.columns <= 0 || ccitt_params.rows <= 0)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    *width = ccitt_params.columns;
+    *height = ccitt_params.rows;
+
+    return CAIRO_STATUS_SUCCESS;
 }
 
 static cairo_int_status_t
@@ -1407,8 +1501,7 @@ _get_source_surface_extents (cairo_surface_t         *source,
 {
     cairo_int_status_t status;
     cairo_image_info_t info;
-    const unsigned char *mime_data;
-    unsigned long mime_data_length;
+    int width, height;
 
     *bounded = TRUE;
     *subsurface = FALSE;
@@ -1444,24 +1537,31 @@ _get_source_surface_extents (cairo_surface_t         *source,
     extents->x = 0;
     extents->y = 0;
 
-    status = _get_jbig2_image_info (source, &info, &mime_data, &mime_data_length);
+    status = _get_jbig2_image_info (source, &info);
     if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
 	extents->width = info.width;
 	extents->height = info.height;
 	return status;
     }
 
-    status = _get_jpx_image_info (source, &info, &mime_data, &mime_data_length);
+    status = _get_jpx_image_info (source, &info);
     if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
 	extents->width = info.width;
 	extents->height = info.height;
 	return status;
     }
 
-    status = _get_jpeg_image_info (source, &info, &mime_data, &mime_data_length);
+    status = _get_jpeg_image_info (source, &info);
     if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
 	extents->width = info.width;
 	extents->height = info.height;
+	return status;
+    }
+
+    status = _get_ccitt_image_info (source, &width, &height);
+    if (status != CAIRO_INT_STATUS_UNSUPPORTED) {
+	extents->width = width;
+	extents->height = height;
 	return status;
     }
 
@@ -3182,6 +3282,113 @@ _cairo_pdf_surface_emit_jpeg_image (cairo_pdf_surface_t              *surface,
 }
 
 static cairo_int_status_t
+_cairo_pdf_surface_emit_ccitt_image (cairo_pdf_surface_t              *surface,
+				     cairo_surface_t	             *source,
+				     cairo_pdf_source_surface_entry_t *surface_entry)
+{
+    cairo_status_t status;
+    const unsigned char *ccitt_data;
+    unsigned long ccitt_data_len;
+    const unsigned char *ccitt_params_string;
+    unsigned long ccitt_params_string_len;
+    char *params, *p, *end;
+    cairo_ccitt_params_t ccitt_params;
+    char buf[300];
+
+    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_CCITT_FAX,
+				 &ccitt_data, &ccitt_data_len);
+    if (unlikely (source->status))
+	return source->status;
+    if (ccitt_data == NULL)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    cairo_surface_get_mime_data (source, CAIRO_MIME_TYPE_CCITT_FAX_PARAMS,
+				 &ccitt_params_string, &ccitt_params_string_len);
+    if (unlikely (source->status))
+	return source->status;
+    if (ccitt_params_string == NULL)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    /* ensure params_string is null terminated */
+    params = malloc (ccitt_params_string_len + 1);
+    memcpy (params, ccitt_params_string, ccitt_params_string_len);
+    params[ccitt_params_string_len] = 0;
+    status = _cairo_tag_parse_ccitt_params (params, &ccitt_params);
+    if (unlikely(status))
+	return source->status;
+
+    free (params);
+
+    p = buf;
+    *p = 0;
+    end = buf + sizeof(buf) - 1;
+    p += snprintf (p, end - p, "/Columns %d /Rows %d /K %d",
+				 ccitt_params.columns,
+				 ccitt_params.rows,
+				 ccitt_params.k);
+    if (ccitt_params.end_of_line)
+	p += snprintf (p, end - p, " /EndOfLine true");
+
+    if (ccitt_params.encoded_byte_align)
+	p += snprintf (p, end - p, " /EncodedByteAlign true");
+
+    if (!ccitt_params.end_of_block)
+	p += snprintf (p, end - p, " /EndOfBlock false");
+
+    if (ccitt_params.black_is_1)
+	p += snprintf (p, end - p, " /BlackIs1 true");
+
+    if (ccitt_params.damaged_rows_before_error > 0) {
+	p += snprintf (p, end - p, " /DamagedRowsBeforeError %d",
+		       ccitt_params.damaged_rows_before_error);
+    }
+
+    if (surface_entry->stencil_mask) {
+	status = _cairo_pdf_surface_open_stream (surface,
+						 &surface_entry->surface_res,
+						 FALSE,
+						 "   /Type /XObject\n"
+						 "   /Subtype /Image\n"
+						 "   /ImageMask true\n"
+						 "   /Width %d\n"
+						 "   /Height %d\n"
+						 "   /Interpolate %s\n"
+						 "   /BitsPerComponent 1\n"
+						 "   /Decode [1 0]\n"
+						 "   /Filter /CCITTFaxDecode\n"
+						 "   /DecodeParms << %s >> ",
+						 ccitt_params.columns,
+						 ccitt_params.rows,
+						 surface_entry->interpolate ? "true" : "false",
+						 buf);
+    } else {
+	status = _cairo_pdf_surface_open_stream (surface,
+						 &surface_entry->surface_res,
+						 FALSE,
+						 "   /Type /XObject\n"
+						 "   /Subtype /Image\n"
+						 "   /Width %d\n"
+						 "   /Height %d\n"
+						 "   /ColorSpace /DeviceGray\n"
+						 "   /BitsPerComponent 1\n"
+						 "   /Interpolate %s\n"
+						 "   /Filter /CCITTFaxDecode\n"
+						 "   /DecodeParms << %s >> ",
+						 ccitt_params.columns,
+						 ccitt_params.rows,
+						 surface_entry->interpolate ? "true" : "false",
+						 buf);
+    }
+    if (unlikely (status))
+	return status;
+
+    _cairo_output_stream_write (surface->output, ccitt_data, ccitt_data_len);
+    status = _cairo_pdf_surface_close_stream (surface);
+
+    return status;
+}
+
+static cairo_int_status_t
 _cairo_pdf_surface_emit_image_surface (cairo_pdf_surface_t        *surface,
 				       cairo_pdf_source_surface_t *source)
 {
@@ -3199,6 +3406,10 @@ _cairo_pdf_surface_emit_image_surface (cairo_pdf_surface_t        *surface,
 	    return status;
 
 	status = _cairo_pdf_surface_emit_jpeg_image (surface, source->surface, source->hash_entry);
+	if (status != CAIRO_INT_STATUS_UNSUPPORTED)
+	    return status;
+
+	status = _cairo_pdf_surface_emit_ccitt_image (surface, source->surface, source->hash_entry);
 	if (status != CAIRO_INT_STATUS_UNSUPPORTED)
 	    return status;
     }

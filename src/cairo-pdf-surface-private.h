@@ -76,6 +76,7 @@ typedef struct _cairo_pdf_source_surface_entry {
     cairo_bool_t interpolate;
     cairo_bool_t stencil_mask;
     cairo_bool_t smask;
+    cairo_bool_t need_transp_group;
     cairo_pdf_resource_t surface_res;
     cairo_pdf_resource_t smask_res;
 

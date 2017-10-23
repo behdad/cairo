@@ -1456,6 +1456,7 @@ _get_source_surface_extents (cairo_surface_t         *source,
  * @filter: [in] filter type of the source pattern
  * @stencil_mask: [in] if true, the surface will be written to the PDF as an /ImageMask
  * @smask: [in] if true, only the alpha channel will be written (images only)
+ * @need_transp_group: [in] if true and an XObject is used, make it a Transparency group
  * @extents: [in] extents of the operation that is using this source
  * @smask_res: [in] if not NULL, the image written will specify this resource as the smask for
  * the image (images only)
@@ -1482,6 +1483,7 @@ _cairo_pdf_surface_add_source_surface (cairo_pdf_surface_t	         *surface,
 				       cairo_filter_t		          filter,
 				       cairo_bool_t                       stencil_mask,
 				       cairo_bool_t                       smask,
+				       cairo_bool_t                       need_transp_group,
 				       const cairo_rectangle_int_t       *extents,
 				       cairo_pdf_resource_t	         *smask_res,
 				       cairo_pdf_source_surface_entry_t **pdf_source,
@@ -1600,6 +1602,7 @@ _cairo_pdf_surface_add_source_surface (cairo_pdf_surface_t	         *surface,
     surface_entry->interpolate = interpolate;
     surface_entry->stencil_mask = stencil_mask;
     surface_entry->smask = smask;
+    surface_entry->need_transp_group = need_transp_group;
     surface_entry->unique_id_length = unique_id_length;
     surface_entry->unique_id = unique_id;
     if (smask_res)
@@ -2467,6 +2470,7 @@ _cairo_pdf_surface_add_padded_image_surface (cairo_pdf_surface_t          *surfa
 						    source->filter,
 						    FALSE, /* stencil mask */
 						    FALSE, /* smask */
+						    FALSE, /* need_transp_group */
 						    extents,
 						    NULL, /* smask_res */
 						    pdf_source,
@@ -3388,12 +3392,16 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     }
 
     /* We can optimize away the transparency group allowing the viewer
-     * to replay the group in place when all operators are OVER and the
-     * recording contains only opaque and/or clear alpha.
+     * to replay the group in place when:
+     *  - ca/CA when painting this groups is 1.0 (need_transp_group is FALSE),
+     *  - all operators are OVER, and
+     *  - the recording contains only opaque and/or clear alpha.
      */
-    transparency_group = !(pdf_source->hash_entry->operator == CAIRO_OPERATOR_OVER &&
+    transparency_group = pdf_source->hash_entry->need_transp_group ||
+	!(pdf_source->hash_entry->operator == CAIRO_OPERATOR_OVER &&
 			   _cairo_recording_surface_has_only_bilevel_alpha (recording) &&
 			   _cairo_recording_surface_has_only_op_over (recording));
+
     status = _cairo_pdf_surface_open_content_stream (surface, &bbox, &pdf_source->hash_entry->surface_res,
 						     TRUE, transparency_group);
     if (unlikely (status))
@@ -3481,6 +3489,7 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 							pattern->filter,
 							FALSE, /* stencil mask */
 							FALSE, /* smask */
+							FALSE, /* need_transp_group */
 							&pdf_pattern->extents,
 							NULL, /* smask_res */
 							&pdf_source,
@@ -4622,12 +4631,13 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
 					  cairo_operator_t              op,
 					  const cairo_pattern_t        *source,
 					  const cairo_rectangle_int_t  *extents,
+					  double                        alpha,
 					  cairo_pdf_resource_t	       *smask_res,
 					  cairo_bool_t                  stencil_mask)
 {
     cairo_matrix_t cairo_p2d, pdf_p2d;
     cairo_int_status_t status;
-    int alpha;
+    int alpha_id;
     double x_offset;
     double y_offset;
     cairo_pdf_source_surface_entry_t *pdf_source;
@@ -4651,6 +4661,7 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
 							source->filter,
 							stencil_mask,
 							FALSE, /* smask */
+							alpha != 1.0, /* need_transp_group */
 							extents,
 							smask_res,
 							&pdf_source,
@@ -4686,7 +4697,7 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
 	_cairo_output_stream_printf (surface->output, " cm\n");
     }
 
-    status = _cairo_pdf_surface_add_alpha (surface, 1.0, &alpha);
+    status = _cairo_pdf_surface_add_alpha (surface, alpha, &alpha_id);
     if (unlikely (status))
 	return status;
 
@@ -4697,7 +4708,7 @@ _cairo_pdf_surface_paint_surface_pattern (cairo_pdf_surface_t          *surface,
     } else {
 	_cairo_output_stream_printf (surface->output,
 				     "/a%d gs /x%d Do\n",
-				     alpha,
+				     alpha_id,
 				     pdf_source->surface_res.id);
     }
 
@@ -4708,12 +4719,13 @@ static cairo_int_status_t
 _cairo_pdf_surface_paint_gradient (cairo_pdf_surface_t         *surface,
 				   cairo_operator_t             op,
 				   const cairo_pattern_t       *source,
-				   const cairo_rectangle_int_t *extents)
+				   const cairo_rectangle_int_t *extents,
+				   double                       alpha)
 {
     cairo_pdf_resource_t shading_res, gstate_res;
     cairo_matrix_t pat_to_pdf;
     cairo_int_status_t status;
-    int alpha;
+    int alpha_id;
 
     status = _cairo_pdf_surface_add_pdf_shading (surface, source,
 						 op, extents,
@@ -4752,13 +4764,13 @@ _cairo_pdf_surface_paint_gradient (cairo_pdf_surface_t         *surface,
 				     gstate_res.id,
 				     shading_res.id);
     } else {
-	status = _cairo_pdf_surface_add_alpha (surface, 1.0, &alpha);
+	status = _cairo_pdf_surface_add_alpha (surface, alpha, &alpha_id);
 	if (unlikely (status))
 	    return status;
 
 	_cairo_output_stream_printf (surface->output,
 				     "/a%d gs /sh%d sh\n",
-				     alpha,
+				     alpha_id,
 				     shading_res.id);
     }
 
@@ -4770,6 +4782,7 @@ _cairo_pdf_surface_paint_pattern (cairo_pdf_surface_t          *surface,
 				  cairo_operator_t              op,
 				  const cairo_pattern_t        *source,
 				  const cairo_rectangle_int_t  *extents,
+				  double                        alpha,
 				  cairo_bool_t                  mask)
 {
     switch (source->type) {
@@ -4779,6 +4792,7 @@ _cairo_pdf_surface_paint_pattern (cairo_pdf_surface_t          *surface,
 							 op,
 							 source,
 							 extents,
+							 alpha,
 							 NULL,
 							 mask);
     case CAIRO_PATTERN_TYPE_LINEAR:
@@ -4787,7 +4801,8 @@ _cairo_pdf_surface_paint_pattern (cairo_pdf_surface_t          *surface,
 	return _cairo_pdf_surface_paint_gradient (surface,
 						  op,
 						  source,
-						  extents);
+						  extents,
+						  alpha);
 
     case CAIRO_PATTERN_TYPE_SOLID:
     default:
@@ -6436,7 +6451,8 @@ _cairo_pdf_surface_write_mask_group (cairo_pdf_surface_t	*surface,
 						   CAIRO_OPERATOR_OVER,
 						   group->mask,
 						   &group->extents,
-						   FALSE);
+						   1.0, /* alpha */
+						   FALSE); /* mask */
 	if (unlikely (status))
 	    return status;
 
@@ -6512,7 +6528,8 @@ _cairo_pdf_surface_write_mask_group (cairo_pdf_surface_t	*surface,
 						   CAIRO_OPERATOR_OVER,
 						   group->source,
 						   &group->extents,
-						   FALSE);
+						   1.0, /* alpha */
+						   FALSE); /* mask */
 	if (unlikely (status))
 	    return status;
 
@@ -7262,6 +7279,7 @@ _cairo_pdf_surface_emit_combined_smask (cairo_pdf_surface_t         *surface,
 							source->filter,
 							FALSE, /* stencil mask */
 							TRUE, /* smask */
+							FALSE, /* need_transp_group */
 							extents,
 							NULL, /* smask_res */
 							&pdf_source,
@@ -7278,6 +7296,7 @@ _cairo_pdf_surface_emit_combined_smask (cairo_pdf_surface_t         *surface,
 
     _cairo_output_stream_printf (surface->output, "q\n");
     status = _cairo_pdf_surface_paint_surface_pattern (surface, op, source, extents,
+						       1.0, /* alpha */
 						       need_smask ? &pdf_source->surface_res : NULL,
 						       FALSE);
     if (unlikely (status))
@@ -7341,7 +7360,7 @@ _cairo_pdf_surface_emit_stencil_mask (cairo_pdf_surface_t         *surface,
 	return status;
 
     _cairo_output_stream_printf (surface->output, "q\n");
-    status = _cairo_pdf_surface_paint_surface_pattern (surface, op, mask, extents, NULL, TRUE);
+    status = _cairo_pdf_surface_paint_surface_pattern (surface, op, mask, extents, 1.0, NULL, TRUE);
     if (unlikely (status))
 	return status;
 
@@ -7424,7 +7443,8 @@ _cairo_pdf_surface_paint (void			*abstract_surface,
 						   op,
 						   source,
 						   &extents.bounded,
-						   FALSE);
+						   1.0, /* alpha */
+						   FALSE); /* mask */
 	if (unlikely (status))
 	    goto cleanup;
 
@@ -7512,6 +7532,7 @@ _cairo_pdf_surface_mask (void			*abstract_surface,
     cairo_int_status_t status;
     cairo_rectangle_int_t r;
     cairo_box_t box;
+    double alpha;
 
     status = _cairo_composite_rectangles_init_for_mask (&extents,
 							&surface->base,
@@ -7591,6 +7612,26 @@ _cairo_pdf_surface_mask (void			*abstract_surface,
     status = _cairo_pdf_surface_emit_stencil_mask (surface, op, source, mask, &extents.bounded);
     if (status != CAIRO_INT_STATUS_UNSUPPORTED)
 	goto cleanup;
+
+    /* Check if we can set ca/CA instead of an smask. We could handle
+     * other source patterns as well but for now this is the easiest,
+     * and most common, case to handle. */
+    if (_cairo_pattern_is_constant_alpha (mask, &extents.bounded, &alpha) &&
+	_can_paint_pattern (source)) {
+	_cairo_output_stream_printf (surface->output, "q\n");
+	status = _cairo_pdf_surface_paint_pattern (surface,
+						   op,
+						   source,
+						   &extents.bounded,
+						   alpha,
+						   FALSE); /* mask */
+	if (unlikely (status))
+	    goto cleanup;
+
+	_cairo_output_stream_printf (surface->output, "Q\n");
+	_cairo_composite_rectangles_fini (&extents);
+	return _cairo_output_stream_get_status (surface->output);
+    }
 
     group = _cairo_pdf_surface_create_smask_group (surface, &extents.bounded);
     if (unlikely (group == NULL)) {
@@ -7869,7 +7910,8 @@ _cairo_pdf_surface_fill (void			*abstract_surface,
 						   op,
 						   source,
 						   &extents.bounded,
-						   FALSE);
+						   1.0, /* alpha */
+						   FALSE); /* mask */
 	if (unlikely (status))
 	    goto cleanup;
 

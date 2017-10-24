@@ -43,6 +43,7 @@
  *  - page labels
  */
 
+#define _DEFAULT_SOURCE /* for localtime_r(), gmtime_r(), snprintf(), strdup() */
 #include "cairoint.h"
 
 #include "cairo-pdf.h"
@@ -51,6 +52,15 @@
 #include "cairo-array-private.h"
 #include "cairo-error-private.h"
 #include "cairo-output-stream-private.h"
+
+#include <time.h>
+
+#ifndef HAVE_LOCALTIME_R
+#define localtime_r(T, BUF) (*(BUF) = *localtime (T))
+#endif
+#ifndef HAVE_GMTIME_R
+#define gmtime_r(T, BUF) (*(BUF) = *gmtime (T))
+#endif
 
 static void
 write_rect_to_pdf_quad_points (cairo_output_stream_t   *stream,
@@ -1312,6 +1322,45 @@ _cairo_pdf_interchange_write_document_objects (cairo_pdf_surface_t *surface)
     return status;
 }
 
+static void
+_cairo_pdf_interchange_set_create_date (cairo_pdf_surface_t *surface)
+{
+    time_t utc, local, offset;
+    struct tm tm_local, tm_utc;
+    char buf[50];
+    int buf_size;
+    char *p;
+    cairo_pdf_interchange_t *ic = &surface->interchange;
+
+    utc = time (NULL);
+    localtime_r (&utc, &tm_local);
+    strftime (buf, sizeof(buf), "(D:%Y%m%d%H%M%S", &tm_local);
+
+    /* strftime "%z" is non standard and does not work on windows (it prints zone name, not offset).
+     * Calculate time zone offset by comparing local and utc time_t values for the same time.
+     */
+    gmtime_r (&utc, &tm_utc);
+    tm_utc.tm_isdst = tm_local.tm_isdst;
+    local = mktime (&tm_utc);
+    offset = difftime (utc, local);
+
+    if (offset == 0) {
+	strcat (buf, "Z");
+    } else {
+	if (offset > 0) {
+	    strcat (buf, "+");
+	} else {
+	    strcat (buf, "-");
+	    offset = -offset;
+	}
+	p = buf + strlen (buf);
+	buf_size = sizeof (buf) - strlen (buf);
+	snprintf (p, buf_size, "%02d'%02d", (int)(offset/3600), (int)(offset%3600)/60);
+    }
+    strcat (buf, ")");
+    ic->docinfo.create_date = strdup (buf);
+}
+
 cairo_int_status_t
 _cairo_pdf_interchange_init (cairo_pdf_surface_t *surface)
 {
@@ -1349,6 +1398,7 @@ _cairo_pdf_interchange_init (cairo_pdf_surface_t *surface)
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
     memset (&ic->docinfo, 0, sizeof (ic->docinfo));
+    _cairo_pdf_interchange_set_create_date (surface);
     status = _cairo_array_append (&ic->outline, &outline_root);
 
     return status;

@@ -63,7 +63,6 @@
 #include "cairo-surface-subsurface-private.h"
 #include "cairo-type3-glyph-surface-private.h"
 
-#include <time.h>
 #include <zlib.h>
 
 /* Issues:

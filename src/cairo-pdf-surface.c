@@ -65,15 +65,6 @@
 
 #include <zlib.h>
 
-/* Issues:
- *
- * - We embed an image in the stream each time it's composited.  We
- *   could add generation counters to surfaces and remember the stream
- *   ID for a particular generation for a particular surface.
- *
- * - Backend specific meta data.
- */
-
 /*
  * Page Structure of the Generated PDF:
  *

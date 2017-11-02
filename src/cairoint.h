@@ -1922,6 +1922,10 @@ _cairo_matrix_multiply (cairo_matrix_t *r,
 cairo_private void
 _cairo_observers_notify (cairo_list_t *observers, void *arg);
 
+/* Open a file with a UTF-8 filename */
+cairo_private cairo_status_t
+_cairo_fopen (const char *filename, const char *mode, FILE **file_out);
+
 /* Avoid unnecessary PLT entries.  */
 slim_hidden_proto (cairo_clip_preserve);
 slim_hidden_proto (cairo_close_path);

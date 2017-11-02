@@ -41,6 +41,9 @@
 #include "cairoint.h"
 #include "cairo-error-private.h"
 
+#include <stdio.h>
+#include <errno.h>
+
 COMPILE_TIME_ASSERT ((int)CAIRO_STATUS_LAST_STATUS < (int)CAIRO_INT_STATUS_UNSUPPORTED);
 COMPILE_TIME_ASSERT (CAIRO_INT_STATUS_LAST_STATUS <= 127);
 
@@ -840,6 +843,65 @@ _cairo_strtod (const char *nptr, char **endptr)
     }
 
     return value;
+}
+
+/**
+ * _cairo_fopen:
+ * @filename: filename to open
+ * @mode: mode string with which to open the file
+ * @file_out: reference to file handle
+ *
+ * Exactly like the C library function, but possibly doing encoding
+ * conversion on the filename. On all platforms, the filename is
+ * passed directly to the system, but on Windows, the filename is
+ * interpreted as UTF-8, rather than in a codepage that would depend
+ * on system settings.
+ *
+ * Return value: CAIRO_STATUS_SUCCESS when the filename was converted
+ * successfully to the native encoding, or the error reported by
+ * _cairo_utf8_to_utf16 otherwise. To check if the file handle could
+ * be obtained, dereference file_out and compare its value against
+ * NULL
+ **/
+cairo_status_t
+_cairo_fopen (const char *filename, const char *mode, FILE **file_out)
+{
+    FILE *result;
+#ifdef _WIN32 /* also defined on x86_64 */
+    uint16_t *filename_w;
+    uint16_t *mode_w;
+    cairo_status_t status;
+
+    *file_out = NULL;
+
+    if (filename == NULL || mode == NULL) {
+	errno = EINVAL;
+	return CAIRO_STATUS_SUCCESS;
+    }
+
+    if ((status = _cairo_utf8_to_utf16 (filename, -1, &filename_w, NULL)) != CAIRO_STATUS_SUCCESS) {
+	errno = EINVAL;
+	return status;
+    }
+
+    if ((status = _cairo_utf8_to_utf16 (mode, -1, &mode_w, NULL)) != CAIRO_STATUS_SUCCESS) {
+	free (filename_w);
+	errno = EINVAL;
+	return status;
+    }
+
+    result = _wfopen(filename_w, mode_w);
+
+    free (filename_w);
+    free (mode_w);
+
+#else /* Use fopen directly */
+    result = fopen (filename, mode);
+#endif
+
+    *file_out = result;
+
+    return CAIRO_STATUS_SUCCESS;
 }
 
 #ifdef _WIN32

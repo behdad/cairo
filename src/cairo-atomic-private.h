@@ -157,13 +157,12 @@ _cairo_atomic_ptr_cmpxchg_return_old_impl(void **x, void *oldv, void *newv)
 
 #endif
 
-#if HAVE_INTEL_ATOMIC_PRIMITIVES
+#if HAVE_GCC_LEGACY_ATOMICS
 
 #define HAS_ATOMIC_OPS 1
 
 typedef int cairo_atomic_int_t;
 
-#ifdef ATOMIC_OP_NEEDS_MEMORY_BARRIER
 static cairo_always_inline cairo_atomic_int_t
 _cairo_atomic_int_get (cairo_atomic_int_t *x)
 {
@@ -189,12 +188,6 @@ _cairo_atomic_ptr_get (void **x)
     __sync_synchronize ();
     return *x;
 }
-#else
-# define _cairo_atomic_int_get(x) (*x)
-# define _cairo_atomic_int_get_relaxed(x) (*x)
-# define _cairo_atomic_int_set_relaxed(x, val) (*x) = (val)
-# define _cairo_atomic_ptr_get(x) (*x)
-#endif
 
 # define _cairo_atomic_int_inc(x) ((void) __sync_fetch_and_add(x, 1))
 # define _cairo_atomic_int_dec(x) ((void) __sync_fetch_and_add(x, -1))

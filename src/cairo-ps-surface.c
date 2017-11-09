@@ -3283,7 +3283,7 @@ _cairo_ps_surface_emit_eps (cairo_ps_surface_t          *surface,
 	params->approx_size = eps_data_len;
 	surface->contains_eps = TRUE;
 
-	/* Find number of occurences of SUBFILE_FILTER_EOD in the EPS data.
+	/* Find number of occurrences of SUBFILE_FILTER_EOD in the EPS data.
 	 * We will need it before emitting the data if a ReusableStream is used.
          */
 	params->eod_count = count_eod_strings (eps_data, eps_data_len);

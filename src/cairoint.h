@@ -1518,7 +1518,7 @@ _cairo_surface_release_device_reference (cairo_surface_t *surface);
  * for that, even without being considered "valid" for the sake of
  * things like cairo_image_surface_create().
  *
- * Since 1.2.0 we ran into the same situtation with X servers with BGR
+ * Since 1.2.0 we ran into the same situation with X servers with BGR
  * visuals. This time we invented #cairo_internal_format_t instead,
  * (see it for more discussion).
  *

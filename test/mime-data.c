@@ -238,7 +238,7 @@ paint_ccitt_file (cairo_t *cr, int x, int y)
 	return cairo_test_status_from_status (ctx, status);
     }
 
-    /* Set the CCITT image paramaters */
+    /* Set the CCITT image parameters */
     status = cairo_surface_set_mime_data (image, CAIRO_MIME_TYPE_CCITT_FAX_PARAMS,
 					  (unsigned char *)ccitt_image_params,
 					  strlen (ccitt_image_params),

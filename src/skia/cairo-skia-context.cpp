@@ -288,7 +288,7 @@ static SkShader::TileMode
 extend_to_sk (cairo_extend_t extend)
 {
     static const SkShader::TileMode modeMap[] = {
-	SkShader::kClamp_TileMode,  // NONE behaves like PAD, because noone wants NONE
+	SkShader::kClamp_TileMode,  // NONE behaves like PAD, because no one wants NONE
 	SkShader::kRepeat_TileMode,
 	SkShader::kMirror_TileMode,
 	SkShader::kClamp_TileMode

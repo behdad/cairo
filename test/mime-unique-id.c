@@ -79,8 +79,8 @@
  * If the size check fails, manually check the output and if the
  * surfaces are still embedded only once, update the expected sizes.
  */
-#define PS2_EXPECTED_SIZE 315362
-#define PS3_EXPECTED_SIZE 315362
+#define PS2_EXPECTED_SIZE 417510
+#define PS3_EXPECTED_SIZE 380912
 #define PDF_EXPECTED_SIZE 347182
 #define SIZE_TOLERANCE      5000
 

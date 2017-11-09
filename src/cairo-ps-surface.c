@@ -2709,17 +2709,16 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
     if (use_mask) {
 	_cairo_output_stream_printf (surface->stream,
 				     "%s setcolorspace\n"
-				     "5 dict dup begin\n"
-				     "  /ImageType 3 def\n"
-				     "  /InterleaveType 2 def\n"
-				     "  /DataDict 8 dict def\n"
-				     "    DataDict begin\n"
-				     "    /ImageType 1 def\n"
-				     "    /Width %d def\n"
-				     "    /Height %d def\n"
-				     "    /Interpolate %s def\n"
-				     "    /BitsPerComponent %d def\n"
-				     "    /Decode [ %s ] def\n",
+				     "<<\n"
+				     "  /ImageType 3\n"
+				     "  /InterleaveType 2\n"
+				     "  /DataDict <<\n"
+				     "    /ImageType 1\n"
+				     "    /Width %d\n"
+				     "    /Height %d\n"
+				     "    /Interpolate %s\n"
+				     "    /BitsPerComponent %d\n"
+				     "    /Decode [ %s ]\n",
 				     color == CAIRO_IMAGE_IS_COLOR ? "/DeviceRGB" : "/DeviceGray",
 				     ps_image->width,
 				     ps_image->height,
@@ -2729,28 +2728,27 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 
 	if (surface->use_string_datasource) {
 	    _cairo_output_stream_printf (surface->stream,
-					 "    /DataSource { cairo_data_source } /%s filter def\n",
+					 "    /DataSource { cairo_data_source } /%s filter\n",
 					 compress_filter);
 	} else {
 	    _cairo_output_stream_printf (surface->stream,
-					 "    /DataSource cairo_ascii85_file /%s filter def\n",
+					 "    /DataSource cairo_ascii85_file /%s filter\n",
 					 compress_filter);
 	}
 
 	_cairo_output_stream_printf (surface->stream,
-				     "    /ImageMatrix [ %d 0 0 %d 0 %d ] def\n"
-				     "  end\n"
-				     "  /MaskDict 8 dict def\n"
-				     "     MaskDict begin\n"
-				     "    /ImageType 1 def\n"
-				     "    /Width %d def\n"
-				     "    /Height %d def\n"
-				     "    /Interpolate %s def\n"
-				     "    /BitsPerComponent 1 def\n"
-				     "    /Decode [ 1 0 ] def\n"
-				     "    /ImageMatrix [ %d 0 0 %d 0 %d ] def\n"
-				     "  end\n"
-				     "end\n"
+				     "    /ImageMatrix [ %d 0 0 %d 0 %d ]\n"
+				     "  >>\n"
+				     "  /MaskDict <<\n"
+				     "    /ImageType 1\n"
+				     "    /Width %d\n"
+				     "    /Height %d\n"
+				     "    /Interpolate %s\n"
+				     "    /BitsPerComponent 1\n"
+				     "    /Decode [ 1 0 ]\n"
+				     "    /ImageMatrix [ %d 0 0 %d 0 %d ]\n"
+				     "  >>\n"
+				     ">>\n"
 				     "image\n",
 				     ps_image->width,
 				     -ps_image->height,
@@ -2768,13 +2766,13 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 					 color == CAIRO_IMAGE_IS_COLOR ? "/DeviceRGB" : "/DeviceGray");
 	}
 	_cairo_output_stream_printf (surface->stream,
-				     "8 dict dup begin\n"
-				     "  /ImageType 1 def\n"
-				     "  /Width %d def\n"
-				     "  /Height %d def\n"
-				     "  /Interpolate %s def\n"
-				     "  /BitsPerComponent %d def\n"
-				     "  /Decode [ %s ] def\n",
+				     "<<\n"
+				     "  /ImageType 1\n"
+				     "  /Width %d\n"
+				     "  /Height %d\n"
+				     "  /Interpolate %s\n"
+				     "  /BitsPerComponent %d\n"
+				     "  /Decode [ %s ]\n",
 				     ps_image->width,
 				     ps_image->height,
 				     interpolate,
@@ -2782,17 +2780,17 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 				     stencil_mask ? "1 0" : color == CAIRO_IMAGE_IS_COLOR ? "0 1 0 1 0 1" : "0 1");
 	if (surface->use_string_datasource) {
 	    _cairo_output_stream_printf (surface->stream,
-					 "  /DataSource { cairo_data_source } /%s filter def\n",
+					 "  /DataSource { cairo_data_source } /%s filter\n",
 					 compress_filter);
 	} else {
 	    _cairo_output_stream_printf (surface->stream,
-					 "  /DataSource cairo_ascii85_file /%s filter def\n",
+					 "  /DataSource cairo_ascii85_file /%s filter\n",
 					 compress_filter);
 	}
 
 	_cairo_output_stream_printf (surface->stream,
-				     "  /ImageMatrix [ %d 0 0 %d 0 %d ] def\n"
-				     "end\n"
+				     "  /ImageMatrix [ %d 0 0 %d 0 %d ]\n"
+				     ">>\n"
 				     "%s%s\n",
 				     ps_image->width,
 				     -ps_image->height,
@@ -2893,13 +2891,13 @@ _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t    *surface,
 
     _cairo_output_stream_printf (surface->stream,
 				 "%s setcolorspace\n"
-				 "8 dict dup begin\n"
-				 "  /ImageType 1 def\n"
-				 "  /Width %d def\n"
-				 "  /Height %d def\n"
-				 "  /BitsPerComponent %d def\n"
-				 "  /Interpolate %s def\n"
-				 "  /Decode [ %s ] def\n",
+				 "<<\n"
+				 "  /ImageType 1\n"
+				 "  /Width %d\n"
+				 "  /Height %d\n"
+				 "  /BitsPerComponent %d\n"
+				 "  /Interpolate %s\n"
+				 "  /Decode [ %s ]\n",
 				 colorspace,
 				 info.width,
 				 info.height,
@@ -2909,15 +2907,15 @@ _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t    *surface,
 
     if (surface->use_string_datasource) {
 	_cairo_output_stream_printf (surface->stream,
-				     "  /DataSource { cairo_data_source } /DCTDecode filter def\n");
+				     "  /DataSource { cairo_data_source } /DCTDecode filter\n");
     } else {
 	_cairo_output_stream_printf (surface->stream,
-				     "  /DataSource cairo_ascii85_file /DCTDecode filter def\n");
+				     "  /DataSource cairo_ascii85_file /DCTDecode filter\n");
     }
 
     _cairo_output_stream_printf (surface->stream,
-				 "  /ImageMatrix [ %d 0 0 %d 0 %d ] def\n"
-				 "end\n"
+				 "  /ImageMatrix [ %d 0 0 %d 0 %d ]\n"
+				 ">>\n"
 				 "%simage\n",
 				 info.width,
 				 -info.height,

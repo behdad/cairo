@@ -80,7 +80,7 @@
  * surfaces are still embedded only once, update the expected sizes.
  */
 #define PS2_EXPECTED_SIZE 417510
-#define PS3_EXPECTED_SIZE 380912
+#define PS3_EXPECTED_SIZE 381554
 #define PDF_EXPECTED_SIZE 347182
 #define SIZE_TOLERANCE      5000
 

@@ -3400,6 +3400,10 @@ _cairo_ps_surface_emit_form (cairo_ps_surface_t          *surface,
     if (test || status)
 	return status;
 
+    /* _cairo_ps_form_emit will use Level 3 if permitted by ps_level */
+    if (surface->ps_level == CAIRO_PS_LEVEL_3)
+	surface->ps_level_used = CAIRO_PS_LEVEL_3;
+
     _cairo_output_stream_printf (surface->stream,
 				 "/cairoform-%d /Form findresource execform\n",
 				 ps_form->id);
@@ -3523,6 +3527,11 @@ _cairo_ps_surface_emit_surface (cairo_ps_surface_t          *surface,
     return status;
 }
 
+/* The '|' character is not used in PS (including ASCII85) so we can
+ * use it as a /SubFileDecode EOD marker and assume EODCount will be 0.
+ */
+#define SUBFILE_FILTER_EOD "|EOD|"
+
 static void
 _cairo_ps_form_emit (void *entry, void *closure)
 {
@@ -3536,7 +3545,6 @@ _cairo_ps_form_emit (void *entry, void *closure)
     params.src_op_extents = &form->required_extents;
     params.filter = form->filter;
     params.stencil_mask = FALSE;
-    params.paint_proc = TRUE;
     params.is_image = form->is_image;
     params.approx_size = 0;
     cairo_output_stream_t *old_stream;
@@ -3546,9 +3554,24 @@ _cairo_ps_form_emit (void *entry, void *closure)
 				 form->id);
 
     _cairo_output_stream_printf (surface->final_stream,
-				 "/cairo_paint_form-%d {\n"
-				 "5 dict begin\n",
+				 "/cairo_paint_form-%d",
 				 form->id);
+    if (surface->ps_level == CAIRO_PS_LEVEL_3) {
+	params.paint_proc = FALSE;
+	_cairo_output_stream_printf (surface->final_stream,
+				     "\n"
+				     "currentfile\n"
+				     "<< /Filter /SubFileDecode\n"
+				     "   /DecodeParms << /EODString (%s) /EODCount 0 >>\n"
+				     ">> /ReusableStreamDecode filter\n",
+				     SUBFILE_FILTER_EOD);
+    } else {
+	params.paint_proc = TRUE;
+	_cairo_output_stream_printf (surface->final_stream,
+				     " {\n");
+    }
+    _cairo_output_stream_printf (surface->final_stream,
+				 "5 dict begin\n");
 
     old_stream = surface->stream;
     surface->stream = surface->final_stream;
@@ -3561,8 +3584,19 @@ _cairo_ps_form_emit (void *entry, void *closure)
     _cairo_pdf_operators_set_stream (&surface->pdf_operators, surface->stream);
 
     _cairo_output_stream_printf (surface->final_stream,
-				 "end\n"
-				 "} bind def\n"
+				 "end\n");
+    if (surface->ps_level == CAIRO_PS_LEVEL_3) {
+	_cairo_output_stream_printf (surface->final_stream,
+				     "%s\n"
+				     "def\n",
+				     SUBFILE_FILTER_EOD);
+    } else {
+	_cairo_output_stream_printf (surface->final_stream,
+				     "} bind def\n");
+    }
+
+    _cairo_output_stream_printf (surface->final_stream,
+				 "\n"
 				 "/cairoform-%d\n"
 				 "<<\n"
 				 "  /FormType 1\n",
@@ -3582,10 +3616,17 @@ _cairo_ps_form_emit (void *entry, void *closure)
 
     _cairo_output_stream_printf (surface->final_stream,
 				 "  /Matrix [ 1 0 0 1 0 0 ]\n"
-				 "  /PaintProc { pop cairo_paint_form-%d } bind\n"
-				 ">>\n"
-				 "/Form defineresource pop\n",
+				 "  /PaintProc { pop cairo_paint_form-%d",
 				 form->id);
+
+    if (surface->ps_level == CAIRO_PS_LEVEL_3) {
+	_cairo_output_stream_printf (surface->final_stream,
+				     " dup 0 setfileposition cvx exec");
+    }
+    _cairo_output_stream_printf (surface->final_stream,
+				 " } bind\n"
+				 ">>\n"
+				 "/Form defineresource pop\n");
 
     _cairo_output_stream_printf (surface->final_stream,
 				 "%%%%EndResource\n");

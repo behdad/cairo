@@ -440,7 +440,7 @@ xlib_surface_test_sources = \
 
 xlib_xrender_surface_test_sources = get-xrender-format.c
 
-multi_page_surface_test_sources = multi-page.c
+multi_page_surface_test_sources = multi-page.c mime-unique-id.c
 
 fallback_resolution_test_sources = fallback-resolution.c
 

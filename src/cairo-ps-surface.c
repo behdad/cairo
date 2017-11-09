@@ -1216,6 +1216,7 @@ _cairo_ps_surface_create_for_stream_internal (cairo_output_stream_t *stream,
     _cairo_array_init (&surface->dsc_header_comments, sizeof (char *));
     _cairo_array_init (&surface->dsc_setup_comments, sizeof (char *));
     _cairo_array_init (&surface->dsc_page_setup_comments, sizeof (char *));
+    _cairo_array_init (&surface->recording_surf_stack, sizeof (unsigned int));
 
     surface->num_forms = 0;
     surface->forms = _cairo_hash_table_create (_cairo_ps_form_equal);
@@ -1826,6 +1827,8 @@ CLEANUP:
 	free (comments[i]);
     _cairo_array_fini (&surface->dsc_page_setup_comments);
 
+    _cairo_array_fini (&surface->recording_surf_stack);
+
     _cairo_surface_clipper_reset (&surface->clipper);
 
     return status;
@@ -1920,7 +1923,7 @@ _cairo_ps_surface_acquire_source_surface_from_pattern (
 	cairo_surface_get_device_offset (surf, x_offset, y_offset);
 	*source_surface = surf;
     } else if (pattern->type == CAIRO_PATTERN_TYPE_SURFACE) {
-	cairo_surface_t *surf;
+	cairo_surface_t *surf = NULL;
 
 	*source_surface = ((cairo_surface_pattern_t *) pattern)->surface;
 	surf = *source_surface;
@@ -1937,6 +1940,8 @@ _cairo_ps_surface_acquire_source_surface_from_pattern (
 		*x_offset = -sub->extents.x;
 		*y_offset = -sub->extents.y;
 	    }
+
+	    cairo_surface_destroy (surf);
 	} else if (surf->type != CAIRO_SURFACE_TYPE_IMAGE) {
 	    cairo_image_surface_t *image;
 	    void *image_extra;
@@ -3334,6 +3339,21 @@ _cairo_ps_surface_emit_recording_surface (cairo_ps_surface_t          *surface,
     cairo_surface_clipper_t old_clipper;
     cairo_int_status_t status;
     cairo_surface_t *free_me = NULL;
+    unsigned int id;
+    int i, recording_surf_stack_size;
+
+    /* Prevent infinite recursion if the recording_surface references a recording
+     * currently being emitted */
+    recording_surf_stack_size = _cairo_array_num_elements (&surface->recording_surf_stack);
+    for (i = 0; i < recording_surf_stack_size; i++) {
+	_cairo_array_copy_element (&surface->recording_surf_stack, i, &id);
+	if (id == recording_surface->unique_id)
+	    return CAIRO_STATUS_SUCCESS;
+    }
+    id = recording_surface->unique_id;
+    status = _cairo_array_append (&surface->recording_surf_stack, &id);
+    if (unlikely (status))
+	return status;
 
     if (_cairo_surface_is_snapshot (recording_surface))
 	free_me = recording_surface = _cairo_surface_snapshot_get_target (recording_surface);
@@ -3405,6 +3425,8 @@ _cairo_ps_surface_emit_recording_surface (cairo_ps_surface_t          *surface,
     _cairo_pdf_operators_set_cairo_to_pdf_matrix (&surface->pdf_operators,
 						  &surface->cairo_to_ps);
     cairo_surface_destroy (free_me);
+
+    _cairo_array_truncate (&surface->recording_surf_stack, recording_surf_stack_size);
 
     return status;
 }

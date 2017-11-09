@@ -103,6 +103,8 @@ typedef struct cairo_ps_surface {
     cairo_array_t dsc_setup_comments;
     cairo_array_t dsc_page_setup_comments;
 
+    cairo_array_t recording_surf_stack;
+
     cairo_array_t *dsc_comment_target;
 
     cairo_ps_level_t ps_level;
@@ -114,7 +116,6 @@ typedef struct cairo_ps_surface {
     cairo_surface_t *paginated_surface;
     cairo_hash_table_t *forms;
     int num_forms;
-
     long total_form_size;
 } cairo_ps_surface_t;
 

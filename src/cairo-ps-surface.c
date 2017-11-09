@@ -346,6 +346,11 @@ _cairo_ps_surface_emit_header (cairo_ps_surface_t *surface)
 				 "/g { setgray } bind def\n"
 				 "/rg { setrgbcolor } bind def\n"
 				 "/d1 { setcachedevice } bind def\n"
+				 "/cairo_data_source {\n"
+				 "  CairoDataIndex CairoData length lt\n"
+				 "    { CairoData CairoDataIndex get /CairoDataIndex CairoDataIndex 1 add def }\n"
+				 "    { () } ifelse\n"
+				 "} def\n"
 				 "/cairo_flush_ascii85_file { cairo_ascii85_file status { cairo_ascii85_file flushfile } if } def\n"
 				 "/cairo_image { image cairo_flush_ascii85_file } def\n"
 				 "/cairo_imagemask { imagemask cairo_flush_ascii85_file } def\n");
@@ -2177,14 +2182,9 @@ _cairo_ps_surface_operation_supported (cairo_ps_surface_t    *surface,
 
 /* The "standard" implementation limit for PostScript string sizes is
  * 65535 characters (see PostScript Language Reference, Appendix
- * B). We go one short of that because we sometimes need two
- * characters in a string to represent a single ASCII85 byte, (for the
- * escape sequences "\\", "\(", and "\)") and we must not split these
- * across two strings. So we'd be in trouble if we went right to the
- * limit and one of these escape sequences just happened to land at
- * the end.
+ * B).
  */
-#define STRING_ARRAY_MAX_STRING_SIZE (65535-1)
+#define STRING_ARRAY_MAX_STRING_SIZE 65535
 #define STRING_ARRAY_MAX_COLUMN	     72
 
 typedef struct _string_array_stream {
@@ -2192,64 +2192,62 @@ typedef struct _string_array_stream {
     cairo_output_stream_t *output;
     int column;
     int string_size;
+    int tuple_count;
     cairo_bool_t use_strings;
 } string_array_stream_t;
 
 static cairo_status_t
-_string_array_stream_write (cairo_output_stream_t *base,
-			    const unsigned char   *data,
-			    unsigned int	   length)
+_base85_string_wrap_stream_write (cairo_output_stream_t *base,
+				  const unsigned char   *data,
+				  unsigned int	   length)
 {
     string_array_stream_t *stream = (string_array_stream_t *) base;
     unsigned char c;
-    const unsigned char backslash = '\\';
 
     if (length == 0)
 	return CAIRO_STATUS_SUCCESS;
 
     while (length--) {
-	if (stream->string_size == 0 && stream->use_strings) {
-	    _cairo_output_stream_printf (stream->output, "(");
-	    stream->column++;
+	if (stream->column == 0) {
+	    if (stream->use_strings) {
+		_cairo_output_stream_printf (stream->output, "<~");
+		stream->column = 2;
+	    } else {
+		_cairo_output_stream_printf (stream->output, " ");
+		stream->column = 1;
+	    }
 	}
 
 	c = *data++;
-	if (stream->use_strings) {
-	    switch (c) {
-	    case '\\':
-	    case '(':
-	    case ')':
-		_cairo_output_stream_write (stream->output, &backslash, 1);
-		stream->column++;
-		stream->string_size++;
-		break;
-	    }
-	}
-	/* Have to be careful to never split the final ~> sequence. */
-        if (c == '~') {
-	    _cairo_output_stream_write (stream->output, &c, 1);
-	    stream->column++;
-	    stream->string_size++;
-
-	    if (length-- == 0)
-		break;
-
-	    c = *data++;
-	}
 	_cairo_output_stream_write (stream->output, &c, 1);
 	stream->column++;
-	stream->string_size++;
 
+	/* Base85 encodes each 4 byte tuple with a 5 ASCII character
+	 * tuple, except for 'z' with represents 4 zero bytes. We need
+	 * to keep track of the string length after decoding.
+	 */
+	if (c == 'z') {
+	    stream->string_size += 4;
+	    stream->tuple_count = 0;
+	} else {
+	    if (++stream->tuple_count == 5) {
+		stream->string_size += 4;
+		stream->tuple_count = 0;
+	    }
+	}
+
+	/* Split string at tuple boundary when there is not enough
+	 * space for another tuple */
 	if (stream->use_strings &&
-	    stream->string_size >= STRING_ARRAY_MAX_STRING_SIZE)
+	    stream->tuple_count == 0 &&
+	    stream->string_size > STRING_ARRAY_MAX_STRING_SIZE - 4)
 	{
-	    _cairo_output_stream_printf (stream->output, ")\n");
+	    _cairo_output_stream_printf (stream->output, "~>\n");
 	    stream->string_size = 0;
 	    stream->column = 0;
 	}
 	if (stream->column >= STRING_ARRAY_MAX_COLUMN) {
 	    _cairo_output_stream_printf (stream->output, "\n ");
-	    stream->string_size += 2;
 	    stream->column = 1;
 	}
     }
@@ -2258,35 +2256,28 @@ _string_array_stream_write (cairo_output_stream_t *base,
 }
 
 static cairo_status_t
-_string_array_stream_close (cairo_output_stream_t *base)
+_base85_string_wrap_stream_close (cairo_output_stream_t *base)
 {
-    cairo_status_t status;
     string_array_stream_t *stream = (string_array_stream_t *) base;
 
-    if (stream->use_strings)
-	_cairo_output_stream_printf (stream->output, ")\n");
+    if (!stream->use_strings || stream->string_size != 0)
+	_cairo_output_stream_printf (stream->output, "~>");
 
-    status = _cairo_output_stream_get_status (stream->output);
-
-    return status;
+    return _cairo_output_stream_get_status (stream->output);
 }
 
-/* A string_array_stream wraps an existing output stream. It takes the
- * data provided to it and output one or more consecutive string
- * objects, each within the standard PostScript implementation limit
- * of 65k characters.
- *
- * The strings are each separated by a space character for easy
- * inclusion within an array object, (but the array delimiters are not
- * added by the string_array_stream).
- *
+/* A _base85_strings_stream wraps an existing output stream. It takes
+ * base85 encoded data and splits it into strings each limited to
+ * STRING_ARRAY_MAX_STRING_SIZE bytes when decoded. Each string is
+ * enclosed in "<~" and "~>".
+
  * The string array stream is also careful to wrap the output within
- * STRING_ARRAY_MAX_COLUMN columns (+/- 1). The stream also adds
- * necessary escaping for special characters within a string,
- * (specifically '\', '(', and ')').
+ * STRING_ARRAY_MAX_COLUMN columns. Wrapped lines start with a space
+ * in case an encoded line starts with %% which could be interpreted
+ * as a DSC comment.
  */
 static cairo_output_stream_t *
-_string_array_stream_create (cairo_output_stream_t *output)
+_base85_strings_stream_create (cairo_output_stream_t *output)
 {
     string_array_stream_t *stream;
 
@@ -2297,23 +2288,26 @@ _string_array_stream_create (cairo_output_stream_t *output)
     }
 
     _cairo_output_stream_init (&stream->base,
-			       _string_array_stream_write,
+			       _base85_string_wrap_stream_write,
 			       NULL,
-			       _string_array_stream_close);
+			       _base85_string_wrap_stream_close);
     stream->output = output;
     stream->column = 0;
     stream->string_size = 0;
+    stream->tuple_count = 0;
     stream->use_strings = TRUE;
 
     return &stream->base;
 }
 
-/* A base85_array_stream wraps an existing output stream. It wraps the
- * output within STRING_ARRAY_MAX_COLUMN columns (+/- 1). The output
- * is not enclosed in strings like string_array_stream.
+/* A base85_wrap_stream wraps an existing output stream. It wraps the
+ * output within STRING_ARRAY_MAX_COLUMN columns. A base85 EOD "~>" is
+ * appended to the end. Wrapped lines start with a space in case an
+ * encoded line starts with %% which could be interpreted as a DSC
+ * comment.
  */
 static cairo_output_stream_t *
-_base85_array_stream_create (cairo_output_stream_t *output)
+_base85_wrap_stream_create (cairo_output_stream_t *output)
 {
     string_array_stream_t *stream;
 
@@ -2324,12 +2318,13 @@ _base85_array_stream_create (cairo_output_stream_t *output)
     }
 
     _cairo_output_stream_init (&stream->base,
-			       _string_array_stream_write,
+			       _base85_string_wrap_stream_write,
 			       NULL,
-			       _string_array_stream_close);
+			       _base85_string_wrap_stream_close);
     stream->output = output;
     stream->column = 0;
     stream->string_size = 0;
+    stream->tuple_count = 0;
     stream->use_strings = FALSE;
 
     return &stream->base;
@@ -2391,9 +2386,9 @@ _cairo_ps_surface_emit_base85_string (cairo_ps_surface_t    *surface,
     cairo_status_t status, status2;
 
     if (use_strings)
-	string_array_stream = _string_array_stream_create (surface->stream);
+	string_array_stream = _base85_strings_stream_create (surface->stream);
     else
-	string_array_stream = _base85_array_stream_create (surface->stream);
+	string_array_stream = _base85_wrap_stream_create (surface->stream);
 
     status = _cairo_output_stream_get_status (string_array_stream);
     if (unlikely (status))
@@ -2440,9 +2435,6 @@ _cairo_ps_surface_emit_base85_string (cairo_ps_surface_t    *surface,
 	    break;
     }
     status = _cairo_output_stream_destroy (base85_stream);
-
-    /* Mark end of base85 data */
-    _cairo_output_stream_printf (string_array_stream, "~>");
     status2 = _cairo_output_stream_destroy (string_array_stream);
     if (status == CAIRO_STATUS_SUCCESS)
 	status = status2;
@@ -2698,7 +2690,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 	/* Emit the image data as a base85-encoded string which will
 	 * be used as the data source for the image operator later. */
 	_cairo_output_stream_printf (surface->stream,
-				     "/CairoImageData [\n");
+				     "/CairoData [\n");
 
 	status = _cairo_ps_surface_emit_base85_string (surface,
 						       data,
@@ -2711,7 +2703,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 	_cairo_output_stream_printf (surface->stream,
 				     "] def\n");
 	_cairo_output_stream_printf (surface->stream,
-				     "/CairoImageDataIndex 0 def\n");
+				     "/CairoDataIndex 0 def\n");
     } else {
 	_cairo_output_stream_printf (surface->stream,
 				     "/cairo_ascii85_file currentfile /ASCII85Decode filter def\n");
@@ -2740,12 +2732,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 
 	if (surface->use_string_datasource) {
 	    _cairo_output_stream_printf (surface->stream,
-					 "    /DataSource {\n"
-					 "      CairoImageData CairoImageDataIndex get\n"
-					 "	/CairoImageDataIndex CairoImageDataIndex 1 add def\n"
-					 "	CairoImageDataIndex CairoImageData length 1 sub gt\n"
-					 "       { /CairoImageDataIndex 0 def } if\n"
-					 "    } /ASCII85Decode filter /%s filter def\n",
+					 "    /DataSource { cairo_data_source } /%s filter def\n",
 					 compress_filter);
 	} else {
 	    _cairo_output_stream_printf (surface->stream,
@@ -2798,12 +2785,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t    *surface,
 				     stencil_mask ? "1 0" : color == CAIRO_IMAGE_IS_COLOR ? "0 1 0 1 0 1" : "0 1");
 	if (surface->use_string_datasource) {
 	    _cairo_output_stream_printf (surface->stream,
-					 "  /DataSource {\n"
-					 "    CairoImageData CairoImageDataIndex get\n"
-					 "    /CairoImageDataIndex CairoImageDataIndex 1 add def\n"
-					 "    CairoImageDataIndex CairoImageData length 1 sub gt\n"
-					 "     { /CairoImageDataIndex 0 def } if\n"
-					 "  } /ASCII85Decode filter /%s filter def\n",
+					 "  /DataSource { cairo_data_source } /%s filter def\n",
 					 compress_filter);
 	} else {
 	    _cairo_output_stream_printf (surface->stream,
@@ -2930,12 +2912,7 @@ _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t    *surface,
 
     if (surface->use_string_datasource) {
 	_cairo_output_stream_printf (surface->stream,
-				     "  /DataSource {\n"
-				     "    CairoImageData CairoImageDataIndex get\n"
-				     "    /CairoImageDataIndex CairoImageDataIndex 1 add def\n"
-				     "    CairoImageDataIndex CairoImageData length 1 sub gt\n"
-				     "     { /CairoImageDataIndex 0 def } if\n"
-				     "  } /ASCII85Decode filter /DCTDecode filter def\n");
+				     "  /DataSource { cairo_data_source } /DCTDecode filter def\n");
     } else {
 	_cairo_output_stream_printf (surface->stream,
 				     "  /DataSource cairo_ascii85_file /DCTDecode filter def\n");
@@ -3046,43 +3023,38 @@ _cairo_ps_surface_emit_ccitt_image (cairo_ps_surface_t   *surface,
 
     if (surface->use_string_datasource) {
 	_cairo_output_stream_printf (surface->stream,
-				     "  /DataSource {\n"
-				     "    CairoImageData CairoImageDataIndex get\n"
-				     "    /CairoImageDataIndex CairoImageDataIndex 1 add def\n"
-				     "    CairoImageDataIndex CairoImageData length 1 sub gt\n"
-				     "     { /CairoImageDataIndex 0 def } if\n"
-				     "  } /ASCII85Decode filter");
+				     "  /DataSource { cairo_data_source }\n");
     } else {
 	_cairo_output_stream_printf (surface->stream,
-				     "  /DataSource cairo_ascii85_file");
+				     "  /DataSource cairo_ascii85_file\n");
     }
 
     _cairo_output_stream_printf (surface->stream,
-				 " << /Columns %d /Rows %d /K %d",
+				 "  << /Columns %d /Rows %d /K %d\n",
 				 ccitt_params.columns,
 				 ccitt_params.rows,
 				 ccitt_params.k);
 
     if (ccitt_params.end_of_line)
-	_cairo_output_stream_printf (surface->stream, " /EndOfLine true");
+	_cairo_output_stream_printf (surface->stream, "     /EndOfLine true\n");
 
     if (ccitt_params.encoded_byte_align)
-	_cairo_output_stream_printf (surface->stream, " /EncodedByteAlign true");
+	_cairo_output_stream_printf (surface->stream, "     /EncodedByteAlign true\n");
 
     if (!ccitt_params.end_of_block)
-	_cairo_output_stream_printf (surface->stream, " /EndOfBlock false");
+	_cairo_output_stream_printf (surface->stream, "     /EndOfBlock false\n");
 
     if (ccitt_params.black_is_1)
-	_cairo_output_stream_printf (surface->stream, " /BlackIs1 true");
+	_cairo_output_stream_printf (surface->stream, "     /BlackIs1 true\n");
 
     if (ccitt_params.damaged_rows_before_error > 0) {
 	_cairo_output_stream_printf (surface->stream,
-				     " /DamagedRowsBeforeError %d",
+				     "     /DamagedRowsBeforeError %d\n",
 				     ccitt_params.damaged_rows_before_error);
     }
 
     _cairo_output_stream_printf (surface->stream,
-				 " >> /CCITTFaxDecode filter\n");
+				 "  >> /CCITTFaxDecode filter\n");
 
     _cairo_output_stream_printf (surface->stream,
 				 "  /ImageMatrix [ %d 0 0 %d 0 %d ]\n"

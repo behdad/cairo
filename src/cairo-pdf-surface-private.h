@@ -80,8 +80,10 @@ typedef struct _cairo_pdf_source_surface_entry {
     cairo_pdf_resource_t surface_res;
     cairo_pdf_resource_t smask_res;
 
-    /* Extents of the source surface. If bounded is false,
-     * extents is the ink extents. */
+    /* True if surface will be emitted as an Image XObject. */
+    cairo_bool_t emit_image;
+
+    /* Extents of the source surface. */
     cairo_bool_t bounded;
     cairo_rectangle_int_t extents;
 
@@ -262,6 +264,7 @@ struct _cairo_pdf_surface {
     cairo_array_t alpha_linear_functions;
     cairo_array_t page_patterns;
     cairo_array_t page_surfaces;
+    cairo_array_t doc_surfaces;
     cairo_hash_table_t *all_surfaces;
     cairo_array_t smask_groups;
     cairo_array_t knockout_group;

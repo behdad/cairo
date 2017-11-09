@@ -1025,14 +1025,14 @@ _cairo_surface_finish (cairo_surface_t *surface)
 {
     cairo_status_t status;
 
-    surface->finished = TRUE;
-
     /* call finish even if in error mode */
     if (surface->backend->finish) {
 	status = surface->backend->finish (surface);
 	if (unlikely (status))
 	    _cairo_surface_set_error (surface, status);
     }
+
+    surface->finished = TRUE;
 
     assert (surface->snapshot_of == NULL);
     assert (!_cairo_surface_has_snapshots (surface));

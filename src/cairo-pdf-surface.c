@@ -493,6 +493,9 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     surface->thumbnail_height = 0;
     surface->thumbnail_image = NULL;
 
+    if (getenv ("CAIRO_DEBUG_PDF") != NULL)
+	surface->compress_content = FALSE;
+
     surface->paginated_surface =  _cairo_paginated_surface_create (
 	                                  &surface->base,
 					  CAIRO_CONTENT_COLOR_ALPHA,
@@ -1398,8 +1401,6 @@ _get_source_surface_extents (cairo_surface_t         *source,
 			     cairo_bool_t            *bounded,
 			     cairo_bool_t            *subsurface)
 {
-    cairo_int_status_t status;
-
     *bounded = TRUE;
     *subsurface = FALSE;
     if (source->type == CAIRO_SURFACE_TYPE_RECORDING) {
@@ -1414,17 +1415,7 @@ _get_source_surface_extents (cairo_surface_t         *source,
 	    *extents = sub->extents;
 	    *subsurface = TRUE;
 	} else {
-	    cairo_box_t box;
-
-	    if (! _cairo_surface_get_extents (source, extents)) {
-		    status = _cairo_recording_surface_get_ink_bbox ((cairo_recording_surface_t *)source,
-								    &box, NULL);
-		    if (unlikely (status)) {
-			cairo_surface_destroy (free_me);
-			return status;
-		    }
-		    _cairo_box_round_to_rectangle (&box, extents);
-	    }
+	    *bounded = _cairo_surface_get_extents (source, extents);
 	}
 	cairo_surface_destroy (free_me);
 
@@ -1751,11 +1742,10 @@ _cairo_pdf_surface_add_pdf_pattern_or_shading (cairo_pdf_surface_t	   *surface,
     return CAIRO_INT_STATUS_SUCCESS;
 }
 
-/* Get BBox in PDF coordinates from extents in cairo coordinates */
+/* Get BBox from extents */
 static void
-_get_bbox_from_extents (double                       surface_height,
-		       const cairo_rectangle_int_t *extents,
-		       cairo_box_double_t          *bbox)
+_get_bbox_from_extents (const cairo_rectangle_int_t  *extents,
+			cairo_box_double_t           *bbox)
 {
     bbox->p1.x = extents->x;
     bbox->p1.y = extents->y;
@@ -3310,7 +3300,6 @@ static cairo_int_status_t
 _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
 					   cairo_pdf_source_surface_t *pdf_source)
 {
-    double old_width, old_height;
     cairo_rectangle_int_t old_surface_extents;
     cairo_bool_t old_surface_bounded;
     cairo_paginated_mode_t old_paginated_mode;
@@ -3322,16 +3311,18 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     cairo_surface_t *free_me = NULL;
     cairo_surface_t *source;
     const cairo_rectangle_int_t *extents;
-    int width;
-    int height;
     cairo_bool_t is_subsurface;
     cairo_bool_t transparency_group;
     cairo_recording_surface_t *recording;
 
     assert (pdf_source->type == CAIRO_PATTERN_TYPE_SURFACE);
-    extents = &pdf_source->hash_entry->required_extents;
-    width = pdf_source->hash_entry->extents.width;
-    height = pdf_source->hash_entry->extents.height;
+
+    if (pdf_source->hash_entry->bounded) {
+	extents = &pdf_source->hash_entry->extents;
+    } else {
+	extents = &pdf_source->hash_entry->required_extents;
+    }
+
     is_subsurface = FALSE;
     source = pdf_source->surface;
     if (_cairo_surface_is_snapshot (source))
@@ -3342,16 +3333,12 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
 
 	source = sub->target;
 	extents = &sub->extents;
-	width = extents->width;
-	height = extents->height;
 	is_subsurface = TRUE;
     }
 
     assert (source->type == CAIRO_SURFACE_TYPE_RECORDING);
     recording = (cairo_recording_surface_t *) source;
 
-    old_width = surface->width;
-    old_height = surface->height;
     old_in_xobject = surface->in_xobject;
     old_surface_extents = surface->surface_extents;
     old_surface_bounded = surface->surface_bounded;
@@ -3364,7 +3351,7 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
     _cairo_pdf_operators_reset (&surface->pdf_operators);
     surface->in_xobject = TRUE;
     surface->surface_extents = *extents;
-    surface->surface_bounded = FALSE;
+    surface->surface_bounded = TRUE;
 
     /* Patterns are emitted after fallback images. The paginated mode
      * needs to be set to _RENDER while the recording surface is replayed
@@ -3372,14 +3359,7 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
      */
     surface->paginated_mode = CAIRO_PAGINATED_MODE_RENDER;
     _cairo_pdf_group_resources_clear (&surface->resources);
-    if (is_subsurface) {
-	bbox.p1.x = extents->x;
-	bbox.p1.y = extents->y;
-	bbox.p2.x = extents->x + extents->width;
-	bbox.p2.y = extents->y + extents->height;
-    } else {
-	_get_bbox_from_extents (height, extents, &bbox);
-    }
+    _get_bbox_from_extents (extents, &bbox);
 
     /* We can optimize away the transparency group allowing the viewer
      * to replay the group in place when:
@@ -3392,8 +3372,11 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
 			   _cairo_recording_surface_has_only_bilevel_alpha (recording) &&
 			   _cairo_recording_surface_has_only_op_over (recording));
 
-    status = _cairo_pdf_surface_open_content_stream (surface, &bbox, &pdf_source->hash_entry->surface_res,
-						     TRUE, transparency_group);
+    status = _cairo_pdf_surface_open_content_stream (surface,
+						     &bbox,
+						     &pdf_source->hash_entry->surface_res,
+						     TRUE,
+						     transparency_group);
     if (unlikely (status))
 	goto err;
 
@@ -3403,10 +3386,12 @@ _cairo_pdf_surface_emit_recording_surface (cairo_pdf_surface_t        *surface,
 	    goto err;
 
 	_cairo_output_stream_printf (surface->output,
-				     "q /a%d gs 0 0 0 rg 0 0 %f %f re f Q\n",
+				     "q /a%d gs 0 0 0 rg %d %d %d %d re f Q\n",
 				     alpha,
-				     surface->width,
-				     surface->height);
+				     extents->x,
+				     extents->y,
+				     extents->width,
+				     extents->height);
     }
 
     status = _cairo_recording_surface_replay_region (source,
@@ -3593,7 +3578,7 @@ _cairo_pdf_surface_emit_surface_pattern (cairo_pdf_surface_t	*surface,
 	cairo_matrix_scale (&pdf_p2d, 1.0, -1.0);
     }
 
-    _get_bbox_from_extents (pattern_extents.height, &pattern_extents, &bbox);
+    _get_bbox_from_extents (&pattern_extents, &bbox);
     _cairo_pdf_surface_update_object (surface, pdf_pattern->pattern_res);
     status = _cairo_pdf_surface_open_stream (surface,
 				             &pdf_pattern->pattern_res,
@@ -4123,7 +4108,7 @@ cairo_pdf_surface_emit_transparency_group (cairo_pdf_surface_t  *surface,
 	 * coordinates. The color and alpha shading patterns painted
 	 * in the XObject below contain the cairo pattern to pdf page
 	 * matrix in the /Matrix entry of the pattern. */
-	_get_bbox_from_extents (pdf_pattern->height, &pdf_pattern->extents, &box);
+	_get_bbox_from_extents (&pdf_pattern->extents, &box);
 	x1 = box.p1.x;
 	y1 = box.p1.y;
 	x2 = box.p2.x;
@@ -6430,7 +6415,7 @@ _cairo_pdf_surface_write_mask_group (cairo_pdf_surface_t	*surface,
     cairo_box_double_t bbox;
 
     /* Create mask group */
-    _get_bbox_from_extents (group->height, &group->extents, &bbox);
+    _get_bbox_from_extents (&group->extents, &bbox);
     status = _cairo_pdf_surface_open_group (surface, &bbox, NULL);
     if (unlikely (status))
 	return status;
@@ -6640,7 +6625,7 @@ _cairo_pdf_surface_write_smask_group (cairo_pdf_surface_t     *surface,
 	goto RESTORE_SIZE;
     }
 
-    _get_bbox_from_extents (group->height, &group->extents, &bbox);
+    _get_bbox_from_extents (&group->extents, &bbox);
     status = _cairo_pdf_surface_open_group (surface, &bbox, &group->group_res);
     if (unlikely (status))
 	return status;
@@ -6771,7 +6756,7 @@ _cairo_pdf_surface_write_page (cairo_pdf_surface_t *surface)
 	extents.y = 0;
 	extents.width = ceil (surface->width);
 	extents.height = ceil (surface->height);
-	_get_bbox_from_extents (surface->height, &extents, &bbox);
+	_get_bbox_from_extents (&extents, &bbox);
 	status = _cairo_pdf_surface_open_knockout_group (surface, &bbox);
 	if (unlikely (status))
 	    return status;

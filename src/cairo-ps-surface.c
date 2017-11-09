@@ -2007,11 +2007,9 @@ _cairo_ps_surface_create_padded_image_from_image (cairo_ps_surface_t           *
 	_cairo_fixed_integer_floor(box.p2.y) > w ||
 	_cairo_fixed_integer_floor(box.p2.y) > h)
     {
-	pad_image =
-	    _cairo_image_surface_create_with_pixman_format (NULL,
-							    source->pixman_format,
-							    rect.width, rect.height,
-							    0);
+	pad_image = _cairo_image_surface_create_with_content (source->base.content,
+							      rect.width,
+							      rect.height);
 	if (pad_image->status)
 	    return pad_image->status;
 

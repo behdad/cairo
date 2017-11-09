@@ -72,7 +72,7 @@
  * file size due to changes to the PS/PDF surfaces while being small
  * enough to catch any attempt to embed the surface more than
  * once. The compressed size of each surface embedded in PDF is:
- * - image:    111,952
+ * - image:    108,774
  * - jpeg:      11,400
  * - recording: 17,518
  *
@@ -81,7 +81,7 @@
  */
 #define PS2_EXPECTED_SIZE 315362
 #define PS3_EXPECTED_SIZE 315362
-#define PDF_EXPECTED_SIZE 142968
+#define PDF_EXPECTED_SIZE 347182
 #define SIZE_TOLERANCE      5000
 
 static const char *png_filename = "romedalen.png";

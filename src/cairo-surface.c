@@ -1224,6 +1224,44 @@ _cairo_mime_data_destroy (void *ptr)
     free (mime_data);
 }
 
+
+static const char *_cairo_surface_image_mime_types[] = {
+    CAIRO_MIME_TYPE_JPEG,
+    CAIRO_MIME_TYPE_PNG,
+    CAIRO_MIME_TYPE_JP2,
+    CAIRO_MIME_TYPE_JBIG2,
+    CAIRO_MIME_TYPE_CCITT_FAX,
+};
+
+cairo_bool_t
+_cairo_surface_has_mime_image (cairo_surface_t *surface)
+{
+    cairo_user_data_slot_t *slots;
+    int i, j, num_slots;
+
+    /* Prevent reads of the array during teardown */
+    if (! CAIRO_REFERENCE_COUNT_HAS_REFERENCE (&surface->ref_count))
+	return FALSE;
+
+    /* The number of mime-types attached to a surface is usually small,
+     * typically zero. Therefore it is quicker to do a strcmp() against
+     * each key than it is to intern the string (i.e. compute a hash,
+     * search the hash table, and do a final strcmp).
+     */
+    num_slots = surface->mime_data.num_elements;
+    slots = _cairo_array_index (&surface->mime_data, 0);
+    for (i = 0; i < num_slots; i++) {
+	if (slots[i].key != NULL) {
+	    for (j = 0; j < ARRAY_LENGTH (_cairo_surface_image_mime_types); j++) {
+		if (strcmp ((char *) slots[i].key, _cairo_surface_image_mime_types[j]) == 0)
+		    return TRUE;
+	    }
+	}
+    }
+
+    return FALSE;
+}
+
 /**
  * CAIRO_MIME_TYPE_CCITT_FAX:
  *
@@ -1405,6 +1443,8 @@ cairo_surface_set_mime_data (cairo_surface_t		*surface,
 	return _cairo_surface_set_error (surface, status);
     }
 
+    surface->is_clear = FALSE;
+
     return CAIRO_STATUS_SUCCESS;
 }
 slim_hidden_def (cairo_surface_set_mime_data);
@@ -1478,6 +1518,8 @@ _cairo_surface_copy_mime_data (cairo_surface_t *dst,
     _cairo_user_data_array_foreach (&dst->mime_data,
 				    _cairo_mime_data_reference,
 				    NULL);
+
+    dst->is_clear = FALSE;
 
     return CAIRO_STATUS_SUCCESS;
 }

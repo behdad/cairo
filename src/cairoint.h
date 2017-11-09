@@ -1336,6 +1336,9 @@ _cairo_stroke_style_dash_approximate (const cairo_stroke_style_t *style,
 
 /* cairo-surface.c */
 
+cairo_private cairo_bool_t
+_cairo_surface_has_mime_image (cairo_surface_t *surface);
+
 cairo_private cairo_status_t
 _cairo_surface_copy_mime_data (cairo_surface_t *dst,
 			       cairo_surface_t *src);

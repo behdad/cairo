@@ -76,6 +76,7 @@ typedef struct cairo_ps_surface {
     cairo_output_stream_t *stream;
 
     cairo_bool_t eps;
+    cairo_bool_t contains_eps;
     cairo_content_t content;
     double width;
     double height;

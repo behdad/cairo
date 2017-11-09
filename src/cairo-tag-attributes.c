@@ -143,6 +143,20 @@ static attribute_spec_t _ccitt_params_spec[] =
     { NULL }
 };
 
+/*
+ * bbox - Bounding box of EPS file. The format is [ llx lly urx ury ]
+ *          llx - lower left x xoordinate
+ *          lly - lower left y xoordinate
+ *          urx - upper right x xoordinate
+ *          ury - upper right y xoordinate
+ *        all cordinates are in PostScript coordinates.
+ */
+static attribute_spec_t _eps_params_spec[] =
+{
+    { "bbox", ATTRIBUTE_FLOAT, 4 },
+    { NULL }
+};
+
 typedef union {
     cairo_bool_t b;
     int i;
@@ -641,6 +655,39 @@ _cairo_tag_parse_ccitt_params (const char *attributes, cairo_ccitt_params_t *cci
 	    ccitt_params->black_is_1 = attr->scalar.b;
 	} else if (strcmp (attr->name, "DamagedRowsBeforeError") == 0) {
 	    ccitt_params->damaged_rows_before_error = attr->scalar.b;
+	}
+    }
+
+  cleanup:
+    free_attributes_list (&list);
+
+    return status;
+}
+
+cairo_int_status_t
+_cairo_tag_parse_eps_params (const char *attributes, cairo_eps_params_t *eps_params)
+{
+    cairo_list_t list;
+    cairo_int_status_t status;
+    attribute_t *attr;
+    attrib_val_t val;
+
+    cairo_list_init (&list);
+    status = parse_attributes (attributes, _eps_params_spec, &list);
+    if (unlikely (status))
+	goto cleanup;
+
+    cairo_list_foreach_entry (attr, attribute_t, &list, link)
+    {
+	if (strcmp (attr->name, "bbox") == 0) {
+	    _cairo_array_copy_element (&attr->array, 0, &val);
+	    eps_params->bbox.p1.x = val.f;
+	    _cairo_array_copy_element (&attr->array, 1, &val);
+	    eps_params->bbox.p1.y = val.f;
+	    _cairo_array_copy_element (&attr->array, 2, &val);
+	    eps_params->bbox.p2.x = val.f;
+	    _cairo_array_copy_element (&attr->array, 3, &val);
+	    eps_params->bbox.p2.y = val.f;
 	}
     }
 

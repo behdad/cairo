@@ -1281,6 +1281,24 @@ _cairo_surface_has_mime_image (cairo_surface_t *surface)
  **/
 
 /**
+ * CAIRO_MIME_TYPE_EPS:
+ *
+ * Encapsulated PostScript file.
+ * [Encapsulated PostScript File Format Specification](http://wwwimages.adobe.com/content/dam/Adobe/endevnet/postscript/pdfs/5002.EPSF_Spec.pdf)
+ *
+ * Since: 1.16
+ **/
+
+/**
+ * CAIRO_MIME_TYPE_EPS_PARAMS:
+ *
+ * Embedding parameters Encapsulated PostScript data.
+ * See [Embedding EPS files][eps].
+ *
+ * Since: 1.16
+ **/
+
+/**
  * CAIRO_MIME_TYPE_JBIG2:
  *
  * Joint Bi-level Image Experts Group image coding standard (ISO/IEC 11544).

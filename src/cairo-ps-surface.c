@@ -116,7 +116,9 @@
  *
  * The following mime types are supported: %CAIRO_MIME_TYPE_JPEG,
  * %CAIRO_MIME_TYPE_UNIQUE_ID,
- * %CAIRO_MIME_TYPE_CCITT_FAX, %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS.
+ * %CAIRO_MIME_TYPE_CCITT_FAX, %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS,
+ * %CAIRO_MIME_TYPE_CCITT_FAX, %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS,
+ * %CAIRO_MIME_TYPE_EPS, %CAIRO_MIME_TYPE_EPS_PARAMS.
  *
  * Source surfaces used by the PostScript surface that have a
  * %CAIRO_MIME_TYPE_UNIQUE_ID mime type will be stored in PostScript
@@ -126,6 +128,24 @@
  *
  * The %CAIRO_MIME_TYPE_CCITT_FAX and %CAIRO_MIME_TYPE_CCITT_FAX_PARAMS mime types
  * are documented in [CCITT Fax Images][ccitt].
+ *
+ * # Embedding EPS files # {#eps}
+ *
+ * Encapsulated PostScript files can be embedded in the PS output by
+ * setting the CAIRO_MIME_TYPE_EPS mime data on a surface to the EPS
+ * data and painting the surface.  The EPS will be scaled and
+ * translated to the extents of the surface the EPS data is attached
+ * to.
+ *
+ * The %CAIRO_MIME_TYPE_EPS mime type requires the
+ * %CAIRO_MIME_TYPE_EPS_PARAMS mime data to also be provided in order
+ * to specify the embeddding parameters.  %CAIRO_MIME_TYPE_EPS_PARAMS
+ * mime data must contain a string of the form "bbox=[llx lly urx
+ * ury]" that specifies the bounding box (in PS coordinates) of the
+ * EPS graphics. The parameters are: lower left x, lower left y, upper
+ * right x, upper right y. Normally the bbox data is identical to the
+ * %%%BoundingBox data in the EPS file.
+ *
  **/
 
 /**
@@ -153,6 +173,8 @@ typedef struct  {
     /* input params */
     cairo_surface_t *src_surface;
     cairo_operator_t op;
+    const cairo_rectangle_int_t *src_surface_extents;
+    cairo_bool_t src_surface_bounded;
     const cairo_rectangle_int_t *src_op_extents; /* operation extents in src space */
     cairo_filter_t filter;
     cairo_bool_t stencil_mask; /* TRUE if source is to be used as a mask */
@@ -162,6 +184,7 @@ typedef struct  {
     cairo_bool_t is_image; /* returns TRUE if PS image will be emitted */
                            /*         FALSE if recording will be emitted */
     long approx_size;
+    int eod_count;
 } cairo_emit_surface_params_t;
 
 static const cairo_surface_backend_t cairo_ps_surface_backend;
@@ -354,7 +377,6 @@ _cairo_ps_surface_emit_header (cairo_ps_surface_t *surface)
 
     if (surface->eps) {
 	_cairo_output_stream_printf (surface->final_stream,
-				     "save\n"
 				     "50 dict begin\n");
     } else {
 	_cairo_output_stream_printf (surface->final_stream,
@@ -456,6 +478,22 @@ _cairo_ps_surface_emit_header (cairo_ps_surface_t *surface)
 				     "    pop\n"
 				     "  } ifelse\n"
 				     "} def\n");
+    }
+    if (surface->contains_eps) {
+	_cairo_output_stream_printf (surface->final_stream,
+				     "/cairo_eps_begin {\n"
+				     "  /cairo_save_state save def\n"
+				     "  /dict_count countdictstack def\n"
+				     "  /op_count count 1 sub def\n"
+				     "  userdict begin\n"
+				     "  /showpage { } def\n"
+				     "  0 g 0 J 1 w 0 j 10 M [ ] 0 d n\n"
+				     "} bind def\n"
+				     "/cairo_eps_end {\n"
+				     "  count op_count sub { pop } repeat\n"
+				     "  countdictstack dict_count sub { end } repeat\n"
+				     "  cairo_save_state restore\n"
+				     "} bind def\n");
     }
 
     _cairo_output_stream_printf (surface->final_stream,
@@ -954,7 +992,7 @@ _cairo_ps_surface_emit_footer (cairo_ps_surface_t *surface)
 
     if (surface->eps) {
 	_cairo_output_stream_printf (surface->final_stream,
-				     "end restore\n");
+				     "end\n");
     }
 
     _cairo_output_stream_printf (surface->final_stream,
@@ -1162,6 +1200,7 @@ _cairo_ps_surface_create_for_stream_internal (cairo_output_stream_t *stream,
     surface->document_bbox_p2.x = 0;
     surface->document_bbox_p2.y = 0;
     surface->total_form_size = 0;
+    surface->contains_eps = FALSE;
 
     _cairo_surface_clipper_init (&surface->clipper,
 				 _cairo_ps_surface_clipper_intersect_clip_path);
@@ -3160,6 +3199,127 @@ _cairo_ps_surface_emit_ccitt_image (cairo_ps_surface_t          *surface,
     return status;
 }
 
+/* The '|' character is not used in PS (including ASCII85).  We can
+ * speed up the search by first searching for the first char before
+ * comparing strings.
+ */
+#define SUBFILE_FILTER_EOD "|EOD|"
+
+/* Count number of non overlapping occurrences of SUBFILE_FILTER_EOD in data. */
+static int
+count_eod_strings (const unsigned char *data, unsigned long data_len)
+{
+    const unsigned char *p = data;
+    const unsigned char *end;
+    int first_char, len, count;
+    const char *eod_str = SUBFILE_FILTER_EOD;
+
+    first_char = eod_str[0];
+    len = strlen (eod_str);
+    p = data;
+    end = data + data_len - len + 1;
+    count = 0;
+    while (p < end) {
+	p = memchr (p, first_char, end - p);
+	if (!p)
+	    break;
+
+	if (memcmp (p, eod_str, len) == 0) {
+	    count++;
+	    p += len;
+	}
+    }
+
+    return count;
+}
+
+static cairo_status_t
+_cairo_ps_surface_emit_eps (cairo_ps_surface_t          *surface,
+			    cairo_emit_surface_mode_t    mode,
+			    cairo_emit_surface_params_t *params)
+{
+    cairo_status_t status;
+    const unsigned char *eps_data = NULL;
+    unsigned long eps_data_len;
+    const unsigned char *eps_params_string = NULL;
+    unsigned long eps_params_string_len;
+    char *params_string = NULL;
+    cairo_eps_params_t eps_params;
+    cairo_matrix_t mat;
+    double eps_width, eps_height;
+
+    if (unlikely (params->src_surface->status))
+	return params->src_surface->status;
+
+    /* We only embed EPS with level 3 as we may use ReusableStreamDecode and we
+     * don't know what level the EPS file requires. */
+    if (surface->ps_level == CAIRO_PS_LEVEL_2)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    cairo_surface_get_mime_data (params->src_surface, CAIRO_MIME_TYPE_EPS,
+				 &eps_data, &eps_data_len);
+    if (eps_data == NULL)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    cairo_surface_get_mime_data (params->src_surface, CAIRO_MIME_TYPE_EPS_PARAMS,
+				 &eps_params_string, &eps_params_string_len);
+    if (eps_params_string == NULL)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    /* ensure params_string is null terminated */
+    params_string = malloc (eps_params_string_len + 1);
+    memcpy (params_string, eps_params_string, eps_params_string_len);
+    params_string[eps_params_string_len] = 0;
+    status = _cairo_tag_parse_eps_params (params_string, &eps_params);
+    if (unlikely(status))
+	return status;
+
+    /* At this point we know emitting EPS will succeed. */
+    if (mode == CAIRO_EMIT_SURFACE_ANALYZE) {
+	params->is_image = FALSE;
+	params->approx_size = eps_data_len;
+	surface->contains_eps = TRUE;
+
+	/* Find number of occurences of SUBFILE_FILTER_EOD in the EPS data.
+	 * We will need it before emitting the data if a ReusableStream is used.
+         */
+	params->eod_count = count_eod_strings (eps_data, eps_data_len);
+	return CAIRO_STATUS_SUCCESS;
+    }
+
+    surface->ps_level_used = CAIRO_PS_LEVEL_3;
+    _cairo_output_stream_printf (surface->stream, "cairo_eps_begin\n");
+
+    eps_width = eps_params.bbox.p2.x - eps_params.bbox.p1.x;
+    eps_height = eps_params.bbox.p2.y - eps_params.bbox.p1.y;
+    cairo_matrix_init_translate (&mat,
+				 params->src_surface_extents->x,
+				 params->src_surface_extents->y);
+    cairo_matrix_scale (&mat,
+			params->src_surface_extents->width/eps_width,
+			params->src_surface_extents->height/eps_height);
+    cairo_matrix_scale (&mat, 1, -1);
+    cairo_matrix_translate (&mat, -eps_params.bbox.p1.x, -eps_params.bbox.p2.y);
+
+    if (! _cairo_matrix_is_identity (&mat)) {
+	_cairo_output_stream_printf (surface->stream, "[ ");
+	_cairo_output_stream_print_matrix (surface->stream, &mat);
+	_cairo_output_stream_printf (surface->stream, " ] concat\n");
+    }
+
+    _cairo_output_stream_printf (surface->stream,
+				 "%f %f %f %f rectclip\n",
+				 eps_params.bbox.p1.x,
+				 eps_params.bbox.p1.y,
+				 eps_width,
+				 eps_height);
+
+    _cairo_output_stream_write (surface->stream, eps_data, eps_data_len);
+    _cairo_output_stream_printf (surface->stream, "\ncairo_eps_end\n");
+
+    return CAIRO_STATUS_SUCCESS;
+}
+
 static cairo_status_t
 _cairo_ps_surface_emit_recording_surface (cairo_ps_surface_t          *surface,
 					  cairo_surface_t             *recording_surface,
@@ -3457,6 +3617,14 @@ _cairo_ps_surface_emit_surface (cairo_ps_surface_t          *surface,
 	    return status;
     }
 
+    status = _cairo_ps_surface_emit_eps (surface, mode, params);
+    if (status == CAIRO_INT_STATUS_SUCCESS) {
+	params->is_image = FALSE;
+	goto surface_emitted;
+    }
+    if (status != CAIRO_INT_STATUS_UNSUPPORTED)
+	return status;
+
     status = _cairo_ps_surface_emit_jpeg_image (surface, mode, params);
     if (status == CAIRO_INT_STATUS_SUCCESS) {
 	params->is_image = TRUE;
@@ -3526,11 +3694,6 @@ _cairo_ps_surface_emit_surface (cairo_ps_surface_t          *surface,
 
     return status;
 }
-
-/* The '|' character is not used in PS (including ASCII85) so we can
- * use it as a /SubFileDecode EOD marker and assume EODCount will be 0.
- */
-#define SUBFILE_FILTER_EOD "|EOD|"
 
 static void
 _cairo_ps_form_emit (void *entry, void *closure)
@@ -3771,6 +3934,8 @@ _cairo_ps_surface_paint_surface (cairo_ps_surface_t     *surface,
 
     params.src_surface = image ? &image->base : source_surface;
     params.op = op;
+    params.src_surface_extents = &src_surface_extents;
+    params.src_surface_bounded = src_surface_bounded;
     params.src_op_extents = &src_op_extents;
     params.filter = pattern->filter;
     params.stencil_mask = stencil_mask;
@@ -3920,6 +4085,8 @@ _cairo_ps_surface_emit_surface_pattern (cairo_ps_surface_t      *surface,
 
     params.src_surface = image ? &image->base : source_surface;
     params.op = op;
+    params.src_surface_extents = &pattern_extents;
+    params.src_surface_bounded = bounded;
     params.src_op_extents = &src_op_extents;
     params.filter = pattern->filter;
     params.stencil_mask = FALSE;

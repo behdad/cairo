@@ -39,6 +39,7 @@
 
 #include "cairo-array-private.h"
 #include "cairo-error-private.h"
+#include "cairo-types-private.h"
 
 typedef enum {
     TAG_LINK_INVALID = 0,
@@ -79,6 +80,9 @@ typedef struct _cairo_ccitt_params {
     int damaged_rows_before_error;
 } cairo_ccitt_params_t;
 
+typedef struct _cairo_eps_params {
+    cairo_box_double_t bbox;
+} cairo_eps_params_t;
 
 cairo_private cairo_int_status_t
 _cairo_tag_parse_link_attributes (const char *attributes, cairo_link_attrs_t *link_attrs);
@@ -88,5 +92,8 @@ _cairo_tag_parse_dest_attributes (const char *attributes, cairo_dest_attrs_t *de
 
 cairo_private cairo_int_status_t
 _cairo_tag_parse_ccitt_params (const char *attributes, cairo_ccitt_params_t *dest_attrs);
+
+cairo_private cairo_int_status_t
+_cairo_tag_parse_eps_params (const char *attributes, cairo_eps_params_t *dest_attrs);
 
 #endif /* CAIRO_TAG_ATTRIBUTES_PRIVATE_H */

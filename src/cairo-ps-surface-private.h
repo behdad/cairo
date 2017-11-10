@@ -84,6 +84,7 @@ typedef struct cairo_ps_surface {
     cairo_rectangle_int_t surface_extents;
     cairo_bool_t surface_bounded;
     cairo_matrix_t cairo_to_ps;
+    cairo_bool_t paint_proc; /* TRUE if surface will be used in a PaintProc */
 
     cairo_bool_t current_pattern_is_solid_color;
     cairo_color_t current_color;

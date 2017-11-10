@@ -178,7 +178,6 @@ typedef struct  {
     const cairo_rectangle_int_t *src_op_extents; /* operation extents in src space */
     cairo_filter_t filter;
     cairo_bool_t stencil_mask; /* TRUE if source is to be used as a mask */
-    cairo_bool_t paint_proc; /* TRUE if surface will be used in a PaintProc */
 
     /* output params */
     cairo_bool_t is_image; /* returns TRUE if PS image will be emitted */
@@ -1201,6 +1200,7 @@ _cairo_ps_surface_create_for_stream_internal (cairo_output_stream_t *stream,
     surface->document_bbox_p2.y = 0;
     surface->total_form_size = 0;
     surface->contains_eps = FALSE;
+    surface->paint_proc = FALSE;
 
     _cairo_surface_clipper_init (&surface->clipper,
 				 _cairo_ps_surface_clipper_intersect_clip_path);
@@ -2787,7 +2787,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t          *surface,
 	surface->ps_level_used = CAIRO_PS_LEVEL_3;
     }
 
-    if (params->paint_proc) {
+    if (surface->paint_proc) {
 	/* Emit the image data as a base85-encoded string which will
 	 * be used as the data source for the image operator later. */
 	_cairo_output_stream_printf (surface->stream,
@@ -2830,7 +2830,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t          *surface,
 				     color == CAIRO_IMAGE_IS_MONOCHROME ? 1 : 8,
 				     color == CAIRO_IMAGE_IS_COLOR ? "0 1 0 1 0 1" : "0 1");
 
-	if (params->paint_proc) {
+	if (surface->paint_proc) {
 	    _cairo_output_stream_printf (surface->stream,
 					 "    /DataSource { cairo_data_source } /%s filter\n",
 					 compress_filter);
@@ -2891,7 +2891,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t          *surface,
 				     interpolate,
 				     color == CAIRO_IMAGE_IS_MONOCHROME ? 1 : 8,
 				     decode);
-	if (params->paint_proc) {
+	if (surface->paint_proc) {
 	    _cairo_output_stream_printf (surface->stream,
 					 "  /DataSource { cairo_data_source } /%s filter\n",
 					 compress_filter);
@@ -2908,11 +2908,11 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t          *surface,
 				     ps_image->width,
 				     -ps_image->height,
 				     ps_image->height,
-				     params->paint_proc ? "" : "cairo_",
+				     surface->paint_proc ? "" : "cairo_",
 				     params->stencil_mask ? "imagemask" : "image");
     }
 
-    if (!params->paint_proc) {
+    if (!surface->paint_proc) {
 	/* Emit the image data as a base85-encoded string which will
 	 * be used as the data source for the image operator. */
 	status = _cairo_ps_surface_emit_base85_string (surface,
@@ -2989,7 +2989,7 @@ _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t          *surface,
 	return CAIRO_STATUS_SUCCESS;
     }
 
-    if (params->paint_proc) {
+    if (surface->paint_proc) {
 	/* Emit the image data as a base85-encoded string which will
 	 * be used as the data source for the image operator later. */
 	_cairo_output_stream_printf (surface->stream,
@@ -3028,7 +3028,7 @@ _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t          *surface,
 				 get_interpolate (params->filter),
                                  decode);
 
-    if (params->paint_proc) {
+    if (surface->paint_proc) {
 	_cairo_output_stream_printf (surface->stream,
 				     "  /DataSource { cairo_data_source } /DCTDecode filter\n");
     } else {
@@ -3043,9 +3043,9 @@ _cairo_ps_surface_emit_jpeg_image (cairo_ps_surface_t          *surface,
 				 info.width,
 				 -info.height,
 				 info.height,
-				 params->paint_proc ? "" : "cairo_");
+				 surface->paint_proc ? "" : "cairo_");
 
-    if (!params->paint_proc) {
+    if (!surface->paint_proc) {
 	/* Emit the image data as a base85-encoded string which will
 	 * be used as the data source for the image operator. */
 	status = _cairo_ps_surface_emit_base85_string (surface,
@@ -3104,7 +3104,7 @@ _cairo_ps_surface_emit_ccitt_image (cairo_ps_surface_t          *surface,
 	return CAIRO_STATUS_SUCCESS;
     }
 
-    if (params->paint_proc) {
+    if (surface->paint_proc) {
 	/* Emit the image data as a base85-encoded string which will
 	 * be used as the data source for the image operator later. */
 	_cairo_output_stream_printf (surface->stream,
@@ -3144,7 +3144,7 @@ _cairo_ps_surface_emit_ccitt_image (cairo_ps_surface_t          *surface,
 				 ccitt_params.rows,
 				 get_interpolate (params->filter));
 
-    if (params->paint_proc) {
+    if (surface->paint_proc) {
 	_cairo_output_stream_printf (surface->stream,
 				     "  /DataSource { cairo_data_source }\n");
     } else {
@@ -3186,10 +3186,10 @@ _cairo_ps_surface_emit_ccitt_image (cairo_ps_surface_t          *surface,
 				 ccitt_params.columns,
 				 -ccitt_params.rows,
 				 ccitt_params.rows,
-				 params->paint_proc ? "" : "cairo_",
+				 surface->paint_proc ? "" : "cairo_",
 				 params->stencil_mask ? "imagemask" : "image");
 
-    if (!params->paint_proc) {
+    if (!surface->paint_proc) {
 	/* Emit the image data as a base85-encoded string which will
 	 * be used as the data source for the image operator. */
 	status = _cairo_ps_surface_emit_base85_string (surface,
@@ -3740,7 +3740,7 @@ _cairo_ps_form_emit (void *entry, void *closure)
 				 "/cairo_paint_form-%d",
 				 form->id);
     if (surface->ps_level == CAIRO_PS_LEVEL_3) {
-	params.paint_proc = FALSE;
+	surface->paint_proc = FALSE;
 	_cairo_output_stream_printf (surface->final_stream,
 				     "\n"
 				     "currentfile\n"
@@ -3749,7 +3749,7 @@ _cairo_ps_form_emit (void *entry, void *closure)
 				     ">> /ReusableStreamDecode filter\n",
 				     SUBFILE_FILTER_EOD);
     } else {
-	params.paint_proc = TRUE;
+	surface->paint_proc = TRUE;
 	_cairo_output_stream_printf (surface->final_stream,
 				     " {\n");
     }
@@ -3959,7 +3959,6 @@ _cairo_ps_surface_paint_surface (cairo_ps_surface_t     *surface,
     params.src_op_extents = &src_op_extents;
     params.filter = pattern->filter;
     params.stencil_mask = stencil_mask;
-    params.paint_proc = FALSE;
     params.is_image = FALSE;
     params.approx_size = 0;
 
@@ -4001,6 +4000,7 @@ _cairo_ps_surface_emit_surface_pattern (cairo_ps_surface_t      *surface,
     cairo_rectangle_int_t pattern_extents;
     cairo_bool_t bounded;
     cairo_matrix_t cairo_p2d, ps_p2d;
+    cairo_bool_t old_paint_proc;
     double x_offset, y_offset;
     cairo_surface_t *source_surface;
     cairo_image_surface_t *image = NULL;
@@ -4103,6 +4103,8 @@ _cairo_ps_surface_emit_surface_pattern (cairo_ps_surface_t      *surface,
     if (extend == CAIRO_EXTEND_REPEAT || extend == CAIRO_EXTEND_REFLECT)
 	src_op_extents = pattern_extents;
 
+    old_paint_proc = surface->paint_proc;
+    surface->paint_proc = TRUE;
     params.src_surface = image ? &image->base : source_surface;
     params.op = op;
     params.src_surface_extents = &pattern_extents;
@@ -4110,7 +4112,6 @@ _cairo_ps_surface_emit_surface_pattern (cairo_ps_surface_t      *surface,
     params.src_op_extents = &src_op_extents;
     params.filter = pattern->filter;
     params.stencil_mask = FALSE;
-    params.paint_proc = TRUE;
     params.is_image = FALSE;
     params.approx_size = 0;
     status = _cairo_ps_surface_emit_surface (surface, CAIRO_EMIT_SURFACE_ANALYZE, &params);
@@ -4222,6 +4223,8 @@ _cairo_ps_surface_emit_surface_pattern (cairo_ps_surface_t      *surface,
     _cairo_output_stream_printf (surface->stream,
 				 " ]\n"
 				 "makepattern setpattern\n");
+
+    surface->paint_proc = old_paint_proc;
 
   release_source:
     if (image)

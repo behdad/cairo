@@ -543,13 +543,27 @@ cairo_pdf_interchange_write_struct_tree (cairo_pdf_surface_t *surface)
     _cairo_output_stream_printf (surface->output,
 				 "%d 0 obj\n"
 				 "<< /Type /StructTreeRoot\n"
-				 "   /ParentTree %d 0 R\n"
-				 "   /K [ %d 0 R ]\n"
-				 ">>\n"
-				 "endobj\n",
+				 "   /ParentTree %d 0 R\n",
 				 surface->struct_tree_root.id,
-				 ic->parent_tree_res.id,
-				 child->res.id);
+				 ic->parent_tree_res.id);
+
+    if (cairo_list_is_singular (&ic->struct_root->children)) {
+	child = cairo_list_first_entry (&ic->struct_root->children, cairo_pdf_struct_tree_node_t, link);
+	_cairo_output_stream_printf (surface->output, "   /K [ %d 0 R ]\n", child->res.id);
+    } else {
+	_cairo_output_stream_printf (surface->output, "   /K [ ");
+
+	cairo_list_foreach_entry (child, cairo_pdf_struct_tree_node_t,
+				  &ic->struct_root->children, link)
+	{
+	    _cairo_output_stream_printf (surface->output, "%d 0 R ", child->res.id);
+	}
+	_cairo_output_stream_printf (surface->output, "]\n");
+    }
+
+    _cairo_output_stream_printf (surface->output,
+				 ">>\n"
+				 "endobj\n");
 
     return CAIRO_STATUS_SUCCESS;
 }

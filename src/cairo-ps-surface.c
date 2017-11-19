@@ -3722,6 +3722,7 @@ _cairo_ps_form_emit (void *entry, void *closure)
     cairo_ps_surface_t *surface = closure;
     cairo_emit_surface_params_t params;
     cairo_int_status_t status;
+    cairo_output_stream_t *old_stream;
 
     params.src_surface = form->src_surface;
     params.op = CAIRO_OPERATOR_OVER;
@@ -3730,7 +3731,6 @@ _cairo_ps_form_emit (void *entry, void *closure)
     params.stencil_mask = FALSE;
     params.is_image = form->is_image;
     params.approx_size = 0;
-    cairo_output_stream_t *old_stream;
 
     _cairo_output_stream_printf (surface->final_stream,
 				 "%%%%BeginResource: form cairoform-%d\n",

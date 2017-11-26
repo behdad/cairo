@@ -432,6 +432,8 @@ parse_attributes (const char *attributes, attribute_spec_t *attrib_def, cairo_li
 
   fail2:
     _cairo_array_fini (&attrib->array);
+    if (attrib->type == ATTRIBUTE_STRING)
+	free (attrib->scalar.s);
     free (attrib);
   fail1:
     free (name);
@@ -449,6 +451,8 @@ free_attributes_list (cairo_list_t *list)
 	cairo_list_del (&attr->link);
 	free (attr->name);
 	_cairo_array_fini (&attr->array);
+	if (attr->type == ATTRIBUTE_STRING)
+	    free (attr->scalar.s);
 	free (attr);
     }
 }

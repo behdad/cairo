@@ -6934,7 +6934,7 @@ _cairo_pdf_surface_write_page (cairo_pdf_surface_t *surface)
     _cairo_pdf_surface_update_object (surface, *page);
     _cairo_output_stream_printf (surface->output,
 				 "%d 0 obj\n"
-				 "<< /Type /Page\n"
+				 "<< /Type /Page %% %d\n"
 				 "   /Parent %d 0 R\n"
 				 "   /MediaBox [ 0 0 %f %f ]\n"
 				 "   /Contents %d 0 R\n"
@@ -6946,6 +6946,7 @@ _cairo_pdf_surface_write_page (cairo_pdf_surface_t *surface)
 				 "   >>\n"
 				 "   /Resources %d 0 R\n",
 				 page->id,
+				 page_num,
 				 surface->pages_resource.id,
 				 surface->width,
 				 surface->height,

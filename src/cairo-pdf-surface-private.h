@@ -178,14 +178,15 @@ typedef struct _cairo_pdf_struct_tree_node {
     struct _cairo_pdf_struct_tree_node *parent;
     cairo_list_t children;
     cairo_array_t mcid; /* array of struct page_mcid */
-    struct {
-	struct tag_extents extents;
-	cairo_pdf_resource_t res;
-	cairo_link_attrs_t link_attrs;
-	int src_page; /* page number containing the link */
-    } annot;
+    cairo_pdf_resource_t annot_res; /* 0 if no annot */
+    struct tag_extents extents;
     cairo_list_t link;
 } cairo_pdf_struct_tree_node_t;
+
+typedef struct _cairo_pdf_annotation {
+    cairo_pdf_struct_tree_node_t *node; /* node containing the annotation */
+    cairo_link_attrs_t link_attrs;
+} cairo_pdf_annotation_t;
 
 typedef struct _cairo_pdf_named_dest {
     cairo_hash_entry_t base;
@@ -228,6 +229,7 @@ typedef struct _cairo_pdf_interchange {
     cairo_pdf_struct_tree_node_t *end_page_node;
     cairo_array_t parent_tree; /* parent tree resources */
     cairo_array_t mcid_to_tree; /* mcid to tree node mapping for current page */
+    cairo_array_t annots; /* array of pointers to cairo_pdf_annotation_t */
     cairo_pdf_resource_t parent_tree_res;
     cairo_list_t extents_list;
     cairo_hash_table_t *named_dests;

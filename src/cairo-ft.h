@@ -46,7 +46,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#ifdef CAIRO_HAS_FC_FONT
+#if CAIRO_HAS_FC_FONT
 #include <fontconfig/fontconfig.h>
 #endif
 
@@ -98,7 +98,7 @@ cairo_ft_scaled_font_lock_face (cairo_scaled_font_t *scaled_font);
 cairo_public void
 cairo_ft_scaled_font_unlock_face (cairo_scaled_font_t *scaled_font);
 
-#ifdef CAIRO_HAS_FC_FONT
+#if CAIRO_HAS_FC_FONT
 
 cairo_public cairo_font_face_t *
 cairo_ft_font_face_create_for_pattern (FcPattern *pattern);

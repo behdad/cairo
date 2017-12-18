@@ -2269,8 +2269,6 @@ cairo_ft_apply_variations (FT_Face     face,
     FT_Error ret;
 
     ret = FT_Get_MM_Var (face, &ft_mm_var);
-    if (ret != 0) /* FIXME: the first FT_Get_MM_Var call on an FT_Face fails, so try again */
-        ret = FT_Get_MM_Var (face, &ft_mm_var);
     if (ret == 0) {
         FT_Fixed *coords;
         unsigned int i;

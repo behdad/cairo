@@ -2742,7 +2742,7 @@ composite_color_glyphs (cairo_surface_t             *surface,
 
                 status = composite_one_color_glyph (surface, op, source, clip,
                                                     &glyphs[gp], scaled_glyph);
-                if (unlikely (status))
+                if (unlikely (status && status != CAIRO_INT_STATUS_NOTHING_TO_DO))
                     goto UNLOCK;
             }
 
@@ -2776,7 +2776,7 @@ composite_color_glyphs (cairo_surface_t             *surface,
 
            status = composite_one_color_glyph (surface, op, source, clip,
                                                &glyphs[glyph_pos], scaled_glyph);
-           if (unlikely (status))
+           if (unlikely (status && status != CAIRO_INT_STATUS_NOTHING_TO_DO))
                goto UNLOCK;
         }
 
@@ -2854,7 +2854,7 @@ _cairo_surface_show_text_glyphs (cairo_surface_t	    *surface,
                                          scaled_font,
                                          clip);
 
-        if (unlikely (status))
+        if (unlikely (status && status != CAIRO_INT_STATUS_NOTHING_TO_DO))
             goto DONE;
 
         if (num_glyphs == 0)

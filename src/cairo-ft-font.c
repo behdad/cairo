@@ -2356,6 +2356,8 @@ _cairo_ft_scaled_glyph_load_glyph (cairo_ft_scaled_font_t *scaled_font,
     if (unlikely (status))
 	return status;
 
+    cairo_ft_apply_variations (face, scaled_font->unscaled->id, scaled_font->base.options.variations);
+
     error = FT_Load_Glyph (face,
 			   _cairo_scaled_glyph_index(scaled_glyph),
 			   load_flags);

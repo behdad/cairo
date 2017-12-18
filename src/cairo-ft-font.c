@@ -2260,6 +2260,80 @@ _cairo_ft_scaled_glyph_vertical_layout_bearing_fix (void        *abstract_font,
     }
 }
 
+static void
+cairo_ft_apply_variations (FT_Face     face,
+                           int         instance_id,
+                           const char *variations)
+{
+    FT_MM_Var *ft_mm_var;
+    FT_Error ret;
+
+    ret = FT_Get_MM_Var (face, &ft_mm_var);
+    if (ret != 0) /* FIXME: the first FT_Get_MM_Var call on an FT_Face fails, so try again */
+        ret = FT_Get_MM_Var (face, &ft_mm_var);
+    if (ret == 0) {
+        FT_Fixed *coords;
+        unsigned int i;
+        const char *p;
+
+        coords = malloc (sizeof (FT_Fixed) * ft_mm_var->num_axis);
+	/* FIXME check coords. */
+
+	if (instance_id && instance_id <= ft_mm_var->num_namedstyles)
+	{
+	    FT_Var_Named_Style *instance = &ft_mm_var->namedstyle[instance_id - 1];
+	    memcpy (coords, instance->coords, ft_mm_var->num_axis * sizeof (*coords));
+	}
+	else
+	    for (i = 0; i < ft_mm_var->num_axis; i++)
+		coords[i] = ft_mm_var->axis[i].def;
+
+        p = variations;
+        while (p && *p) {
+            char *start;
+            char *end, *end2;
+            FT_ULong tag;
+            double value;
+
+            while (_cairo_isspace (*p)) p++;
+
+            start = p;
+            end = strchr (p, ',');
+            if (end && (end - p < 6))
+                goto skip;
+
+            tag = FT_MAKE_TAG(p[0], p[1], p[2], p[3]);
+
+            p += 4;
+            while (_cairo_isspace (*p)) p++;
+            if (*p == '=') p++;
+
+            if (p - start < 5)
+                goto skip;
+
+            value = _cairo_strtod (p, &end2);
+
+            while (end2 && _cairo_isspace (*end2)) end2++;
+
+            if (end2 && (*end2 != ',' && *end2 != '\0'))
+                goto skip;
+
+            for (i = 0; i < ft_mm_var->num_axis; i++) {
+                if (ft_mm_var->axis[i].tag == tag) {
+                    coords[i] = (FT_Fixed)(value*65536);
+                    break;
+                }
+            }
+
+skip:
+            p = end ? end + 1 : NULL;
+        }
+
+        FT_Set_Var_Design_Coordinates (face, ft_mm_var->num_axis, coords);
+        free (coords);
+    }
+}
+
 static cairo_int_status_t
 _cairo_ft_scaled_glyph_load_glyph (cairo_ft_scaled_font_t *scaled_font,
 				   cairo_scaled_glyph_t   *scaled_glyph,
@@ -3640,80 +3714,6 @@ cairo_ft_font_face_get_synthesize (cairo_font_face_t *font_face)
 
     ft = (cairo_ft_font_face_t *) font_face;
     return ft->ft_options.synth_flags;
-}
-
-static void
-cairo_ft_apply_variations (FT_Face     face,
-                           int         instance_id,
-                           const char *variations)
-{
-    FT_MM_Var *ft_mm_var;
-    FT_Error ret;
-
-    ret = FT_Get_MM_Var (face, &ft_mm_var);
-    if (ret != 0) /* FIXME: the first FT_Get_MM_Var call on an FT_Face fails, so try again */
-        ret = FT_Get_MM_Var (face, &ft_mm_var);
-    if (ret == 0) {
-        FT_Fixed *coords;
-        unsigned int i;
-        const char *p;
-
-        coords = malloc (sizeof (FT_Fixed) * ft_mm_var->num_axis);
-	/* FIXME check coords. */
-
-	if (instance_id && instance_id <= ft_mm_var->num_namedstyles)
-	{
-	    FT_Var_Named_Style *instance = &ft_mm_var->namedstyle[instance_id - 1];
-	    memcpy (coords, instance->coords, ft_mm_var->num_axis * sizeof (*coords));
-	}
-	else
-	    for (i = 0; i < ft_mm_var->num_axis; i++)
-		coords[i] = ft_mm_var->axis[i].def;
-
-        p = variations;
-        while (p && *p) {
-            char *start;
-            char *end, *end2;
-            FT_ULong tag;
-            double value;
-
-            while (_cairo_isspace (*p)) p++;
-
-            start = p;
-            end = strchr (p, ',');
-            if (end && (end - p < 6))
-                goto skip;
-
-            tag = FT_MAKE_TAG(p[0], p[1], p[2], p[3]);
-
-            p += 4;
-            while (_cairo_isspace (*p)) p++;
-            if (*p == '=') p++;
-
-            if (p - start < 5)
-                goto skip;
-
-            value = _cairo_strtod (p, &end2);
-
-            while (end2 && _cairo_isspace (*end2)) end2++;
-
-            if (end2 && (*end2 != ',' && *end2 != '\0'))
-                goto skip;
-
-            for (i = 0; i < ft_mm_var->num_axis; i++) {
-                if (ft_mm_var->axis[i].tag == tag) {
-                    coords[i] = (FT_Fixed)(value*65536);
-                    break;
-                }
-            }
-
-skip:
-            p = end ? end + 1 : NULL;
-        }
-
-        FT_Set_Var_Design_Coordinates (face, ft_mm_var->num_axis, coords);
-        free (coords);
-    }
 }
 
 /**

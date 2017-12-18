@@ -2262,11 +2262,12 @@ _cairo_ft_scaled_glyph_vertical_layout_bearing_fix (void        *abstract_font,
 
 static void
 cairo_ft_apply_variations (FT_Face     face,
-                           int         instance_id,
+                           int         face_index,
                            const char *variations)
 {
     FT_MM_Var *ft_mm_var;
     FT_Error ret;
+    int instance_id = face_index >> 16;
 
     ret = FT_Get_MM_Var (face, &ft_mm_var);
     if (ret == 0) {

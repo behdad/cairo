@@ -93,7 +93,6 @@
 #define FT_LCD_FILTER_LEGACY	16
 #endif
 
-#define DOUBLE_TO_26_6(d) ((FT_F26Dot6)((d) * 64.0))
 #define DOUBLE_FROM_26_6(t) ((double)(t) / 64.0)
 #define DOUBLE_TO_16_16(d) ((FT_Fixed)((d) * 65536.0))
 #define DOUBLE_FROM_16_16(t) ((double)(t) / 65536.0)
@@ -2261,13 +2260,13 @@ _cairo_ft_scaled_glyph_vertical_layout_bearing_fix (void        *abstract_font,
 }
 
 static void
-cairo_ft_apply_variations (FT_Face     face,
-                           int         face_index,
-                           const char *variations)
+cairo_ft_apply_variations (FT_Face       face,
+                           unsigned int  face_index,
+                           const char   *variations)
 {
     FT_MM_Var *ft_mm_var;
     FT_Error ret;
-    int instance_id = face_index >> 16;
+    unsigned int instance_id = face_index >> 16;
 
     ret = FT_Get_MM_Var (face, &ft_mm_var);
     if (ret == 0) {
@@ -2290,8 +2289,8 @@ cairo_ft_apply_variations (FT_Face     face,
 
         p = variations;
         while (p && *p) {
-            char *start;
-            char *end, *end2;
+            const char *start;
+            const char *end, *end2;
             FT_ULong tag;
             double value;
 
@@ -2311,7 +2310,7 @@ cairo_ft_apply_variations (FT_Face     face,
             if (p - start < 5)
                 goto skip;
 
-            value = _cairo_strtod (p, &end2);
+            value = _cairo_strtod (p, (char **) &end2);
 
             while (end2 && _cairo_isspace (*end2)) end2++;
 
@@ -2966,8 +2965,7 @@ _cairo_ft_has_color_glyphs (void *scaled)
     cairo_ft_unscaled_font_t *unscaled = ((cairo_ft_scaled_font_t *)scaled)->unscaled;
 
     if (!unscaled->have_color_set) {
-        FT_Face face;
-        face = _cairo_ft_unscaled_font_lock_face (unscaled);
+        _cairo_ft_unscaled_font_lock_face (unscaled);
         _cairo_ft_unscaled_font_unlock_face (unscaled);
     }
 
@@ -3773,7 +3771,6 @@ cairo_ft_scaled_font_lock_face (cairo_scaled_font_t *abstract_font)
 {
     cairo_ft_scaled_font_t *scaled_font = (cairo_ft_scaled_font_t *) abstract_font;
     FT_Face face;
-    int instance_id;
     cairo_status_t status;
 
     if (! _cairo_scaled_font_is_ft (abstract_font)) {

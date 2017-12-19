@@ -2355,7 +2355,7 @@ _cairo_ft_scaled_glyph_load_glyph (cairo_ft_scaled_font_t *scaled_font,
     if (unlikely (status))
 	return status;
 
-    cairo_ft_apply_variations (face, scaled_font->unscaled->id, scaled_font->base.options.variations);
+    cairo_ft_apply_variations (face, scaled_font->unscaled->id, scaled_font->ft_options.base.variations);
 
     error = FT_Load_Glyph (face,
 			   _cairo_scaled_glyph_index(scaled_glyph),
@@ -3784,7 +3784,7 @@ cairo_ft_scaled_font_lock_face (cairo_scaled_font_t *abstract_font)
 	return NULL;
     }
 
-    cairo_ft_apply_variations (face, scaled_font->unscaled->id, scaled_font->base.options.variations);
+    cairo_ft_apply_variations (face, scaled_font->unscaled->id, scaled_font->ft_options.base.variations);
 
     /* Note: We deliberately release the unscaled font's mutex here,
      * so that we are not holding a lock across two separate calls to

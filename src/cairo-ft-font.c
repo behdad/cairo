@@ -2271,6 +2271,7 @@ cairo_ft_apply_variations (FT_Face     face,
 
     ret = FT_Get_MM_Var (face, &ft_mm_var);
     if (ret == 0) {
+        FT_Fixed *current_coords;
         FT_Fixed *coords;
         unsigned int i;
         const char *p;
@@ -2328,8 +2329,21 @@ skip:
             p = end ? end + 1 : NULL;
         }
 
+        current_coords = malloc (sizeof (FT_Fixed) * ft_mm_var->num_axis);
+        ret = FT_Get_Var_Design_Coordinates (face, ft_mm_var->num_axis, current_coords);
+        if (ret == 0) {
+            for (i = 0; i < ft_mm_var->num_axis; i++) {
+              if (coords[i] != current_coords[i])
+                break;
+            }
+            if (i == ft_mm_var->num_axis)
+              goto done;
+        }
+
         FT_Set_Var_Design_Coordinates (face, ft_mm_var->num_axis, coords);
+done:
         free (coords);
+        free (current_coords);
     }
 }
 

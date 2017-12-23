@@ -544,11 +544,11 @@ stream_read_func (png_structp png, png_bytep data, png_size_t size)
 static cairo_surface_t *
 read_png (struct png_read_closure_t *png_closure)
 {
-    cairo_surface_t *surface;
+    cairo_surface_t * volatile surface;
     png_struct *png = NULL;
     png_info *info;
-    png_byte *data = NULL;
-    png_byte **row_pointers = NULL;
+    png_byte * volatile data = NULL;
+    png_byte ** volatile row_pointers = NULL;
     png_uint_32 png_width, png_height;
     int depth, color_type, interlace, stride;
     unsigned int i;

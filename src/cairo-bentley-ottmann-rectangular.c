@@ -593,12 +593,6 @@ sweep_line_insert (sweep_line_t	*sweep, rectangle_t *rectangle)
     pqueue_push (sweep, rectangle);
 }
 
-static int
-sweep_line_setjmp (sweep_line_t *sweep_line)
-{
-    return setjmp (sweep_line->unwind);
-}
-
 static cairo_status_t
 _cairo_bentley_ottmann_tessellate_rectangular (rectangle_t	**rectangles,
 					       int			  num_rectangles,
@@ -615,7 +609,7 @@ _cairo_bentley_ottmann_tessellate_rectangular (rectangle_t	**rectangles,
 		     rectangles, num_rectangles,
 		     fill_rule,
 		     do_traps, container);
-    if ((status = sweep_line_setjmp (&sweep_line)))
+    if ((status = setjmp (sweep_line.unwind)))
 	return status;
 
     rectangle = rectangle_pop_start (&sweep_line);

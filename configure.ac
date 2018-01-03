@@ -76,6 +76,9 @@ if test "x$have_dlsym" = "xyes"; then
 fi
 AM_CONDITIONAL(CAIRO_HAS_DLSYM, test "x$have_dlsym" = "xyes")
 
+AC_CHECK_HEADERS(xlocale.h)
+AC_CHECK_FUNCS(newlocale strtod_l)
+
 dnl ===========================================================================
 
 CAIRO_ENABLE_SURFACE_BACKEND(xlib, Xlib, auto, [

@@ -144,6 +144,7 @@ test_sources = \
 	font-face-get-type.c				\
 	font-matrix-translation.c			\
 	font-options.c					\
+	font-variations.c				\
 	glyph-cache-pressure.c				\
 	get-and-set.c					\
 	get-clip.c					\

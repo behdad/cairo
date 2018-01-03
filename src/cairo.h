@@ -1430,6 +1430,13 @@ cairo_font_options_set_hint_metrics (cairo_font_options_t *options,
 cairo_public cairo_hint_metrics_t
 cairo_font_options_get_hint_metrics (const cairo_font_options_t *options);
 
+cairo_public const char *
+cairo_font_options_get_variations (cairo_font_options_t *options);
+
+cairo_public void
+cairo_font_options_set_variations (cairo_font_options_t *options,
+                                   const char           *variations);
+
 /* This interface is for dealing with text as text, not caring about the
    font object inside the the cairo_t. */
 

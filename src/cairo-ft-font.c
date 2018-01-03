@@ -168,8 +168,9 @@ struct _cairo_ft_unscaled_font {
     cairo_matrix_t current_shape;
     FT_Matrix Current_Shape;
 
-    unsigned int have_color_set : 1;
-    unsigned int have_color     : 1;  /* true if the font contains color glyphs */
+    unsigned int have_color_set  : 1;
+    unsigned int have_color      : 1;  /* true if the font contains color glyphs */
+    FT_Fixed *variations;              /* variation settings that FT_Face came */
 
     cairo_mutex_t mutex;
     int lock_count;
@@ -425,12 +426,25 @@ _cairo_ft_unscaled_font_init (cairo_ft_unscaled_font_t *unscaled,
     _cairo_unscaled_font_init (&unscaled->base,
 			       &cairo_ft_unscaled_font_backend);
 
+    unscaled->variations = NULL;
+
     if (from_face) {
 	unscaled->from_face = TRUE;
 	_cairo_ft_unscaled_font_init_key (unscaled, TRUE, NULL, face->face_index, face);
 
+
         unscaled->have_color = FT_HAS_COLOR (face) != 0;
         unscaled->have_color_set = TRUE;
+
+	{
+	    FT_MM_Var *ft_mm_var;
+	    if (0 == FT_Get_MM_Var (face, &ft_mm_var))
+	    {
+		unscaled->variations = calloc (ft_mm_var->num_axis, sizeof (FT_Fixed));
+		if (unscaled->variations)
+		    FT_Get_Var_Design_Coordinates (face, ft_mm_var->num_axis, unscaled->variations);
+	    }
+	}
     } else {
 	char *filename_copy;
 
@@ -443,7 +457,7 @@ _cairo_ft_unscaled_font_init (cairo_ft_unscaled_font_t *unscaled,
 
 	_cairo_ft_unscaled_font_init_key (unscaled, FALSE, filename_copy, id, NULL);
 
-        unscaled->have_color_set = FALSE;
+	unscaled->have_color_set = FALSE;
     }
 
     unscaled->have_scale = FALSE;
@@ -473,6 +487,8 @@ _cairo_ft_unscaled_font_fini (cairo_ft_unscaled_font_t *unscaled)
 
     free (unscaled->filename);
     unscaled->filename = NULL;
+
+    free (unscaled->variations);
 
     CAIRO_MUTEX_FINI (unscaled->mutex);
 }
@@ -2260,13 +2276,12 @@ _cairo_ft_scaled_glyph_vertical_layout_bearing_fix (void        *abstract_font,
 }
 
 static void
-cairo_ft_apply_variations (FT_Face       face,
-                           unsigned int  face_index,
-                           const char   *variations)
+cairo_ft_apply_variations (FT_Face                 face,
+			   cairo_ft_scaled_font_t *scaled_font)
 {
     FT_MM_Var *ft_mm_var;
     FT_Error ret;
-    unsigned int instance_id = face_index >> 16;
+    unsigned int instance_id = scaled_font->unscaled->id >> 16;
 
     ret = FT_Get_MM_Var (face, &ft_mm_var);
     if (ret == 0) {
@@ -2278,7 +2293,11 @@ cairo_ft_apply_variations (FT_Face       face,
         coords = malloc (sizeof (FT_Fixed) * ft_mm_var->num_axis);
 	/* FIXME check coords. */
 
-	if (instance_id && instance_id <= ft_mm_var->num_namedstyles)
+	if (scaled_font->unscaled->variations)
+	{
+	    memcpy (coords, scaled_font->unscaled->variations, ft_mm_var->num_axis * sizeof (*coords));
+	}
+	else if (instance_id && instance_id <= ft_mm_var->num_namedstyles)
 	{
 	    FT_Var_Named_Style *instance = &ft_mm_var->namedstyle[instance_id - 1];
 	    memcpy (coords, instance->coords, ft_mm_var->num_axis * sizeof (*coords));
@@ -2287,7 +2306,7 @@ cairo_ft_apply_variations (FT_Face       face,
 	    for (i = 0; i < ft_mm_var->num_axis; i++)
 		coords[i] = ft_mm_var->axis[i].def;
 
-        p = variations;
+        p = scaled_font->ft_options.base.variations;
         while (p && *p) {
             const char *start;
             const char *end, *end2;
@@ -2368,7 +2387,7 @@ _cairo_ft_scaled_glyph_load_glyph (cairo_ft_scaled_font_t *scaled_font,
     if (unlikely (status))
 	return status;
 
-    cairo_ft_apply_variations (face, scaled_font->unscaled->id, scaled_font->ft_options.base.variations);
+    cairo_ft_apply_variations (face, scaled_font);
 
     error = FT_Load_Glyph (face,
 			   _cairo_scaled_glyph_index(scaled_glyph),
@@ -3795,7 +3814,7 @@ cairo_ft_scaled_font_lock_face (cairo_scaled_font_t *abstract_font)
 	return NULL;
     }
 
-    cairo_ft_apply_variations (face, scaled_font->unscaled->id, scaled_font->ft_options.base.variations);
+    cairo_ft_apply_variations (face, scaled_font);
 
     /* Note: We deliberately release the unscaled font's mutex here,
      * so that we are not holding a lock across two separate calls to

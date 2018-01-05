@@ -154,6 +154,12 @@ cairo_font_options_copy (const cairo_font_options_t *original)
     return options;
 }
 
+void
+_cairo_font_options_fini (cairo_font_options_t *options)
+{
+    free (options->variations);
+}
+
 /**
  * cairo_font_options_destroy:
  * @options: a #cairo_font_options_t
@@ -169,7 +175,7 @@ cairo_font_options_destroy (cairo_font_options_t *options)
     if (cairo_font_options_status (options))
 	return;
 
-    free (options->variations);
+    _cairo_font_options_fini (options);
     free (options);
 }
 

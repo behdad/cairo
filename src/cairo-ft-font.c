@@ -2362,6 +2362,7 @@ skip:
 done:
         free (coords);
         free (current_coords);
+        free (ft_mm_var);
     }
 }
 

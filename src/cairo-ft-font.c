@@ -191,6 +191,21 @@ typedef struct _cairo_ft_options {
     unsigned int synth_flags;
 } cairo_ft_options_t;
 
+static void
+_cairo_ft_options_init_copy (cairo_ft_options_t       *options,
+                             const cairo_ft_options_t *other)
+{
+    _cairo_font_options_init_copy (&options->base, &other->base);
+    options->load_flags = other->load_flags;
+    options->synth_flags = other->synth_flags;
+}
+
+static void
+_cairo_ft_options_fini (cairo_ft_options_t *options)
+{
+    _cairo_font_options_fini (&options->base);
+}
+
 struct _cairo_ft_font_face {
     cairo_font_face_t base;
 
@@ -3134,6 +3149,8 @@ _cairo_ft_font_face_destroy (void *abstract_face)
 	font_face->unscaled = NULL;
     }
 
+    _cairo_ft_options_fini (&font_face->ft_options);
+
 #if CAIRO_HAS_FC_FONT
     if (font_face->pattern) {
 	FcPatternDestroy (font_face->pattern);
@@ -3287,7 +3304,7 @@ _cairo_ft_font_face_create (cairo_ft_unscaled_font_t *unscaled,
     font_face->unscaled = unscaled;
     _cairo_unscaled_font_reference (&unscaled->base);
 
-    font_face->ft_options = *ft_options;
+    _cairo_ft_options_init_copy (&font_face->ft_options, ft_options);
 
     if (unscaled->faces && unscaled->faces->unscaled == NULL) {
 	/* This "zombie" font_face (from _cairo_ft_font_face_destroy)
@@ -3534,6 +3551,7 @@ _cairo_ft_resolve_pattern (FcPattern		      *pattern,
 
     _get_pattern_ft_options (resolved, &ft_options);
     font_face = _cairo_ft_font_face_create (unscaled, &ft_options);
+     _cairo_ft_options_fini (&ft_options);
     _cairo_unscaled_font_destroy (&unscaled->base);
 
 FREE_RESOLVED:
@@ -3608,6 +3626,7 @@ cairo_ft_font_face_create_for_pattern (FcPattern *pattern)
 
     _get_pattern_ft_options (pattern, &ft_options);
     font_face = _cairo_ft_font_face_create (unscaled, &ft_options);
+    _cairo_ft_options_fini (&ft_options);
     _cairo_unscaled_font_destroy (&unscaled->base);
 
     return font_face;

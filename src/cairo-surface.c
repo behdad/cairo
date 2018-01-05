@@ -2654,6 +2654,7 @@ composite_one_color_glyph (cairo_surface_t       *surface,
 	  status = surface->backend->mask (surface, op, pattern, pattern, clip);
 	else
 	  status = surface->backend->paint (surface, op, pattern, clip);
+        cairo_pattern_destroy (pattern);
     }
 
     return status;

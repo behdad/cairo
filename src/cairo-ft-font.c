@@ -2847,7 +2847,11 @@ _cairo_ft_is_synthetic (void	        *abstract_font,
 
       cleanup:
 	free (coords);
+#if HAVE_FT_DONE_MM_VAR
+	FT_Done_MM_Var (face->glyph->library, mm_var);
+#else
 	free (mm_var);
+#endif
     }
 
     _cairo_ft_unscaled_font_unlock_face (unscaled);

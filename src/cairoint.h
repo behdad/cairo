@@ -1586,6 +1586,9 @@ _cairo_image_scaled_glyph_fini (cairo_scaled_font_t *scaled_font,
 cairo_private void
 _cairo_image_reset_static_data (void);
 
+cairo_private void
+_cairo_image_compositor_reset_static_data (void);
+
 cairo_private cairo_surface_t *
 _cairo_image_surface_create_with_pixman_format (unsigned char		*data,
 						pixman_format_code_t	 pixman_format,

@@ -120,6 +120,8 @@ test_variation (cairo_test_context_t *ctx,
         cairo_test_log (ctx, "Failed to get coords");
         return CAIRO_TEST_FAILURE;
     }
+#else
+    return CAIRO_TEST_UNTESTED;
 #endif
 
     for (i = 0; i < ft_mm_var->num_axis; i++) {

@@ -803,12 +803,12 @@ get_C_locale (void)
     locale_t C;
 
 retry:
-    C = (locale_t) _cairo_atomic_ptr_get (&C_locale);
+    C = (locale_t) _cairo_atomic_ptr_get ((void **) &C_locale);
 
     if (unlikely (!C)) {
         C = newlocale (LC_ALL_MASK, "C", NULL);
 
-        if (!_cairo_atomic_ptr_cmpxchg (&C_locale, NULL, C)) {
+        if (!_cairo_atomic_ptr_cmpxchg ((void **) &C_locale, NULL, C)) {
             freelocale (C_locale);
             goto retry;
         }

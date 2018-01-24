@@ -3008,8 +3008,11 @@ _cairo_ft_has_color_glyphs (void *scaled)
     cairo_ft_unscaled_font_t *unscaled = ((cairo_ft_scaled_font_t *)scaled)->unscaled;
 
     if (!unscaled->have_color_set) {
-        _cairo_ft_unscaled_font_lock_face (unscaled);
-        _cairo_ft_unscaled_font_unlock_face (unscaled);
+	FT_Face face;
+	face = _cairo_ft_unscaled_font_lock_face (unscaled);
+	if (unlikely (face == NULL))
+	    return FALSE;
+	_cairo_ft_unscaled_font_unlock_face (unscaled);
     }
 
     return unscaled->have_color;

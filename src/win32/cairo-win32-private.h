@@ -79,7 +79,7 @@ enum {
     /* Whether we can use the CHECKJPEGFORMAT escape function */
     CAIRO_WIN32_SURFACE_CAN_CHECK_JPEG = (1<<7),
 
-    /* Whether we can use the CHECKJPEGFORMAT escape function */
+    /* Whether we can use the CHECKPNGFORMAT escape function */
     CAIRO_WIN32_SURFACE_CAN_CHECK_PNG = (1<<8),
 };
 
@@ -102,18 +102,18 @@ typedef struct _cairo_win32_surface {
     cairo_rectangle_int_t extents;
 
     /* Offset added to extents, used when the extents start with a negative
-     * offset, which occur on Windows for, and only for, desktop DC.  This
+     * offset, which can occur on Windows for, and only for, desktop DC.  This
      * occurs when you have multiple monitors, and at least one monitor
      * extends to the left, or above, the primaty monitor.  The primary
-     * monitor on Windows always start with offset (0,0), and any other points
-     * to the left, or above, have negative offset.  So the 'desktop DC' is
+     * monitor on Windows always starts with offset (0,0), and any other points
+     * to the left, or above, have negative offsets.  So the 'desktop DC' is
      * in fact a 'virtual desktop' which can start with extents in the negative
      * range.
      *
      * Why use new variables, and not the device transform?  Simply because since
      * the device transform functions are exposed, a lot of 3rd party libraries
      * simply overwrite those, disregarding the prior content, instead of actually
-     * adding the offset.  GTK for example simply reset the device transform of the
+     * adding the offset.  GTK for example simply resets the device transform of the
      * desktop cairo surface to zero.  So make some private member variables for
      * this, which will not be fiddled with externally.
      */
@@ -125,7 +125,7 @@ typedef struct _cairo_win32_display_surface {
     cairo_win32_surface_t win32;
 
     /* We create off-screen surfaces as DIBs or DDBs, based on what we created
-     * originally*/
+     * originally */
     HBITMAP bitmap;
     cairo_bool_t is_dib;
 
@@ -133,7 +133,7 @@ typedef struct _cairo_win32_display_surface {
      * select back into the DC before deleting the DC and our
      * bitmap. For Windows XP, this doesn't seem to be necessary
      * ... we can just delete the DC and that automatically unselects
-     * out bitmap. But it's standard practice so apparently is needed
+     * our bitmap. But it's standard practice so apparently is needed
      * on some versions of Windows.
      */
     HBITMAP saved_dc_bitmap;

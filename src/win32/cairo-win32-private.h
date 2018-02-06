@@ -102,20 +102,20 @@ typedef struct _cairo_win32_surface {
     cairo_rectangle_int_t extents;
 
     /* Offset added to extents, used when the extents start with a negative
-     * offset, which occur on Windows for, and only for, desktop DC.  This 
-     * occurs when you have multiple monitors, and at least one monitor 
-     * extends to the left, or above, the primaty monitor.  The primary 
-     * monitor on Windows always start with offset (0,0), and any other points 
-     * to the left, or above, have negative offset.  So the 'desktop DC' is 
-     * in fact a 'virtual desktop' which can start with extents in the negative 
-     * range. 
-     *  
-     * Why use new variables, and not the device transform?  Simply because since 
-     * the device transform functions are exposed, a lot of 3rd party libraries 
-     * simply overwrite those, disregarding the prior content, instead of actually 
-     * adding the offset.  GTK for example simply reset the device transform of the 
-     * desktop cairo surface to zero.  So make some private member variables for 
-     * this, which will not be fiddled with externally. 
+     * offset, which occur on Windows for, and only for, desktop DC.  This
+     * occurs when you have multiple monitors, and at least one monitor
+     * extends to the left, or above, the primaty monitor.  The primary
+     * monitor on Windows always start with offset (0,0), and any other points
+     * to the left, or above, have negative offset.  So the 'desktop DC' is
+     * in fact a 'virtual desktop' which can start with extents in the negative
+     * range.
+     *
+     * Why use new variables, and not the device transform?  Simply because since
+     * the device transform functions are exposed, a lot of 3rd party libraries
+     * simply overwrite those, disregarding the prior content, instead of actually
+     * adding the offset.  GTK for example simply reset the device transform of the
+     * desktop cairo surface to zero.  So make some private member variables for
+     * this, which will not be fiddled with externally.
      */
     int x_ofs, y_ofs;
 } cairo_win32_surface_t;
@@ -200,7 +200,7 @@ cairo_private void
 _cairo_win32_display_surface_discard_fallback (cairo_win32_display_surface_t *surface);
 
 cairo_bool_t
-_cairo_win32_surface_get_extents (void		          *abstract_surface,
+_cairo_win32_surface_get_extents (void			  *abstract_surface,
 				  cairo_rectangle_int_t   *rectangle);
 
 uint32_t
@@ -216,7 +216,7 @@ _cairo_win32_surface_emit_glyphs (cairo_win32_surface_t *dst,
 
 static inline void
 _cairo_matrix_to_win32_xform (const cairo_matrix_t *m,
-                              XFORM *xform)
+			      XFORM *xform)
 {
     xform->eM11 = (FLOAT) m->xx;
     xform->eM21 = (FLOAT) m->xy;

@@ -3254,6 +3254,9 @@ _cairo_ft_font_face_create_for_pattern (FcPattern *pattern)
     }
 
     font_face->unscaled = NULL;
+
+    _get_pattern_ft_options (pattern, &font_face->ft_options);
+
     font_face->next = NULL;
 
     font_face->pattern = FcPatternDuplicate (pattern);

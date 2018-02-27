@@ -263,7 +263,8 @@ _analyze_recording_surface_pattern (cairo_analysis_surface_t *surface,
     cairo_analysis_surface_t *tmp;
     cairo_surface_t *source, *proxy;
     cairo_matrix_t p2d;
-    cairo_int_status_t status, analysis_status;
+    cairo_int_status_t status;
+    cairo_int_status_t analysis_status = CAIRO_INT_STATUS_SUCCESS;
     cairo_bool_t surface_is_unbounded;
     cairo_bool_t unused;
 
@@ -347,8 +348,8 @@ _analyze_recording_surface_pattern (cairo_analysis_surface_t *surface,
 
     if (unlikely (status))
 	return status;
-
-    return analysis_status;
+    else
+	return analysis_status;
 }
 
 static cairo_status_t

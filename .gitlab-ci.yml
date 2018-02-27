@@ -1,0 +1,46 @@
+# -*- indent-tabs-mode: nil -*-
+
+variables:
+  # Docker images for various distros and architectures
+
+  AMD64_FEDORA_LATEST:       "registry.gitlab.com/alatiera/librsvg-oci-images/amd64/fedora:latest"
+  AMD64_OPENSUSE_TUMBLEWEED: "registry.gitlab.com/alatiera/librsvg-oci-images/amd64/opensuse:tumbleweed"
+  AMD64_DEBIAN_TESTING:      "registry.gitlab.com/alatiera/librsvg-oci-images/amd64/debian:testing"
+
+  I386_DEBIAN_TESTING:       "registry.gitlab.com/alatiera/librsvg-oci-images/i386/debian:testing"
+
+stages:
+  - test
+
+.test_template: &distro_test
+  before_script:
+    # CCache Config
+    - mkdir -p ccache
+    - export CCACHE_BASEDIR=${PWD}
+    - export CCACHE_DIR=${PWD}/ccache
+    - export CC="ccache gcc"
+
+  script:
+    - ./autogen.sh
+    - make check TARGETS=image NUM_THREADS=8
+
+  artifacts:
+    when: on_failure
+    paths:
+      - test/*.log
+      - test/pdiff/*.log
+      - test/output
+
+  cache:
+    # Each job will have it's own cache
+    key: "$CI_JOB_NAME"
+    paths:
+      - ccache/
+
+# TEST STAGE
+########################################################################
+
+fedora:test:
+  image: $AMD64_FEDORA_LATEST
+  stage: test
+  <<: *distro_test

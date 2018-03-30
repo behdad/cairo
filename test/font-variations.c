@@ -105,7 +105,7 @@ test_variation (cairo_test_context_t *ctx,
     }
     if (strcmp (ft_face->family_name, "Adobe Variable Font Prototype") != 0) {
         cairo_test_log (ctx, "This test requires the font \"Adobe Variable Font Prototype\" (https://github.com/adobe-fonts/adobe-variable-font-prototype/releases)");
-        return CAIRO_TEST_FAILURE;
+        return CAIRO_TEST_UNTESTED;
     }
 
     ret = FT_Get_MM_Var (ft_face, &ft_mm_var);

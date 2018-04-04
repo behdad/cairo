@@ -580,6 +580,17 @@ if test "x$use_ft" = "xyes"; then
 
   AC_CHECK_FUNCS(FT_Get_X11_Font_Format FT_GlyphSlot_Embolden FT_GlyphSlot_Oblique FT_Load_Sfnt_Table FT_Library_SetLcdFilter FT_Get_Var_Design_Coordinates FT_Done_MM_Var)
 
+  AC_MSG_CHECKING(for FT_HAS_COLOR)
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([
+#include <ft2build.h>
+#include FT_FREETYPE_H
+],[
+FT_Long has_color = FT_HAS_COLOR( ((FT_Face)NULL) );
+])],[AC_MSG_RESULT([yes])],[
+  AC_DEFINE([FT_HAS_COLOR(x)], [(0)], [Define to (0) if freetype2 does not support color fonts])
+  AC_MSG_RESULT([no, disable color font (freetype2 >= 2.5.1 is required)])
+])
+
   LIBS="$_save_libs"
   CFLAGS="$_save_cflags"
 fi

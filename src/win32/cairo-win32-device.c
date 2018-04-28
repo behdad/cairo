@@ -153,7 +153,7 @@ _cairo_win32_device_get (void)
 }
 
 unsigned
-_cairo_win32_flags_for_dc (HDC dc)
+_cairo_win32_flags_for_dc (HDC dc, cairo_format_t format)
 {
     uint32_t flags = 0;
     int cap;

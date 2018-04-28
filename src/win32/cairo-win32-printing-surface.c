@@ -2159,7 +2159,7 @@ cairo_win32_printing_surface_create (HDC hdc)
 	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
     }
 
-    surface->win32.flags = _cairo_win32_flags_for_dc (surface->win32.dc);
+    surface->win32.flags = _cairo_win32_flags_for_dc (surface->win32.dc, CAIRO_FORMAT_RGB24);
     surface->win32.flags |= CAIRO_WIN32_SURFACE_FOR_PRINTING;
 
     _cairo_win32_printing_surface_init_ps_mode (surface);

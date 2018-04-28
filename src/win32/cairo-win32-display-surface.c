@@ -258,7 +258,7 @@ _create_dc_and_bitmap (cairo_win32_display_surface_t *surface,
 	}
     }
 
-    surface->win32.flags = _cairo_win32_flags_for_dc (surface->win32.dc);
+    surface->win32.flags = _cairo_win32_flags_for_dc (surface->win32.dc, format);
 
     return CAIRO_STATUS_SUCCESS;
 
@@ -1007,7 +1007,7 @@ cairo_win32_surface_create_with_format (HDC hdc, cairo_format_t format)
     surface->is_dib = FALSE;
     surface->saved_dc_bitmap = NULL;
 
-    surface->win32.flags = _cairo_win32_flags_for_dc (surface->win32.dc);
+    surface->win32.flags = _cairo_win32_flags_for_dc (surface->win32.dc, format);
 
     device = _cairo_win32_device_get ();
 

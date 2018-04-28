@@ -488,7 +488,8 @@ static cairo_bool_t check_blit (cairo_composite_rectangles_t *composite)
     if (dst->fallback)
 	return FALSE;
 
-    if (dst->win32.format != CAIRO_FORMAT_RGB24)
+    if (dst->win32.format != CAIRO_FORMAT_RGB24
+	&& dst->win32.format != CAIRO_FORMAT_ARGB32)
 	return FALSE;
 
     if (dst->win32.flags & CAIRO_WIN32_SURFACE_CAN_BITBLT)

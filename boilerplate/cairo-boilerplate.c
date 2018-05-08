@@ -26,6 +26,7 @@
 
 #include "cairo-boilerplate-private.h"
 #include "cairo-boilerplate-scaled-font.h"
+#include "cairo-malloc-private.h"
 
 #include <pixman.h>
 
@@ -177,7 +178,7 @@ _cairo_boilerplate_image_create_similar (cairo_surface_t *other,
     }
 
     stride = cairo_format_stride_for_width(format, width);
-    ptr = malloc (stride* height);
+    ptr = _cairo_malloc (stride * height);
 
     surface = cairo_image_surface_create_for_data (ptr, format,
 						   width, height, stride);
@@ -226,7 +227,7 @@ _cairo_boilerplate_image16_create_similar (cairo_surface_t *other,
     }
 
     stride = cairo_format_stride_for_width(format, width);
-    ptr = malloc (stride* height);
+    ptr = _cairo_malloc (stride * height);
 
     surface = cairo_image_surface_create_for_data (ptr, format,
 						   width, height, stride);
@@ -239,7 +240,7 @@ static char *
 _cairo_boilerplate_image_describe (void *closure)
 {
     char *s;
-  
+
     xasprintf (&s, "pixman %s", pixman_version_string ());
 
     return s;

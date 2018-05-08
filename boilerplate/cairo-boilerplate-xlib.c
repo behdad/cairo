@@ -26,6 +26,7 @@
 
 #include "cairo-boilerplate-private.h"
 #include "cairo-boilerplate-xlib.h"
+#include "cairo-malloc-private.h"
 
 #include <cairo-xlib.h>
 #if CAIRO_HAS_XLIB_XRENDER_SURFACE
@@ -244,7 +245,7 @@ _cairo_boilerplate_xlib_create_similar (cairo_surface_t		*other,
     struct similar *similar;
     cairo_surface_t *surface;
 
-    similar = malloc (sizeof (*similar));
+    similar = _cairo_malloc (sizeof (*similar));
     similar->dpy = cairo_xlib_surface_get_display (other);
 
     switch (content) {

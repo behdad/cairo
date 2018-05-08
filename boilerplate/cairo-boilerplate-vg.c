@@ -31,6 +31,7 @@
  */
 
 #include "cairo-boilerplate-private.h"
+#include "cairo-malloc-private.h"
 
 #include <cairo-vg.h>
 
@@ -105,7 +106,7 @@ _cairo_boilerplate_vg_create_surface_glx (const char		    *name,
     cairo_vg_context_t *context;
     vg_closure_glx_t *vgc;
 
-    vgc = malloc (sizeof (vg_closure_glx_t));
+    vgc = _cairo_malloc (sizeof (vg_closure_glx_t));
     *closure = vgc;
 
     if (width == 0)

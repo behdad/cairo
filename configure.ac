@@ -136,6 +136,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(xlib_xrender, Xlib Xrender, auto, [
   else
     dnl Check for Xrender header files if the Xrender package is not installed:
     xlib_xrender_BASE=cairo-xlib
+    dnl Keep in sync with meson.build!
     xlib_xrender_REQUIRES="xrender >= 0.6"
     PKG_CHECK_MODULES(xlib_xrender, $xlib_xrender_REQUIRES, ,
 		      [xlib_xrender_REQUIRES=""
@@ -162,6 +163,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(xlib_xrender, Xlib Xrender, auto, [
 dnl ===========================================================================
 
 CAIRO_ENABLE_SURFACE_BACKEND(xcb, XCB, auto, [
+  dnl Keep in sync with meson.build!
   xcb_REQUIRES="xcb >= 1.6 xcb-render >= 1.6"
   PKG_CHECK_MODULES(xcb, $xcb_REQUIRES, ,
 		    [use_xcb="no (requires $xcb_REQUIRES https://xcb.freedesktop.org)"])
@@ -190,6 +192,7 @@ CAIRO_ENABLE_FUNCTIONS(xcb_shm, XCB/SHM, auto, [
 dnl ===========================================================================
 
 CAIRO_ENABLE_SURFACE_BACKEND(qt, Qt, no, [
+  dnl Keep in sync with meson.build!
   qt_REQUIRES="QtGui >= 4.4.0"
   PKG_CHECK_MODULES(qt, $qt_REQUIRES, ,
 		    [qt_REQUIRES=""
@@ -279,6 +282,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(beos, BeOS/Zeta, no, [
 dnl ===========================================================================
 
 CAIRO_ENABLE_SURFACE_BACKEND(drm, DRM, no, [
+  dnl Keep in sync with meson.build!
   drm_REQUIRES="libudev >= 136, libdrm >= 2.4"
   PKG_CHECK_MODULES(drm, $drm_REQUIRES, ,
    [use_drm="no (requires $drm_REQUIRES, udev is available from git://git.kernel.org/pub/scm/linux/hotplug/udev.git)"])
@@ -504,6 +508,7 @@ dnl ===========================================================================
 # release number - for information only
 FREETYPE_MIN_RELEASE=2.1.9
 # libtool-specific version - this is what is checked
+# Keep in sync with meson.build!
 FREETYPE_MIN_VERSION=9.7.3
 
 CAIRO_ENABLE_FONT_BACKEND(ft, FreeType, auto, [
@@ -538,6 +543,7 @@ CAIRO_ENABLE_FONT_BACKEND(ft, FreeType, auto, [
   ft_LIBS="$FREETYPE_LIBS"
 ])
 
+# Keep in sync with meson.build!
 FONTCONFIG_MIN_VERSION=2.2.95
 CAIRO_ENABLE_FONT_BACKEND(fc, Fontconfig, auto, [
   use_fc=$use_ft
@@ -587,6 +593,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(ps, PostScript, yes, [
 
 dnl ===========================================================================
 
+# Keep in sync with meson.build!
 SPECTRE_VERSION_REQUIRED=0.2.0
 test_ps=no
 any2ppm_ps=no
@@ -625,6 +632,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(pdf, PDF, yes, [
 dnl ===========================================================================
 
 # poppler-0.17.4 fixes text-pattern and text-transform
+# Keep in sync with meson.build!
 POPPLER_VERSION_REQUIRED=0.17.4
 test_pdf=no
 any2ppm_pdf=no
@@ -656,6 +664,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(svg, SVG, yes, [
   fi
 ])
 
+dnl Keep in sync with meson.build!
 LIBRSVG_VERSION_REQUIRED=2.35.0
 test_svg=no
 any2ppm_svg=no
@@ -685,6 +694,7 @@ CAIRO_ENABLE(test_surfaces, test surfaces, no)
 dnl ===========================================================================
 
 CAIRO_ENABLE_SURFACE_BACKEND(image, image, always, [
+  dnl Keep in sync with meson.build!
   pixman_REQUIRES="pixman-1 >= 0.36.0"
   PKG_CHECK_MODULES(pixman, $pixman_REQUIRES, ,
     [use_image="no (requires $pixman_REQUIRES https://cairographics.org/releases/)"])
@@ -733,6 +743,7 @@ dnl ===========================================================================
 dnl Build gobject integration library
 
 CAIRO_ENABLE_FUNCTIONS(gobject, gobject, auto, [
+  dnl Keep in sync with meson.build!
   gobject_REQUIRES="gobject-2.0 glib-2.0 >= 2.14"
   PKG_CHECK_MODULES(GOBJECT, $gobject_REQUIRES, ,
     [use_gobject="no (requires $gobject_REQUIRES https://download.gnome.org/pub/GNOME/sources/glib/)"])

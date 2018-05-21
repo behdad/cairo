@@ -1,0 +1,5 @@
+[wrap-git]
+directory=pixman
+url=https://gitlab.freedesktop.org/pixman/pixman.git
+push-url=git@gitlab.freedesktop.org:pixman/pixman.git
+revision=master

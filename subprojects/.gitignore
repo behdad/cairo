@@ -1,0 +1,10 @@
+/expat-2.2.5
+/freetype2
+/glib
+/fontconfig
+/libffi
+/proxy-libintl
+/zlib
+/packagecache
+/pixman
+/libpng*

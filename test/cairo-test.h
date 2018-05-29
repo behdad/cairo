@@ -317,6 +317,9 @@ cairo_test_get_reference_image (cairo_test_context_t *ctx,
 cairo_bool_t
 cairo_test_mkdir (const char *path);
 
+cairo_t *
+cairo_test_create (cairo_surface_t *surface, cairo_test_context_t *ctx);
+
 CAIRO_END_DECLS
 
 #endif

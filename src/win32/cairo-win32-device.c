@@ -166,9 +166,10 @@ _cairo_win32_flags_for_dc (HDC dc, cairo_format_t format)
 	if (!is_display && GetDeviceCaps(dc, SHADEBLENDCAPS) != SB_NONE)
 	    flags |= CAIRO_WIN32_SURFACE_CAN_ALPHABLEND;
 
-	/* ARGB32 available operations is a strict subset of RGB24 available
-	 * operations. It's because the same gdi functions can be used but most
-	 * of them always reset alpha channel to 0 which is bad for ARGB32.
+	/* ARGB32 available operations are a strict subset of RGB24
+	 * available operations. This is because the same GDI functions
+	 * can be used but most of them always reset alpha channel to 0
+	 * which is bad for ARGB32.
 	 */
 	if (format == CAIRO_FORMAT_RGB24)
 	{

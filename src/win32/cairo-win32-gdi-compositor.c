@@ -239,7 +239,8 @@ copy_boxes (cairo_win32_display_surface_t *dst,
     if (src->format != dst->win32.format &&
 	!(src->format == CAIRO_FORMAT_ARGB32 && dst->win32.format == CAIRO_FORMAT_RGB24))
     {
-	/* forbid copy different surfaces unless it is from argb32 to rgb (alpha-drop) */
+	/* forbid copy different surfaces unless it is from argb32 to
+	 * rgb (dropping alpha) */
         return CAIRO_INT_STATUS_UNSUPPORTED;
     }
     cb.dst = dst->win32.dc;

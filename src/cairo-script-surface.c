@@ -262,6 +262,7 @@ _bitmap_next_id (struct _bitmap *b,
 	prev = &b->next;
 	b = b->next;
     } while (b != NULL);
+    assert (prev != NULL);
 
     bb = _cairo_malloc (sizeof (struct _bitmap));
     if (unlikely (bb == NULL))

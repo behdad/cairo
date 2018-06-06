@@ -299,8 +299,10 @@ _type_next_token (Type *t)
 	prev = &b->next;
 	b = b->next;
     }
+    assert (prev != NULL);
 
     bb = malloc (sizeof (struct _bitmap));
+
     *prev = bb;
     bb->next = b;
     bb->min = min;

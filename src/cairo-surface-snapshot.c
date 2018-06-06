@@ -100,14 +100,17 @@ _cairo_surface_snapshot_acquire_source_image (void                    *abstract_
     cairo_status_t status;
 
     extra = _cairo_malloc (sizeof (*extra));
-    if (unlikely (extra == NULL))
+    if (unlikely (extra == NULL)) {
+	*extra_out = NULL;
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+    }
 
     extra->target = _cairo_surface_snapshot_get_target (&surface->base);
     status =  _cairo_surface_acquire_source_image (extra->target, image_out, &extra->extra);
     if (unlikely (status)) {
 	cairo_surface_destroy (extra->target);
 	free (extra);
+	extra = NULL;
     }
 
     *extra_out = extra;

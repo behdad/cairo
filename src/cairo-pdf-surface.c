@@ -1291,7 +1291,6 @@ _cairo_pdf_surface_create_smask_group (cairo_pdf_surface_t	    *surface,
 	group->extents.width = surface->width;
 	group->extents.height = surface->height;
     }
-    group->extents = *extents;
 
     return group;
 }

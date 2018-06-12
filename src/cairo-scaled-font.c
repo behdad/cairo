@@ -2052,7 +2052,7 @@ cairo_scaled_font_text_to_glyphs (cairo_scaled_font_t   *scaled_font,
 		    status = _cairo_error (CAIRO_STATUS_NEGATIVE_COUNT);
 		    goto DONE;
 		}
-		if (num_glyphs && *glyphs == NULL) {
+		if (*num_glyphs != 0 && *glyphs == NULL) {
 		    status = _cairo_error (CAIRO_STATUS_NULL_POINTER);
 		    goto DONE;
 		}
@@ -2062,7 +2062,7 @@ cairo_scaled_font_text_to_glyphs (cairo_scaled_font_t   *scaled_font,
 			status = _cairo_error (CAIRO_STATUS_NEGATIVE_COUNT);
 			goto DONE;
 		    }
-		    if (num_clusters && *clusters == NULL) {
+		    if (*num_clusters != 0 && *clusters == NULL) {
 			status = _cairo_error (CAIRO_STATUS_NULL_POINTER);
 			goto DONE;
 		    }

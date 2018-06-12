@@ -1501,8 +1501,11 @@ _cairo_bentley_ottmann_tessellate_polygon (cairo_traps_t	 *traps,
 					  sizeof (cairo_bo_start_event_t) +
 					  sizeof (cairo_bo_event_t *),
 					  sizeof (cairo_bo_event_t *));
-	if (unlikely (events == NULL))
+	if (unlikely (events == NULL)) {
+	    if (event_y != stack_event_y)
+		free (event_y);
 	    return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	}
 
 	event_ptrs = (cairo_bo_event_t **) (events + num_events);
     }

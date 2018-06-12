@@ -395,15 +395,18 @@ CAIRO_ENABLE_SURFACE_BACKEND(glesv2, OpenGLESv2, no, [
 
 dnl ===========================================================================
 CAIRO_ENABLE_SURFACE_BACKEND(glesv3, OpenGLESv3, no, [
-  glesv3_REQUIRES="glesv3"
+  dnl glesv3 is provided via libGLESv2.so, so require glesv2.pc (there is no libGLESv3, nor glesv3.pc)
+  glesv3_REQUIRES="glesv2"
   PKG_CHECK_MODULES(glesv3, $glesv3_REQUIRES,, [
-	 dnl Fallback to searching for headers
-	 AC_CHECK_HEADER(GLES3/gl3.h,, [use_glesv3="no (glesv3.pc nor OpenGL ES 3.0 headers not found)"])
-	 if test "x$use_glesv3" = "xyes"; then
-	     glesv3_NONPKGCONFIG_CFLAGS=
-	     dnl glesv3 is provided by the libGLESv2 library (there is no separate libGLESv3)
-	     glesv3_NONPKGCONFIG_LIBS="-lGLESv2"
-	 fi])
+    use_glesv3="no (glesv2.pc not found, required for glesv3)"
+  ])
+
+  dnl Since there is no glesv3.pc, need to search for header files
+  AC_CHECK_HEADER(GLES3/gl3.h,, [use_glesv3="no (OpenGL ES 3.0 headers not found)"])
+  if test "x$use_glesv3" = "xyes"; then
+    glesv3_NONPKGCONFIG_CFLAGS=
+    glesv3_NONPKGCONFIG_LIBS="-lGLESv2"
+  fi
 
   if test "x$have_dl" = "xyes" -a "x$have_dlsym" = "xyes"; then
     glesv3_LIBS="$glesv3_LIBS -ldl"

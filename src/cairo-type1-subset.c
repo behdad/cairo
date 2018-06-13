@@ -1331,7 +1331,7 @@ cairo_type1_font_subset_write_private_dict (cairo_type1_font_subset_t *font,
 
     /* look for "dup" which marks the beginning of the first subr */
     array_start = find_token (subr_count_end, font->cleartext_end, "dup");
-    if (subrs == NULL)
+    if (array_start == NULL)
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
     /* Read in the subroutines */

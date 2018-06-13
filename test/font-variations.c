@@ -27,7 +27,7 @@
 
 #include <assert.h>
 
-// This test requires freetype2
+/* This test requires freetype2 */
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_MULTIPLE_MASTERS_H

@@ -2455,6 +2455,16 @@ _cairo_ft_scaled_glyph_load_glyph (cairo_ft_scaled_font_t *scaled_font,
     if (vertical_layout)
 	_cairo_ft_scaled_glyph_vertical_layout_bearing_fix (scaled_font, face->glyph);
 
+
+    if (face->glyph->format == FT_GLYPH_FORMAT_OUTLINE) {
+        FT_Pos xshift, yshift;
+
+        xshift = _cairo_scaled_glyph_xphase (scaled_glyph) << 4;
+        yshift = _cairo_scaled_glyph_yphase (scaled_glyph) << 4;
+
+        FT_Outline_Translate (&face->glyph->outline, xshift, yshift);
+    }
+
     return CAIRO_STATUS_SUCCESS;
 }
 

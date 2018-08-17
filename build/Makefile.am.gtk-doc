@@ -8,7 +8,7 @@
 #   - Some other changed introduced in 7f114b781f5c530d57530e5f76402e41cdabac6b
 #
 # Before changing it, check to see if a newer gtk-doc.make has fixed the issue you are facing.
-# From time to time, it would be nice to udpate this to the latest copy of gtk-doc.make, but
+# From time to time, it would be nice to update this to the latest copy of gtk-doc.make, but
 # please do review all the differences and port our modifications forward.
 #
 

@@ -1,3 +1,59 @@
+Release 1.15.14    (2018-09-19 Bryce Harrington <bryce@bryceharrington.org>)
+============================================================================
+We're nearly ready to finalize the 1.16.0 release, so this snapshot
+can be considered a beta for 1.16.
+
+The most notable change this release is a performance optimization for
+windows, discussed below.  Other than that, much of the development
+focus was on final polish and stability as we prepare for 1.16.
+
+Some attention went into getting the testsuite passing at least for the
+image backend.  The Cairo testsuite depends on external software like
+Pixman, and changes in the rendering behavior of these dependencies
+change test behavior, leading to false positives.
+
+Results from the Coverity static testing tool were also reviewed.  Most
+of the issues flagged were false positives, but there were several
+legitimate problems found and fixed.
+
+For a complete log of changes, please see
+
+    http://cairographics.org/releases/ChangeLog.1.15.12
+
+Features and Enhancements
+-------------------------
+* Add more FreeeType font color conversions to support COLR/CPAL
+* Update test reference images against current pixman
+
+API Changes
+-----------
+None
+
+Dependency Changes
+------------------
+None
+
+Performance Optimizations
+-------------------------
+Vasily Galkin introduced a Win32 performance optimization for
+CAIRO_OPERATOR_SOURCE when copying data from a backbuffer to an argb32
+surface corresponding to a Win32 DC.  With this, argb32 drawing should
+perform as fast as typical dibsection-buffered GDI drawing.  See the
+Cairo mailing list for April 2018 for data and discussion of the
+performance improvements.
+
+
+Bug Fixes
+---------
+* Fix crash when rendering Microsoft's Segoe UI Emoji Regular font.
+* Fix build breakage with glesv3 enabled due to non-existant glesv3.pc.
+* Fix memory leaks found by Coverity
+* Fix incorrect null ptr handling found by Coverity
+* Fix test compilation when font-config is disabled
+* Use _cairo_malloc instead of malloc (Bug #101547) (CVE-2017-9814)
+* Fix assertion failure in the freetype backend (Bug #105746)
+
+
 Release 1.15.12    (2018-04-04 Bryce Harrington <bryce@osg.samsung.com>)
 ========================================================================
 The main focus for this release is the addition of Variable Font

@@ -2,7 +2,7 @@
 <!DOCTYPE moduleset SYSTEM "moduleset.dtd">
 <?xml-stylesheet type="text/xsl" href="moduleset.xsl"?>
 <moduleset>
-  <include href="http://cgit.freedesktop.org/xorg/util/modular/plain/xorg.modules" />
+  <include href="https://cgit.freedesktop.org/xorg/util/modular/plain/xorg.modules" />
 
   <repository type="git" name="git.freedesktop.org" href="git://anongit.freedesktop.org/git/"/>
 

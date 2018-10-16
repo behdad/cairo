@@ -48,7 +48,7 @@ Bug Tracking System
 
 We use a standard bugzilla bug tracking system available at:
 
-	http://bugs.freedesktop.org/
+	https://bugs.freedesktop.org/
 
 See file named BUGS for detailed information on reporting bugs.  In short,
 for straight bug reports, it's best to report them there such that they
@@ -75,7 +75,7 @@ We use /git/ for version control.  See:
 
 For more information on using git, see:
 
-	http://freedesktop.org/wiki/Infrastructure/git/
+	https://freedesktop.org/wiki/Infrastructure/git/
 
 
 Build System

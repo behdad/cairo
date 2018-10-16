@@ -2,7 +2,7 @@ AC_PREREQ([2.63])
 CAIRO_PARSE_VERSION
 AC_INIT([cairo],
 	[cairo_version_major.cairo_version_minor.cairo_version_micro],
-	[http://bugs.freedesktop.org/enter_bug.cgi?product=cairo],
+	[https://bugs.freedesktop.org/enter_bug.cgi?product=cairo],
 	[cairo],
 	[https://cairographics.org/])
 AC_CONFIG_AUX_DIR(build)
@@ -143,7 +143,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(xlib_xrender, Xlib Xrender, auto, [
 		       CPPFLAGS="$CPPFLAGS $xlib_CFLAGS $xlib_NONPKGCONFIG_CFLAGS"
 		       AC_CHECK_HEADER(X11/extensions/Xrender.h,
 				       [xlib_xrender_NONPKGCONFIG_LIBS="-lXrender"],
-				       [use_xlib_xrender="no (requires $xlib_xrender_REQUIRES http://freedesktop.org/Software/xlibs)"],
+				       [use_xlib_xrender="no (requires $xlib_xrender_REQUIRES https://freedesktop.org/Software/xlibs)"],
 				       [#include <X11/X.h>])
 		       CPPFLAGS=$old_CPPFLAGS
 		      ])
@@ -164,14 +164,14 @@ dnl ===========================================================================
 CAIRO_ENABLE_SURFACE_BACKEND(xcb, XCB, auto, [
   xcb_REQUIRES="xcb >= 1.6 xcb-render >= 1.6"
   PKG_CHECK_MODULES(xcb, $xcb_REQUIRES, ,
-		    [use_xcb="no (requires $xcb_REQUIRES http://xcb.freedesktop.org)"])
+		    [use_xcb="no (requires $xcb_REQUIRES https://xcb.freedesktop.org)"])
 ])
 
 CAIRO_ENABLE_FUNCTIONS(xlib_xcb, Xlib/XCB, no, [
   if test "x$use_xcb" = "xyes" -a "x$use_xlib" = "xyes"; then
     xlib_xcb_REQUIRES="x11-xcb"
     PKG_CHECK_MODULES(xlib_xcb, $xlib_xcb_REQUIRES, ,
-		      [use_xlib_xcb="no (requires $xlib_xcb_REQUIRES http://xcb.freedesktop.org)"])
+		      [use_xlib_xcb="no (requires $xlib_xcb_REQUIRES https://xcb.freedesktop.org)"])
   else
     use_xlib_xcb="no (requires both --enable-xlib and --enable-xcb)"
   fi
@@ -181,7 +181,7 @@ CAIRO_ENABLE_FUNCTIONS(xcb_shm, XCB/SHM, auto, [
   if test "x$use_xcb" = "xyes"; then
       xcb_shm_REQUIRES="xcb-shm"
       PKG_CHECK_MODULES(xcb_shm, $xcb_shm_REQUIRES, ,
-			[use_xcb_shm="no (requires $xcb_shm http://xcb.freedesktop.org)"])
+			[use_xcb_shm="no (requires $xcb_shm https://xcb.freedesktop.org)"])
   else
     use_xcb_shm="no (requires --enable-xcb)"
   fi

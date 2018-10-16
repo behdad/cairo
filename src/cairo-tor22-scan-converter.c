@@ -29,7 +29,7 @@
  * The source is from commit 734c53237a867a773640bd5b64816249fa1730f8
  * of
  *
- *   http://gitweb.freedesktop.org/?p=users/joonas/glitter-paths
+ *   https://gitweb.freedesktop.org/?p=users/joonas/glitter-paths
  */
 /* Glitter-paths is a stand alone polygon rasteriser derived from
  * David Turner's reimplementation of Tor Anderssons's 15x17

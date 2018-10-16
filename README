@@ -113,11 +113,11 @@ Supported, "platform" surface backends
 -----------------------------------
 	xlib backend
 	------------
-	X11			http://freedesktop.org/Software/xlibs
+	X11			https://freedesktop.org/Software/xlibs
 
 	xlib-xrender backend
 	--------------------
-	Xrender >= 0.6		http://freedesktop.org/Software/xlibs
+	Xrender >= 0.6		https://freedesktop.org/Software/xlibs
 
 	quartz backend
 	--------------
@@ -129,7 +129,7 @@ Supported, "platform" surface backends
 
 	xcb backend
 	-----------
-	XCB			http://xcb.freedesktop.org
+	XCB			https://xcb.freedesktop.org
 
 Font backends (required to have at least one)
 ---------------------------------------------

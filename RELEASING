@@ -210,5 +210,8 @@ Here are the steps to follow to create a new cairo release:
 
 		git shortlog ${LAST_RELEASE}...
 
-12) Add the announcement to the NEWS page and the front page.
+12) Add the announcement to the website as a new entry in the news/
+    dir.  It will automatically get indexed onto the homepage when the
+    site refreshes.
+
 

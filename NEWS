@@ -4247,7 +4247,7 @@ bugs had perhaps never been hit by any users. But at least one was
 hit by the gnome-about program which resulted in dozens of duplicated
 bug reports against that program:
 
-	http://bugzilla.gnome.org/show_bug.cgi?id=431990
+	https://bugzilla.gnome.org/show_bug.cgi?id=431990
 
 We were very pleasantly surprised to see this bug get fixed as a
 side-effect of Chris's work. Well done, Chris!
@@ -5859,7 +5859,7 @@ fix:	https://gitweb.freedesktop.org/?p=cairo;a=commit;h=a0989f427be87c60415963dd
 
 PDF: Fix broken output on amd64 (Adrian Johnson)
 ------------------------------------------------
-report:	http://bugzilla.gnome.org/show_bug.cgi?id=349826
+report:	https://bugzilla.gnome.org/show_bug.cgi?id=349826
 fix:	https://gitweb.freedesktop.org/?p=cairo;a=commit;h=f4b12e497b7ac282b2f6831b8fb68deebc412e60
 
 PS: Fix broken output for truetype fonts > 64k (Adrian Johnson)
@@ -5940,7 +5940,7 @@ And at least the following bugs have been fixed:
  * PS/PDF: Fix broken placement for vertical glyphs
  * PS: Fix to not draw BUTT-capped zero-length dash segments
  * Do device offset before float->fixed conversion
-   http://bugzilla.gnome.org/show_bug.cgi?id=332266
+   https://bugzilla.gnome.org/show_bug.cgi?id=332266
  * PS: Fix source surfaces with transformations
  * PS: Fix to not draw BUTT-capped degnerate sub-paths
  * PS: Don't walk off end of array when printing "~>"

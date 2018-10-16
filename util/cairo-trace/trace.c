@@ -521,7 +521,7 @@ _fini_trace (void)
 
 /* Format a double in a locale independent way and trim trailing
  * zeros.  Based on code from Alex Larson <alexl@redhat.com>.
- * http://mail.gnome.org/archives/gtk-devel-list/2001-October/msg00087.html
+ * https://mail.gnome.org/archives/gtk-devel-list/2001-October/msg00087.html
  *
  * The code in the patch is copyright Red Hat, Inc under the LGPL.
  */

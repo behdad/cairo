@@ -18,7 +18,7 @@ legitimate problems found and fixed.
 
 For a complete log of changes, please see
 
-    http://cairographics.org/releases/ChangeLog.1.15.12
+    https://cairographics.org/releases/ChangeLog.1.15.12
 
 Features and Enhancements
 -------------------------
@@ -68,7 +68,7 @@ a need of this backend.
 
 For a complete log of changes, please see
 
-    http://cairographics.org/releases/ChangeLog.1.15.12
+    https://cairographics.org/releases/ChangeLog.1.15.12
 
 Features and Enhancements
 -------------------------
@@ -111,7 +111,7 @@ test failures and related issues in the PDF and Postscript backends.
 
 For a complete log of changes, please see
 
-    http://cairographics.org/releases/ChangeLog.1.15.10
+    https://cairographics.org/releases/ChangeLog.1.15.10
 
 Features and Enhancements
 -------------------------
@@ -182,7 +182,7 @@ handful of minor fixes.
 
 For a complete log of changes, please see
 
-    http://cairographics.org/releases/ChangeLog.1.15.8
+    https://cairographics.org/releases/ChangeLog.1.15.8
 
 Features and Enhancements
 -------------------------
@@ -232,7 +232,7 @@ the release.
 
 For a complete log of changes, please see
 
-    http://cairographics.org/releases/ChangeLog.1.15.6
+    https://cairographics.org/releases/ChangeLog.1.15.6
 
 
 Features and Enhancements
@@ -293,7 +293,7 @@ by him and other contributors.
 
 For a complete log of changes since the last release, please see:
 
-    http://cairographics.org/releases/ChangeLog.1.15.4
+    https://cairographics.org/releases/ChangeLog.1.15.4
 
 Features
 --------
@@ -417,7 +417,7 @@ requested new API for Win32 surfaces.
 
 For a complete log of changes since the last release, please see:
 
-    http://cairographics.org/releases/ChangeLog.1.15.2
+    https://cairographics.org/releases/ChangeLog.1.15.2
 
 Features
 --------
@@ -475,7 +475,7 @@ Simple bugfix release to fix one Windows issue.
 
 For a complete log of changes since 1.14.4, please see:
 
-    http://cairographics.org/releases/ChangeLog.1.14.6
+    https://cairographics.org/releases/ChangeLog.1.14.6
 
 Features
 --------
@@ -511,7 +511,7 @@ updates to documentation, etc.
 
 For a complete log of changes since 1.14.2, please see:
  
-    http://cairographics.org/releases/ChangeLog.cairo-1.14.4
+    https://cairographics.org/releases/ChangeLog.cairo-1.14.4
 
 Features
 --------
@@ -2189,7 +2189,7 @@ Invalid referencing of patterns in the Quartz backend:
 Invalid references to glyphs after early culling, causing segmentation faults
 in the PDF backend:
 
-   http://lists.cairographics.org/archives/cairo/2008-December/015976.html
+   https://lists.cairographics.org/archives/cairo/2008-December/015976.html
 
 Check for XRender in the XCB backend, or else we may attempt an invalid memory
 access:
@@ -2241,7 +2241,7 @@ etc.).
 Be more tolerant of broken fonts when subsetting type1 fonts:
 
    Error handling in cairo_type1_font_subset_get_glyph_names_and_widths
-   http://lists.cairographics.org/archives/cairo/2008-October/015569.html
+   https://lists.cairographics.org/archives/cairo/2008-October/015569.html
 
 Fix cairo_fill_extents, cairo_stroke_extents, cairo_path_extents, to
 correctly allow NULL parameters as documented.
@@ -2916,7 +2916,7 @@ New dependency on external pixman library (Thanks, Søren!)
 As of cairo 1.6, cairo now depends on the pixman library, for which
 the latest release can be obtained alongside cairo:
 
-	http://cairographics.org/releases/pixman-0.10.0.tar.gz
+	https://cairographics.org/releases/pixman-0.10.0.tar.gz
 
 This library provides all software rendering for cairo, (the
 implementation of the image backend as well as any image fallbacks
@@ -3022,7 +3022,7 @@ Rendering with CAIRO_ANTIALIAS_NONE has been fixed to be more
 predictable, (previously image rendering and geometry rendering would
 be slightly misaligned with respect to each other).
 
-The reference manual at http://cairographics.org/manual now documents
+The reference manual at https://cairographics.org/manual now documents
 100% of the functions and types in cairo's public API.
 
 API additions
@@ -3259,7 +3259,7 @@ general
 Cairo now depends on pixman 0.10.0 which was recently released. The
 latest pixman release can always be found alongside cairo releases at:
 
-   http://cairographics.org/releases
+   https://cairographics.org/releases
 
 Increase the precision of color stops for gradients. This fixes a
 regression in gradient rendering that had been present since the
@@ -3559,7 +3559,7 @@ Add new API for efficiently using image data as a source:
 
 For full documentation, see:
 
-	http://cairographics.org/manual/cairo-Quartz-Surfaces.html#cairo-quartz-image-surface-create
+	https://cairographics.org/manual/cairo-Quartz-Surfaces.html#cairo-quartz-image-surface-create
 
 Several fixes for cairo_mask().
 
@@ -3934,14 +3934,14 @@ So users will need to acquire and build pixman before being able to
 build cairo. The current release is 0.9.6 and can be obtained from
 here:
 
-	http://cairographics.org/releases/pixman-0.9.6.tar.gz
+	https://cairographics.org/releases/pixman-0.9.6.tar.gz
 
  which can be verified with:
 
-	http://cairographics.org/releases/pixman-0.9.6.tar.gz.sha1
+	https://cairographics.org/releases/pixman-0.9.6.tar.gz.sha1
 	66f01a682c64403a3d7a855ba5aa609ed93bcb9e  pixman-0.9.6.tar.gz
 
-	http://cairographics.org/releases/pixman-0.9.6.tar.gz.sha1.asc
+	https://cairographics.org/releases/pixman-0.9.6.tar.gz.sha1.asc
 	(signed by Carl Worth)
 
 Major PDF/PostScript improvements
@@ -6107,7 +6107,7 @@ This is the third in a series of snapshots working toward the imminent
 1.2 release of cairo. For a list of items still needing work on the
 cairo 1.2 roadmap, please see:
 
-	http://cairographics.org/ROADMAP
+	https://cairographics.org/ROADMAP
 
 As can be seen in that list, there are no longer any API additions
 left on the roadmap. Instead, there is a feature (PDF type 3 fonts) a
@@ -6202,7 +6202,7 @@ This is the second in a series of snapshots working toward the
 upcoming 1.2 release of cairo. For a list of items still needing work
 on the cairo 1.2 roadmap, please see:
 
-	http://cairographics.org/ROADMAP
+	https://cairographics.org/ROADMAP
 
 The items included in this snapshot (since the 1.1.2 snapshot) are
 described below.
@@ -7369,7 +7369,7 @@ Owen Taylor has converted cairo's documentation system to gtk-doc and
 has begun some long-needed work on the documentation, which can now be
 viewed online here:
 
-	http://cairographics.org/manual/
+	https://cairographics.org/manual/
 
 New backend: win32
 ------------------
@@ -7401,7 +7401,7 @@ This is the first snapshot to include a functional win32 backend,
 
 And see also the documentation at:
 
-http://cairographics.org/manual/cairo-Microsoft-Windows-Backend.html
+https://cairographics.org/manual/cairo-Microsoft-Windows-Backend.html
 
 Disabled backend: quartz
 ------------------------
@@ -7430,14 +7430,14 @@ resolution. Further changes are described below.
  Added cairo_font_extents and cairo_font_glyph_extents. See
  documentation for details:
 
- http://cairographics.org/manual/cairo-cairo-t.html#cairo-font-extents
+ https://cairographics.org/manual/cairo-cairo-t.html#cairo-font-extents
 
  cairo-ft.h
  ----------
  The cairo_ft_font API changed considerably. Please see the
  documentation for details:
 
- http://cairographics.org/manual/cairo-FreeType-Fonts.html
+ https://cairographics.org/manual/cairo-FreeType-Fonts.html
 
 Performance
 -----------
@@ -7588,7 +7588,7 @@ is a port of Keith Packard's fdclock program originally written for
 the xlib backend. A screenshot of this program running on Mac OS X is
 available here:
 
-	http://cairographics.org/~cworth/images/fdclock-quartz.png
+	https://cairographics.org/~cworth/images/fdclock-quartz.png
 
 ATSUI font backend
 ------------------

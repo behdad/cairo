@@ -1047,7 +1047,7 @@ cairo_pdf_interchange_write_docinfo (cairo_pdf_surface_t *surface)
 
     _cairo_output_stream_printf (surface->output,
 				 "%d 0 obj\n"
-				 "<< /Producer (cairo %s (http://cairographics.org))\n",
+				 "<< /Producer (cairo %s (https://cairographics.org))\n",
 				 surface->docinfo_res.id,
 				 cairo_version_string ());
 

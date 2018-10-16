@@ -907,7 +907,7 @@ C 42.942871662459936,	-24.939379331448624,
     </g>
     
     <!-- Footer -->
-    <text ss:variable="URL" x="1016" y="753" text-anchor="end" font-size="20">http://cairographics.org</text>
+    <text ss:variable="URL" x="1016" y="753" text-anchor="end" font-size="20">https://cairographics.org</text>
   </g>
 
 </svg>

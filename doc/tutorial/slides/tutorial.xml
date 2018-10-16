@@ -8,14 +8,14 @@
   <slides theme="cairo"
 	  presentation="Drawing with cairo"
 	  presentation-subtitle="drawing with cairo"
-	  URL="http://cairographics.org"
+	  URL="https://cairographics.org"
 	  bullet="bullet">
 
     <slide title="Tutorial preparation" variant="blank" bullet="">
       <lc></lc>
-      <lc align="center">http://cairographics.org/tutorial</lc>
+      <lc align="center">https://cairographics.org/tutorial</lc>
       <lc></lc>
-      <li>wget http://cairographics.org/cairo-tutorial.tar.gz</li>
+      <li>wget https://cairographics.org/cairo-tutorial.tar.gz</li>
       <li>tar xzf cairo-tutorial.tar.gz</li>
       <li>cd cairo-tutorial</li>
       <li>make</li>
@@ -30,7 +30,7 @@
       <lc></lc>
       <lc>linux.conf.au</lc>
       <lc>2006-01-26</lc>
-      <lc>http://cairographics.org</lc>
+      <lc>https://cairographics.org</lc>
     </slide>
 
     <slide title="Ugly graphics" variant="separator">
@@ -199,8 +199,8 @@
 
     <slide title="Following along" >
       <lc></lc>
-      <lc align="center">http://cairographics.org/tutorial</lc>
-      <lc align="center">http://cairographics.org/cairo-tutorial.tar.gz</lc>
+      <lc align="center">https://cairographics.org/tutorial</lc>
+      <lc align="center">https://cairographics.org/cairo-tutorial.tar.gz</lc>
       <li>tar xzf cairo-tutorial.tar.gz</li>
       <li>cd cairo-tutorial</li>
       <li>make</li>

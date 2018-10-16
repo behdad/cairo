@@ -497,7 +497,7 @@ _cairo_gl_composite_begin_component_alpha  (cairo_gl_context_t *ctx,
     cairo_status_t status;
 
     /* For CLEAR, cairo's rendering equation (quoting Owen's description in:
-     * http://lists.cairographics.org/archives/cairo/2005-August/004992.html)
+     * https://lists.cairographics.org/archives/cairo/2005-August/004992.html)
      * is:
      *     mask IN clip ? src OP dest : dest
      * or more simply:

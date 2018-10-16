@@ -375,7 +375,7 @@ draw (cairo_t *cr, int width, int height)
     cairo_set_line_width (cr2, 2.0);
     /* XXX: We'd like to be able to use EQUALS here, but currently
      * when hinting is enabled freetype returns integer extents. See
-     * http://cairographics.org/todo */
+     * https://cairographics.org/todo */
     errors += !check_extents (ctx, phase, cr2, FILL, APPROX_EQUALS,
 			      0, 0, extents.width, extents.height);
     errors += !check_extents (ctx, phase, cr2, STROKE, APPROX_EQUALS,

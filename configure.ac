@@ -4,7 +4,7 @@ AC_INIT([cairo],
 	[cairo_version_major.cairo_version_minor.cairo_version_micro],
 	[http://bugs.freedesktop.org/enter_bug.cgi?product=cairo],
 	[cairo],
-	[http://cairographics.org/])
+	[https://cairographics.org/])
 AC_CONFIG_AUX_DIR(build)
 AC_CONFIG_MACRO_DIR(build)
 AC_USE_SYSTEM_EXTENSIONS
@@ -712,7 +712,7 @@ dnl ===========================================================================
 CAIRO_ENABLE_SURFACE_BACKEND(image, image, always, [
   pixman_REQUIRES="pixman-1 >= 0.30.0"
   PKG_CHECK_MODULES(pixman, $pixman_REQUIRES, ,
-    [use_image="no (requires $pixman_REQUIRES http://cairographics.org/releases/)"])
+    [use_image="no (requires $pixman_REQUIRES https://cairographics.org/releases/)"])
   image_REQUIRES=$pixman_REQUIRES
   image_CFLAGS=$pixman_CFLAGS
   image_LIBS=$pixman_LIBS

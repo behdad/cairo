@@ -312,7 +312,7 @@ _cairo_ps_surface_emit_header (cairo_ps_surface_t *surface)
 
     _cairo_output_stream_printf (surface->final_stream,
 				 "%%!PS-Adobe-3.0%s\n"
-				 "%%%%Creator: cairo %s (http://cairographics.org)\n"
+				 "%%%%Creator: cairo %s (https://cairographics.org)\n"
 				 "%%%%CreationDate: %s"
 				 "%%%%Pages: %d\n",
 				 eps_header,

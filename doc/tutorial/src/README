@@ -10,7 +10,7 @@ the examples. In order for you to make use of these files you will
 need to have cairo and its header files installed. You can find
 instructions for doing this at:
 
-	http://cairographics.org/tutorial
+	https://cairographics.org/tutorial
 
 Notice that there are a few .c files in this directory.
 

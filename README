@@ -181,12 +181,6 @@ Experimental surface backends
 	packages and developer dependencies are available at Netlabs:
 				ftp://ftp.netlabs.org/pub/cairo
 
-	skia backend
-	------------
-	Requires the skia library as of June 2014.  Since skia is not
-	API stable, building against newer (or older) versions of skia
-	will probably fail.
-
 
 Compiling
 =========

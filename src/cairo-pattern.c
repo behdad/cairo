@@ -4694,7 +4694,7 @@ _cairo_debug_print_surface_pattern (FILE *file,
     case CAIRO_SURFACE_TYPE_DRM: s = "drm"; break;
     case CAIRO_SURFACE_TYPE_TEE: s = "tee"; break;
     case CAIRO_SURFACE_TYPE_XML: s = "xml"; break;
-    case CAIRO_SURFACE_TYPE_SKIA: s = "skia"; break;
+    case CAIRO_SURFACE_TYPE_SKIA: s = "skia"; break; /* Deprecated */
     case CAIRO_SURFACE_TYPE_SUBSURFACE: s = "subsurface"; break;
     case CAIRO_SURFACE_TYPE_COGL: s = "cogl"; break;
     default: s = "invalid"; ASSERT_NOT_REACHED; break;

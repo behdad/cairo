@@ -249,31 +249,6 @@ AM_CONDITIONAL(CAIRO_CAN_TEST_WIN32_PRINTING_SURFACE, test "x$test_win32_printin
 
 dnl ===========================================================================
 
-dnl NOTE: We're temporarily disabiling this backend to see if anyone
-dnl       is actually using it.  If you are, please mention on the cairo
-dnl       mailing list.
-
-dnl CAIRO_ENABLE_SURFACE_BACKEND(skia, Skia, no, [
-dnl   AC_ARG_WITH([skia],
-dnl 	      [AS_HELP_STRING([--with-skia=/path/to/skia],
-dnl 			      [directory to find compiled skia sources])],
-dnl 	      [skia_DIR="$withval"],
-dnl 	      [skia_DIR="`pwd`/../skia"])
-dnl   AC_ARG_WITH([skia-build-type],
-dnl 	      [AS_HELP_STRING([--with-skia-build-type=(Release|Debug)]
-dnl 			      [build of skia to link with, default is Release])],
-dnl 	      [skia_BUILD_TYPE="$withval"],
-dnl 	      [skia_BUILD_TYPE="Release"])
-dnl   skia_NONPKGCONFIG_CFLAGS="-I$skia_DIR/include/config -I$skia_DIR/include/core -I$skia_DIR/include/effects"
-dnl   if test "x$skia_BUILD_TYPE" = "xRelease"; then
-dnl   	skia_NONPKGCONFIG_CFLAGS="-DSK_RELEASE -DSK_CAN_USE_FLOAT $skia_NONPKGCONFIG_CFLAGS"
-dnl   fi
-dnl   skia_NONPKGCONFIG_LIBS="-L$skia_DIR/out/$skia_BUILD_TYPE/lib.target/ -lskia -lstdc++"
-dnl   AC_SUBST(skia_DIR)
-dnl ])
-
-dnl ===========================================================================
-
 CAIRO_ENABLE_SURFACE_BACKEND(os2, OS/2, no, [
   case "$host" in
     *-*-os2*)
@@ -887,7 +862,6 @@ dnl ===========================================================================
 
 dnl Extra stuff we need to do when building C++ code
 need_cxx="no"
-dnl AS_IF([test "x$use_skia" = "xyes"], [need_cxx="yes"])
 AS_IF([test "x$use_qt" = "xyes"], [need_cxx="yes"])
 AS_IF([test "x$use_beos" = "xyes"], [need_cxx="yes"])
 

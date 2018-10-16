@@ -1,3 +1,160 @@
+Release 1.16.0 (2018-10-19 Bryce Harrington <bryce@bryceharrington.org>)
+========================================================================
+This new stable release incorporates a number of improvements made in
+the four years since 1.14.0.
+
+Of particular note is a wealth of work by Adrian Johnson to enhance PDF
+functionality, including restoring support for MacOSX 10.4, metadata,
+hyperlinks, and more.
+
+Much attention also went into fonts, including new colored emoji glyph
+support, variable fonts, and fixes for various font idiosyncrasies.
+
+Other noteworthy changes include GLESv3 support for the cairo_gl
+backend, tracking of SVG units in generated SVG documents, and cleanups
+for numerous test failures and related issues in the PDF and Postscript
+backends.
+
+For a complete log of changes, please see
+
+    https://cairographics.org/releases/ChangeLog.1.16.0
+
+
+Features and Enhancements
+-------------------------
+* Add support for OpenGL ES 3.0 to the gl backend.
+* The PDF backend has gained support for a range of widely used
+  features, including thumbnails, page labels, metadata, document
+  outlines, structured text, hyperlinks, and tags.  Tags permit adding
+  logical info such as headings, tables, figures, etc. that facilitates
+  indexing, accessibility, text reflow, searching, and extraction of the
+  tagged items to other software.  For details on this new PDF
+  functionality, see:
+    https://lists.cairographics.org/archives/cairo/2016-June/027427.html
+* Variable font support.  Variable fonts are single font files with
+  various typography characteristics, such as weight or slant, that users
+  of the font can adjust between two points.  Effectively this enables a
+  single font to behave as multiple fonts.
+* Restore MacOSX 10.4 support.  Cairo had dropped 10.4 support when
+  moving to the CoreText API.  Now we automatically detect which API to
+  use via dynamic linking, so can resume supporting this older version
+  of MacOSX.
+* Support colored emoji glyphs, stored as PNG images in OpenType fonts.
+* Skia backend is removed
+* Use Reusable streams for forms in Level 3 Postscript.
+* Add CAIRO_MIME_TYPE_EPS mime type for embedding EPS files.
+* Add CCITT_FAX mime type for PDF and PS surfaces
+* svg: add a new function to specify the SVG document unit
+  (Bug #90166)
+* Use UTF-8 filenames on Windows
+
+
+API Changes
+-----------
+Several new APIs were added.  No existing APIs were altered.
+
+New PDF functionality:
+
+  * cairo_pdf_surface_add_outline
+  * cairo_pdf_surface_set_metadata
+  * cairo_pdf_surface_set_page_label
+  * cairo_pdf_surface_set_thumbnail_size
+  * cairo_tag_begin
+  * cairo_tag_end
+  * CAIRO_STATUS_TAG_ERROR
+
+New error status items for problems relating to PDF tagging:
+
+  * CAIRO_STATUS_WIN32_GDI_ERROR
+  * CAIRO_STATUS_FREETYPE_ERROR
+  * CAIRO_STATUS_PNG_ERROR
+
+    New error status items for handling of GDI, libfreetype, and libpng
+    errors, respectively.
+
+
+Setting up Win32 surfaces for HDC with alpha channels:
+
+  * cairo_win32_surface_create_with_format
+
+    New API for added PDF functionality (see above), and new error
+    status item for problems relating to PDF tagging.
+
+Variable fonts:
+
+  * cairo_font_options_get_variations
+  * cairo_font_options_set_variations
+
+Tracking units in SVG documents:
+
+  * cairo_svg_surface_set_document_unit
+  * cairo_svg_surface_get_document_unit
+
+
+
+Dependency Changes
+------------------
+None
+
+
+Performance Optimizations
+-------------------------
+None
+
+
+Notable Bug Fixes
+-----------------
+* Fix thin lines that don't show up when printing in Inkscape due to
+  overly aggressive culling.
+  (Bug #77298)
+* Fix playback of recording surfaces into PDF surfaces, where objects
+  with negative coordinates were not getting drawn.  To address this,
+  the coordinate systems for PDF and PS have been changed to match
+  cairo's coordinate system.  This allows recording surfaces to be
+  emitted in cairo coordinates, and results in the same origin being
+  used for all operations when using the recording surface XObject.
+  Test cases for PDF and PS have also been updated accordingly.
+  (Bug #89232)
+* Fix "invalidfont" error on some printers when printing PDFs with
+  embedded fonts that have glyphs (such as spaces) with
+  num_contours == 0.  (Bug #79897)
+* Fix missing glyphs such as thin dashes, which get scaled to 0 in
+  userspace and thus have their drawing operations culled.  (Bug #94615)
+* Fix other oddities caused by variously idiosyncratic fonts.
+* Fix a data race in freed_pool discovered by Firefox's cairo usage.
+  The patch adads atomic int load and store functions, with relaxed
+  memory ordering.  (Bug #90318)
+* Handle SOURCE and CLEAR operators when painting color glyphs.
+  (Bug #102661)
+* Fix falling back to system font with PDFs using certain embedded
+  fonts, due to truncated font names.
+  (Bug #103249)
+* Prevent curved strokes in small ctms from being culled from vector
+  surfaces
+  (Bug #103071)
+* Fix assertion hit with PDFs using Type 4 fonts rendered with user
+  fonts, due to error when destroying glyph page.
+  (Bug #103335)
+* Prevent invalid ptr access for > 4GB images.
+  (Bug #98165)
+* pdf: Fix internal links pointing to other pages, by pre-calculating
+  page heights so that link positions can be calculated more accurately.
+* Fix error reporting in the xcb backend if fallback fails.  Instead of
+  returning NULL when the X11 server can't do some operation, return a
+  surface in an error state.
+* Clarify documentation regarding device scale inheritance and the units
+  used in cairo_surface_create_similar_image.
+  (Bug #99094)
+* Call XSync in the xlib backend before setting the error handler to
+  ignore errors for certain requests, to make sure all pending errors
+  are handled first.
+* Fix regression with text containing space character on Win32.
+  (Bug: https://gitlab.freedesktop.org/cairo/cairo/issues/339)
+
+For a more comprehensive listing of fixed bugs, see the release notes for the
+individual 1.15.x releases.
+
+
 Release 1.15.14    (2018-09-19 Bryce Harrington <bryce@bryceharrington.org>)
 ============================================================================
 We're nearly ready to finalize the 1.16.0 release, so this snapshot

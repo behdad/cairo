@@ -1697,7 +1697,7 @@ _cairo_win32_scaled_font_init_glyph_path (cairo_win32_scaled_font_t *scaled_font
     }
 
     ptr = buffer = _cairo_malloc (bytesGlyph);
-    if (!buffer) {
+    if (!buffer && bytesGlyph != 0) {
 	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
 	goto CLEANUP_FONT;
     }

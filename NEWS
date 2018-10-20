@@ -257,7 +257,7 @@ Bug Fixes
   (Bug #105084)
 * Fix multi-monitor virtual desktop with negative coords on Win32
   (Bug #100793)
-* Fix issues occuring with older FreeType versions.
+* Fix issues occurring with older FreeType versions.
 
 
 Release 1.15.10    (2017-12-07 Bryce Harrington <bryce@osg.samsung.com>)
@@ -552,7 +552,7 @@ Bug Fixes
 * Fix build issue when using non-GNU strings utility.  (Bug #88639)
 
 * Fix build of cairo modules as regular modules, not as versioned shared
-  libaries.  (Bug #29319)
+  libraries.  (Bug #29319)
 
 * Fix build on win32 using gcc 5.4.
 
@@ -1275,7 +1275,7 @@ reduction in rendering latency by reducing the number of copies
 required to upload image data - given hardware and driver support,
 cairo-xlib can now perform zero copy uploads onto the GPU. And as usual
 Adrian Johnson has been very busy fixing many different corner cases in
-cairo-pdf, impoving opacity groups and font subsetting. Last, but not
+cairo-pdf, improving opacity groups and font subsetting. Last, but not
 least, for cairo-image Søren Sandmann Pedersen added support for
 rendering glyphs to pixman and using that from within cairo. The new
 glyph rendering facility reduces the overhead for setting up the
@@ -1290,7 +1290,7 @@ Bug fixes
 ---------
 
  Interior boxes were being dropped when amalgamating regions during
- tesselation.
+ tessellation.
  https://bugs.freedesktop.org/show_bug.cgi?id=49446
 
  Allow building without gtk-doc installed
@@ -1310,7 +1310,7 @@ Bug fixes
  Upload the whole source for a repeating pattern.
  https://bugs.freedesktop.org/show_bug.cgi?id=51910
 
- Fix damage tracking to handle continuation chunks corectly and so
+ Fix damage tracking to handle continuation chunks correctly and so
  prevent crashes on win32.
  https://bugs.freedesktop.org/show_bug.cgi?id=53384
 
@@ -1375,7 +1375,7 @@ Bug fixes
 Release 1.12.0 (2012-03-23 Chris Wilson <chris@chris-wilson.co.uk>)
 ===================================================================
 It's taken over 18 months, but the wait is finally over. A new cairo release!
-We are pleased to annouce a new stable release of Cairo that brings many
+We are pleased to announce a new stable release of Cairo that brings many
 new features and performance improvements, all whilst maintaining
 compatibility with cairo-1.0 and all releases since. We recommend anyone
 using a previous release of Cairo to upgrade to 1.12.0.
@@ -2105,7 +2105,7 @@ Long standing bugs fixed:
     tessellator has been overhauled and tune, which handles the fallback
     for when we are unable to use the new span rasteriser on the stroke
     (e.g. when using the current RENDER protocol). The large number of
-    pixel artefacts that implementing self-intersection elimination
+    pixel artifacts that implementing self-intersection elimination
     removes is ample justification for the potential performance
     regression. If you unfortunately do suffer a substantial performance
     regression in your application, please consider obtaining a
@@ -5789,7 +5789,7 @@ Release 1.2.6 (2006-11-02 Behdad Esfahbod <behdad@behdad.org>)
 This is the third bug fix release in the 1.2 series, coming less than
 two months after the 1.2.4 release made on August 18.
 
-The 1.2.4 release turned out to be a pretty solid one, except for a crasher
+The 1.2.4 release turned out to be a pretty solid one, except for a crash
 bug when forwarding an X connection where the client and the server have
 varying byte orders, eg. from a PPC to an i686.  Other than that, various
 other small bugs have been fixed.
@@ -6099,7 +6099,7 @@ And at least the following bugs have been fixed:
  * Do device offset before float->fixed conversion
    https://bugzilla.gnome.org/show_bug.cgi?id=332266
  * PS: Fix source surfaces with transformations
- * PS: Fix to not draw BUTT-capped degnerate sub-paths
+ * PS: Fix to not draw BUTT-capped degenerate sub-paths
  * PS: Don't walk off end of array when printing "~>"
  * Fix some memory leaks in the test suite rig
  * SVG: Fix memory leak when using cairo_mask
@@ -6692,7 +6692,7 @@ Bug fixes
 
  * Negative dash offsets have been fixed to work correctly.
 
- * The stroking of paths with mutiple subpaths has now been fixed to
+ * The stroking of paths with multiple subpaths has now been fixed to
    apply caps to all subpaths rather than just the last one.
 
  * Many build fixes for better portability on various systems.

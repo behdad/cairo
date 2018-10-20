@@ -142,7 +142,7 @@ typedef struct _cairo_cogl_path_fill_meta {
     /* A cached path tessellation should be re-usable with different rotations
      * and translations but not for different scales.
      *
-     * one idea is to track the diagonal lenghts of a unit rectangle
+     * one idea is to track the diagonal lengths of a unit rectangle
      * transformed through the original ctm use to tessellate the geometry
      * so we can check what the lengths are for any new ctm to know if
      * this geometry is compatible.
@@ -166,7 +166,7 @@ typedef struct _cairo_cogl_path_stroke_meta {
     /* A cached path tessellation should be re-usable with different rotations
      * and translations but not for different scales.
      *
-     * one idea is to track the diagonal lenghts of a unit rectangle
+     * one idea is to track the diagonal lengths of a unit rectangle
      * transformed through the original ctm use to tessellate the geometry
      * so we can check what the lengths are for any new ctm to know if
      * this geometry is compatible.

@@ -149,7 +149,7 @@ static attribute_spec_t _ccitt_params_spec[] =
  *          lly - lower left y xoordinate
  *          urx - upper right x xoordinate
  *          ury - upper right y xoordinate
- *        all cordinates are in PostScript coordinates.
+ *        all coordinates are in PostScript coordinates.
  */
 static attribute_spec_t _eps_params_spec[] =
 {

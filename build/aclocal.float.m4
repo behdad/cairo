@@ -6,7 +6,7 @@
 # float word ordering can be different from the byte ordering. In a
 # multi-word float context, "big-endian" implies that the word containing
 # the sign bit is found in the memory location with the lowest address.
-# This implemenation was inspired by the AC_C_BIGENDIAN macro in autoconf.
+# This implementation was inspired by the AC_C_BIGENDIAN macro in autoconf.
 # -------------------------------------------------------------------------
 AC_DEFUN([AX_C_FLOAT_WORDS_BIGENDIAN],
   [AC_CACHE_CHECK(whether float word ordering is bigendian,

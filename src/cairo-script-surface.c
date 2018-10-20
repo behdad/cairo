@@ -3825,7 +3825,7 @@ cairo_script_create_for_stream (cairo_write_func_t	 write_func,
  * cairo_script_write_comment:
  * @script: the script (output device)
  * @comment: the string to emit
- * @len:the length of the sting to write, or -1 to use strlen()
+ * @len:the length of the string to write, or -1 to use strlen()
  *
  * Emit a string verbatim into the script.
  *

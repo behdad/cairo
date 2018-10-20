@@ -139,19 +139,19 @@ fill (cairo_t *cr, int width, int height)
 }
 
 CAIRO_TEST (map_all_to_image,
-	    "Test maping a surface to an image and modifying it externally",
+	    "Test mapping a surface to an image and modifying it externally",
 	    "image", /* keywords */
 	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,
 	    NULL, all)
 CAIRO_TEST (map_bit_to_image,
-	    "Test maping a surface to an image and modifying it externally",
+	    "Test mapping a surface to an image and modifying it externally",
 	    "image", /* keywords */
 	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,
 	    NULL, bit)
 CAIRO_TEST (map_to_image_fill,
-	    "Test maping a surface to an image and modifying it externally",
+	    "Test mapping a surface to an image and modifying it externally",
 	    "image", /* keywords */
 	    "target=raster", /* requirements */
 	    WIDTH, HEIGHT,

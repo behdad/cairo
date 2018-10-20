@@ -3481,7 +3481,7 @@ _cairo_ps_surface_emit_solid_pattern (cairo_ps_surface_t    *surface,
  * @source: [in] the source for the form
  * @params: [in] source parameters
  * @test: [in] if TRUE, test if form will be used (excludes size check)
- * @ps_form [out] the new or exisiting entry int the hash table.
+ * @ps_form [out] the new or existing entry int the hash table.
  *                image or recording.
  */
 static cairo_int_status_t

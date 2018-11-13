@@ -22,7 +22,7 @@ stages:
 
   script:
     - ./autogen.sh
-    - make check TARGETS=image NUM_THREADS=8 VERBOSE=1
+    - make check TARGETS=image VERBOSE=1
 
   artifacts:
     when: on_failure

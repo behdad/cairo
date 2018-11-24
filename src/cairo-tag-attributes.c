@@ -217,9 +217,28 @@ static const char *
 parse_float (const char *p, double *d)
 {
     int n;
+    const char *start = p;
+    cairo_bool_t has_decimal_point = FALSE;
 
-    if (sscanf(p, "%lf%n", d, &n) > 0)
-	return p + n;
+    while (*p) {
+	if (*p == '.' || *p == ']' || _cairo_isspace (*p))
+	    break;
+	p++;
+    }
+
+    if (*p == '.')
+	has_decimal_point = TRUE;
+
+    if (has_decimal_point) {
+	char *end;
+	*d = _cairo_strtod (start, &end);
+	if (end)
+	    return end;
+
+    } else {
+	if (sscanf(start, "%lf%n", d, &n) > 0)
+	    return start + n;
+    }
 
     return NULL;
 }

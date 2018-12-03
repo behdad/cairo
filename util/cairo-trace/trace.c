@@ -1680,24 +1680,6 @@ _emit_image (cairo_surface_t *image,
 
 #ifdef WORDS_BIGENDIAN
     switch (format) {
-    case CAIRO_FORMAT_A1:
-	for (row = height; row--; ) {
-	    _write_data (&stream, data, (width+7)/8);
-	    data += stride;
-	}
-	break;
-    case CAIRO_FORMAT_A8:
-	for (row = height; row--; ) {
-	    _write_data (&stream, data, width);
-	    data += stride;
-	}
-	break;
-    case CAIRO_FORMAT_RGB16_565:
-	for (row = height; row--; ) {
-	    _write_data (&stream, data, 2*width);
-	    data += stride;
-	}
-	break;
     case CAIRO_FORMAT_RGB24:
 	for (row = height; row--; ) {
 	    int col;
@@ -1709,10 +1691,13 @@ _emit_image (cairo_surface_t *image,
 	    data += stride;
 	}
 	break;
+    case CAIRO_FORMAT_A1:
+    case CAIRO_FORMAT_A8:
+    case CAIRO_FORMAT_RGB16_565:
     case CAIRO_FORMAT_RGB30:
     case CAIRO_FORMAT_ARGB32:
 	for (row = height; row--; ) {
-	    _write_data (&stream, data, 4*width);
+	    _write_data (&stream, data, len);
 	    data += stride;
 	}
 	break;
@@ -1777,7 +1762,7 @@ _emit_image (cairo_surface_t *image,
 	    int col;
 	    for (col = 0; col < width; col++)
 		dst[col] = bswap_32 (src[col]);
-	    _write_data (&stream, rowdata, 4*width);
+	    _write_data (&stream, rowdata, len);
 	    data += stride;
 	}
 	break;

@@ -265,6 +265,8 @@ write_png (cairo_surface_t	*surface,
 	break;
     case CAIRO_FORMAT_INVALID:
     case CAIRO_FORMAT_RGB16_565:
+    case CAIRO_FORMAT_RGB96F:
+    case CAIRO_FORMAT_RGBA128F:
     default:
 	status = _cairo_error (CAIRO_STATUS_INVALID_FORMAT);
 	goto BAIL4;

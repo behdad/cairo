@@ -142,6 +142,33 @@ unpremultiply_float (float *f, uint16_t *d16, unsigned width)
     }
 }
 
+static void
+premultiply_float (float *f, const uint16_t *d16, unsigned int width)
+{
+    unsigned int i = width;
+
+    /* Convert d16 in place back to float */
+    while (i--) {
+	float a = d16[i * 4 + 3] / 65535.f;
+
+	f[i * 4 + 3] = a;
+	f[i * 4 + 2] = (float)d16[i * 4 + 2] / 65535.f * a;
+	f[i * 4 + 1] = (float)d16[i * 4 + 1] / 65535.f * a;
+	f[i * 4] = (float)d16[i * 4] / 65535.f * a;
+    }
+}
+
+static void convert_u16_to_float (float *f, const uint16_t *d16, unsigned int width)
+{
+    /* Convert d16 in place back to float */
+    unsigned int i = width;
+
+    while (i--) {
+	f[i * 3 + 2] = (float)d16[i * 4 + 2] / 65535.f;
+	f[i * 3 + 1] = (float)d16[i * 4 + 1] / 65535.f;
+	f[i * 3] = (float)d16[i * 4] / 65535.f;
+    }
+}
 
 static void
 convert_float_to_u16 (float *f, uint16_t *d16, unsigned int width)
@@ -700,9 +727,6 @@ read_png (struct png_read_closure_t *png_closure)
     if (png_get_valid (png, info, PNG_INFO_tRNS))
         png_set_tRNS_to_alpha (png);
 
-    if (depth == 16)
-        png_set_strip_16 (png);
-
     if (depth < 8)
         png_set_packing (png);
 
@@ -723,7 +747,7 @@ read_png (struct png_read_closure_t *png_closure)
     png_get_IHDR (png, info,
                   &png_width, &png_height, &depth,
                   &color_type, &interlace, NULL, NULL);
-    if (depth != 8 ||
+    if ((depth != 8 && depth != 16) ||
 	! (color_type == PNG_COLOR_TYPE_RGB ||
 	   color_type == PNG_COLOR_TYPE_RGB_ALPHA))
     {
@@ -737,13 +761,21 @@ read_png (struct png_read_closure_t *png_closure)
 	    /* fall-through just in case ;-) */
 
 	case PNG_COLOR_TYPE_RGB_ALPHA:
-	    format = CAIRO_FORMAT_ARGB32;
-	    png_set_read_user_transform_fn (png, premultiply_data);
+	    if (depth == 8) {
+		format = CAIRO_FORMAT_ARGB32;
+		png_set_read_user_transform_fn (png, premultiply_data);
+	    } else {
+		format = CAIRO_FORMAT_RGBA128F;
+	    }
 	    break;
 
 	case PNG_COLOR_TYPE_RGB:
-	    format = CAIRO_FORMAT_RGB24;
-	    png_set_read_user_transform_fn (png, convert_bytes_to_data);
+	    if (depth == 8) {
+		format = CAIRO_FORMAT_RGB24;
+		png_set_read_user_transform_fn (png, convert_bytes_to_data);
+	    } else {
+		format = CAIRO_FORMAT_RGB96F;
+	    }
 	    break;
     }
 
@@ -774,6 +806,26 @@ read_png (struct png_read_closure_t *png_closure)
     if (unlikely (status)) { /* catch any late warnings - probably hit an error already */
 	surface = _cairo_surface_create_in_error (status);
 	goto BAIL;
+    }
+
+    if (format == CAIRO_FORMAT_RGBA128F) {
+	i = png_height;
+
+	while (i--) {
+	    float *float_line = (float *)row_pointers[i];
+	    uint16_t *u16_line = (uint16_t *)row_pointers[i];
+
+	    premultiply_float (float_line, u16_line, png_width);
+	}
+    } else if (format == CAIRO_FORMAT_RGB96F) {
+	i = png_height;
+
+	while (i--) {
+	    float *float_line = (float *)row_pointers[i];
+	    uint16_t *u16_line = (uint16_t *)row_pointers[i];
+
+	    convert_u16_to_float (float_line, u16_line, png_width);
+	}
     }
 
     surface = cairo_image_surface_create_for_data (data, format,

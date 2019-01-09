@@ -2399,7 +2399,11 @@ skip:
 done:
         free (coords);
         free (current_coords);
+#if HAVE_FT_DONE_MM_VAR
+        FT_Done_MM_Var (face->glyph->library, ft_mm_var);
+#else
         free (ft_mm_var);
+#endif
     }
 }
 

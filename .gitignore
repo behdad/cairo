@@ -35,3 +35,4 @@ stamp-h.in
 *.rej
 *-uninstalled.pc
 .vimrc
+gtk-doc.m4

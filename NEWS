@@ -1,3 +1,25 @@
+Release 1.17.2 (2019-01-31 Bryce Harrington <bryce@bryceharrington.org>)
+========================================================================
+This snapshot provides the new support for writing floating point
+formats as 16 bpc PNGs, with support for RGBA128F and RGB96F formats.
+This new feature increases Cairo's pixman version requirement to 0.36.0.
+
+Beyond this are a range of bugfixes and some work on establishing CI for
+Cairo.
+
+For a complete log of changes, please see
+
+    https://cairographics.org/releases/ChangeLog.1.17.2
+
+API Changes
+-----------
+None
+
+Dependency Changes
+------------------
+pixman 0.36.0
+
+
 Release 1.16.0 (2018-10-19 Bryce Harrington <bryce@bryceharrington.org>)
 ========================================================================
 This new stable release incorporates a number of improvements made in
@@ -18,7 +40,6 @@ backends.
 For a complete log of changes, please see
 
     https://cairographics.org/releases/ChangeLog.1.16.0
-
 
 Features and Enhancements
 -------------------------
@@ -175,7 +196,7 @@ legitimate problems found and fixed.
 
 For a complete log of changes, please see
 
-    https://cairographics.org/releases/ChangeLog.1.15.12
+    https://cairographics.org/releases/ChangeLog.1.15.14
 
 Features and Enhancements
 -------------------------

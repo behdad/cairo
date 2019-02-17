@@ -370,6 +370,8 @@ _cairo_ft_unscaled_font_map_destroy (void)
 static cairo_ft_unscaled_font_map_t *
 _cairo_ft_unscaled_font_map_lock (void)
 {
+    CAIRO_MUTEX_INITIALIZE ();
+
     CAIRO_MUTEX_LOCK (_cairo_ft_unscaled_font_map_mutex);
 
     if (unlikely (cairo_ft_unscaled_font_map == NULL)) {

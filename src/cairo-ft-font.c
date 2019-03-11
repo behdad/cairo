@@ -976,7 +976,7 @@ _compute_xrender_bitmap_size(FT_Bitmap      *target,
 	pitch = width * 4;
 	break;
 
-#ifdef FT_PIXEL_MODE_BGRA
+#ifdef FT_LOAD_COLOR
     case FT_PIXEL_MODE_BGRA:
 	/* each pixel is replicated into a 32-bit ARGB value */
 	pitch = width * 4;
@@ -1179,7 +1179,7 @@ _fill_xrender_bitmap(FT_Bitmap      *target,
 	}
 	break;
 
-#ifdef FT_PIXEL_MODE_BGRA
+#ifdef FT_LOAD_COLOR
     case FT_PIXEL_MODE_BGRA:
 	for (h = height; h > 0; h--, srcLine += src_pitch, dstLine += pitch)
 	    memcpy (dstLine, srcLine, width * 4);
@@ -1293,7 +1293,7 @@ _get_bitmap_surface (FT_Bitmap		     *bitmap,
 	    component_alpha = TRUE;
 	}
 	break;
-#ifdef FT_PIXEL_MODE_BGRA
+#ifdef FT_LOAD_COLOR
     case FT_PIXEL_MODE_BGRA:
 	stride = width * 4;
 	if (own_buffer) {

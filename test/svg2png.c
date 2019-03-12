@@ -52,12 +52,11 @@ int main (int argc, char *argv[])
 
     error = NULL;
 
-    rsvg_set_default_dpi (72.0);
-
     handle = rsvg_handle_new_from_file (filename, &error);
     if (!handle)
 	FAIL (error->message);
 
+    rsvg_handle_set_dpi (handle, 72.0);
     rsvg_handle_get_dimensions (handle, &dimensions);
 
     surface = cairo_image_surface_create (CAIRO_FORMAT_RGB24,

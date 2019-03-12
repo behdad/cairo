@@ -438,6 +438,7 @@ _rsvg_render_page (const char *filename,
     if (handle == NULL)
 	return error->message; /* XXX g_error_free */
 
+    rsvg_handle_set_dpi (handle, 72.0);
     rsvg_handle_get_dimensions (handle, &dimensions);
     surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
 					  dimensions.width,
@@ -873,10 +874,6 @@ main (int argc, char **argv)
 #if GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION <= 34
     g_type_init ();
 #endif
-#endif
-
-#if CAIRO_CAN_TEST_SVG_SURFACE
-    rsvg_set_default_dpi (72.0);
 #endif
 
 #if defined(_WIN32) && !defined (__CYGWIN__)

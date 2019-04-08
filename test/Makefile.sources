@@ -144,7 +144,6 @@ test_sources = \
 	font-face-get-type.c				\
 	font-matrix-translation.c			\
 	font-options.c					\
-	font-variations.c				\
 	glyph-cache-pressure.c				\
 	get-and-set.c					\
 	get-clip.c					\
@@ -399,6 +398,7 @@ pthread_test_sources =					\
 
 ft_font_test_sources = \
 	bitmap-font.c \
+	font-variations.c \
 	ft-font-create-for-ft-face.c \
 	ft-show-glyphs-positioning.c \
 	ft-show-glyphs-table.c \

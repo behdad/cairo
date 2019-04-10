@@ -397,8 +397,10 @@ pthread_test_sources =					\
 	$(NULL)
 
 ft_font_test_sources = \
+	font-variations.c
+
+fc_font_test_sources = \
 	bitmap-font.c \
-	font-variations.c \
 	ft-font-create-for-ft-face.c \
 	ft-show-glyphs-positioning.c \
 	ft-show-glyphs-table.c \

@@ -357,6 +357,7 @@ test_sources = \
 	text-glyph-range.c				\
 	text-pattern.c					\
 	text-rotate.c					\
+	text-subpixel.c					\
 	text-transform.c				\
 	text-unhinted-metrics.c				\
 	text-zero-len.c					\

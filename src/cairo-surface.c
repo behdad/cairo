@@ -2820,6 +2820,7 @@ _cairo_surface_show_text_glyphs (cairo_surface_t	    *surface,
 				 const cairo_clip_t		*clip)
 {
     cairo_int_status_t status;
+    char *utf8_copy = NULL;
 
     TRACE ((stderr, "%s\n", __FUNCTION__));
     if (unlikely (surface->status))
@@ -2847,6 +2848,10 @@ _cairo_surface_show_text_glyphs (cairo_surface_t	    *surface,
     status = CAIRO_INT_STATUS_UNSUPPORTED;
 
     if (_cairo_scaled_font_has_color_glyphs (scaled_font)) {
+        utf8_copy = malloc (sizeof (char) * utf8_len);
+        memcpy (utf8_copy, utf8, sizeof (char) * utf8_len);
+        utf8 = utf8_copy;
+
         status = composite_color_glyphs (surface, op,
                                          source,
                                          (char *)utf8, &utf8_len,
@@ -2861,6 +2866,8 @@ _cairo_surface_show_text_glyphs (cairo_surface_t	    *surface,
         if (num_glyphs == 0)
             goto DONE;
     }
+    else
+      utf8_copy = NULL;
 
     /* The logic here is duplicated in _cairo_analysis_surface show_glyphs and
      * show_text_glyphs.  Keep in synch. */
@@ -2917,6 +2924,9 @@ DONE:
 	surface->is_clear = FALSE;
 	surface->serial++;
     }
+
+    if (utf8_copy)
+        free (utf8_copy);
 
     return _cairo_surface_set_error (surface, status);
 }

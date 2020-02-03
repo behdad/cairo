@@ -36,10 +36,10 @@
 #include <pixman.h> /* for version information */
 
 #define SHOULD_FORK HAVE_FORK && HAVE_WAITPID
-#if SHOULD_FORK
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#if SHOULD_FORK
 #if HAVE_SIGNAL_H
 #include <signal.h>
 #endif

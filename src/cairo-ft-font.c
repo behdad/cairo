@@ -459,6 +459,11 @@ _cairo_ft_unscaled_font_init (cairo_ft_unscaled_font_t *unscaled,
 		unscaled->variations = calloc (ft_mm_var->num_axis, sizeof (FT_Fixed));
 		if (unscaled->variations)
 		    FT_Get_Var_Design_Coordinates (face, ft_mm_var->num_axis, unscaled->variations);
+#if HAVE_FT_DONE_MM_VAR
+		FT_Done_MM_Var (face->glyph->library, ft_mm_var);
+#else
+		free (ft_mm_var);
+#endif
 	    }
 	}
 #endif

@@ -53,6 +53,7 @@
 #include "cairo-cogl.h"
 
 #include <cogl/cogl2-experimental.h>
+#include <cogl/deprecated/cogl-texture-deprecated.h>
 #include <glib.h>
 
 #define CAIRO_COGL_DEBUG 0
@@ -516,6 +517,9 @@ _cairo_cogl_surface_allocate_buffer_space (cairo_cogl_surface_t *surface,
 					   size_t *offset,
 					   void **pointer)
 {
+    CoglContext *cogl_context =
+        cogl_framebuffer_get_context(surface->framebuffer);
+
     /* XXX: In the Cogl journal we found it more efficient to have a pool of
      * buffers that we re-cycle but for now we simply throw away our stack
      * buffer each time we flush. */
@@ -531,7 +535,10 @@ _cairo_cogl_surface_allocate_buffer_space (cairo_cogl_surface_t *surface,
 	surface->buffer_stack_size = size * 2;
 
     if (unlikely (surface->buffer_stack == NULL)) {
-	surface->buffer_stack = cogl_attribute_buffer_new (surface->buffer_stack_size, NULL);
+	surface->buffer_stack =
+            cogl_attribute_buffer_new (cogl_context,
+                                       surface->buffer_stack_size,
+                                       NULL);
 	surface->buffer_stack_pointer =
 	    cogl_buffer_map (COGL_BUFFER (surface->buffer_stack),
 			     COGL_BUFFER_ACCESS_WRITE,
@@ -553,6 +560,9 @@ _cairo_cogl_traps_to_triangles_buffer (cairo_cogl_surface_t *surface,
 				       size_t *offset,
 				       gboolean one_shot)
 {
+    CoglContext *cogl_context =
+        cogl_framebuffer_get_context(surface->framebuffer);
+
     CoglAttributeBuffer *buffer;
     int n_traps = traps->num_traps;
     int i;
@@ -566,7 +576,10 @@ _cairo_cogl_traps_to_triangles_buffer (cairo_cogl_surface_t *surface,
 	if (!buffer)
 	    return NULL;
     } else {
-	buffer = cogl_attribute_buffer_new (n_traps * sizeof (CoglVertexP2) * 6, NULL);
+	buffer =
+            cogl_attribute_buffer_new (cogl_context,
+                                       n_traps * sizeof (CoglVertexP2) * 6,
+                                       NULL);
 	if (!buffer)
 	    return NULL;
 	triangles = cogl_buffer_map (COGL_BUFFER (buffer),
@@ -744,17 +757,18 @@ BAIL:
 }
 
 static void
-_cairo_cogl_clip_push_box (const cairo_box_t *box)
+_cairo_cogl_clip_push_box (const cairo_box_t *box,
+                           CoglFramebuffer *framebuffer)
 {
     if (_cairo_box_is_pixel_aligned (box)) {
 	cairo_rectangle_int_t rect;
 	_cairo_box_round_to_rectangle (box, &rect);
-	cogl_clip_push_window_rectangle (rect.x, rect.y,
+	cogl_framebuffer_push_scissor_clip (framebuffer, rect.x, rect.y,
 					 rect.width, rect.height);
     } else {
 	double x1, y1, x2, y2;
 	_cairo_box_to_doubles (box, &x1, &y1, &x2, &y2);
-	cogl_clip_push_rectangle (x1, y1, x2, y2);
+	cogl_framebuffer_push_rectangle_clip (framebuffer, x1, y1, x2, y2);
     }
 }
 
@@ -793,7 +807,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 #endif
 
 	    for (i = 0; i < clip_stack_depth; i++)
-		cogl_clip_pop ();
+		cogl_framebuffer_pop_clip (surface->framebuffer);
 	    clip_stack_depth = 0;
 
 	    for (path = clip_entry->clip->path, i = 0; path; path = path->prev, i++) {
@@ -829,16 +843,17 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 		    continue;
 		}
 		clip_stack_depth++;
-		cogl_clip_push_primitive (prim,
-					  extents.x, extents.y,
-					  extents.x + extents.width,
-					  extents.y + extents.height);
+		cogl_framebuffer_push_primitive_clip (surface->framebuffer, prim,
+                                                      extents.x, extents.y,
+                                                      extents.x + extents.width,
+                                                      extents.y + extents.height);
 		cogl_object_unref (prim);
 	    }
 
 	    for (i = 0; i < clip_entry->clip->num_boxes; i++) {
 		clip_stack_depth++;
-		_cairo_cogl_clip_push_box (&clip_entry->clip->boxes[i]);
+		_cairo_cogl_clip_push_box (&clip_entry->clip->boxes[i],
+                                           &surface->framebuffer);
 	    }
 
 	    surface->n_clip_updates_per_frame++;
@@ -903,7 +918,9 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 	    }
 
 	    cogl_set_source (prim_entry->pipeline);
-	    cogl_primitive_draw (prim_entry->primitive);
+	    cogl_primitive_draw (prim_entry->primitive,
+                                 surface->framebuffer,
+                                 prim_entry->pipeline);
 	    cogl_pop_matrix ();
 	    break;
 	}
@@ -923,7 +940,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
     cogl_pop_matrix ();
 
     for (i = 0; i < clip_stack_depth; i++)
-	cogl_clip_pop ();
+	cogl_framebuffer_pop_clip (surface->framebuffer);
 
     _cairo_cogl_journal_discard (surface);
 }
@@ -1388,8 +1405,7 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
     texture = cogl_texture_2d_new_from_data (to_device(reference_surface->base.device)->cogl_context,
 					     image->width,
 					     image->height,
-					     format, /* incoming */
-					     format, /* desired */
+					     format, /* both incoming and desired */
 					     image->stride,
 					     image->data,
 					     &error);
@@ -1684,11 +1700,15 @@ _cairo_cogl_rectangle_new_p2t2t2 (float x,
 				  float width,
 				  float height)
 {
+    CoglContext *cogl_context =
+        cogl_framebuffer_get_context(surface->framebuffer);
+
     CoglVertexP2 vertices[] = {
 	{x, y}, {x, y + height}, {x + width, y + height},
 	{x, y}, {x + width, y + height}, {x + width, y}
     };
-    CoglAttributeBuffer *buffer = cogl_attribute_buffer_new (sizeof (vertices));
+    CoglAttributeBuffer *buffer = cogl_attribute_buffer_new (cogl_context,
+                                                             sizeof (vertices));
     CoglAttribute *pos = cogl_attribute_new (buffer,
 					     "cogl_position_in",
 					     sizeof (CoglVertexP2),
@@ -2698,7 +2718,7 @@ _cairo_cogl_setup_op_state (CoglPipeline *pipeline, cairo_operator_t op)
 static void
 create_templates_for_op (cairo_cogl_device_t *dev, cairo_operator_t op)
 {
-    CoglPipeline *base = cogl_pipeline_new ();
+    CoglPipeline *base = cogl_pipeline_new (dev->cogl_context);
     CoglPipeline *pipeline;
     CoglColor color;
 

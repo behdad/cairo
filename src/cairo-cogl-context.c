@@ -801,7 +801,7 @@ _cairo_cogl_context_create (void *target)
 
 	/* Try to automatically catch if any new path APIs are added that mean
 	 * we may need to overload more functions... */
-	assert (((char *)&backend->path_extents - (char *)&backend->device_to_user_distance)
+	assert (((char *)&backend->path_extents - (char *)&backend->backend_to_user_distance)
 		== (sizeof (void *) * 14));
 
 	backend->fill = _cairo_cogl_context_fill;

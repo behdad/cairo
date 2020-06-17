@@ -94,7 +94,6 @@ typedef struct _cairo_cogl_clip_primitives {
 typedef struct _cairo_cogl_surface {
     cairo_surface_t base;
 
-    CoglPixelFormat cogl_format;
     cairo_bool_t ignore_alpha;
 
     /* We currently have 3 basic kinds of Cogl surfaces:

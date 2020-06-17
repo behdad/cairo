@@ -64,10 +64,6 @@
 #define USE_COGL_RECTANGLE_API
 #define ENABLE_RECTANGLES_FASTPATH
 
-#if defined (USE_COGL_RECTANGLE_API) || defined (ENABLE_PATH_CACHE)
-#define NEED_COGL_CONTEXT
-#endif
-
 #if CAIRO_COGL_DEBUG && __GNUC__
 #define UNSUPPORTED(reason) ({ \
     g_warning ("cairo-cogl: hit unsupported operation: %s", reason); \
@@ -235,7 +231,7 @@ _cairo_cogl_surface_ensure_framebuffer (cairo_cogl_surface_t *surface)
     if (surface->framebuffer)
 	return CAIRO_STATUS_SUCCESS;
 
-    surface->framebuffer = COGL_FRAMEBUFFER (cogl_offscreen_new_to_texture (surface->texture));
+    surface->framebuffer = COGL_FRAMEBUFFER (cogl_offscreen_new_with_texture (surface->texture));
     if (!cogl_framebuffer_allocate (surface->framebuffer, &error)) {
 	g_error_free (error);
 	cogl_object_unref (surface->framebuffer);
@@ -243,11 +239,9 @@ _cairo_cogl_surface_ensure_framebuffer (cairo_cogl_surface_t *surface)
 	return CAIRO_STATUS_NO_MEMORY;
     }
 
-    cogl_push_framebuffer (surface->framebuffer);
-    cogl_ortho (0, surface->width,
-		surface->height, 0,
-		-1, 100);
-    cogl_pop_framebuffer ();
+    cogl_framebuffer_orthographic (surface-> framebuffer, 0, 0,
+                                   surface->width, surface->height,
+                                   -1, 100);
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -262,14 +256,19 @@ _cairo_cogl_surface_create_similar (void            *abstract_surface,
     cairo_cogl_surface_t *surface;
     CoglTexture *texture;
     cairo_status_t status;
+    CoglContext *cogl_context;
 
-    texture = cogl_texture_new_with_size (width, height,
-					  COGL_TEXTURE_NO_SLICING,
-					  (content & CAIRO_CONTENT_COLOR) ?
-					  COGL_PIXEL_FORMAT_BGRA_8888_PRE :
-					  COGL_PIXEL_FORMAT_A_8);
+    cogl_context = cogl_framebuffer_get_context(reference_surface->framebuffer);
+
+    texture = cogl_texture_2d_new_with_size (cogl_context, width,
+                                             height);
     if (!texture)
         return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
+
+    cogl_texture_set_components (texture,
+                                 (content & CAIRO_CONTENT_COLOR) ?
+                                 COGL_TEXTURE_COMPONENTS_RGBA :
+                                 COGL_TEXTURE_COMPONENTS_A);
 
     surface = (cairo_cogl_surface_t *)
 	_cairo_cogl_surface_create_full (to_device(reference_surface->base.device),
@@ -788,9 +787,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 	surface->buffer_stack = NULL;
     }
 
-    cogl_set_framebuffer (surface->framebuffer);
-
-    cogl_push_matrix ();
+    cogl_framebuffer_push_matrix (surface->framebuffer);
 
     for (l = surface->journal->head; l; l = l->next) {
 	cairo_cogl_journal_entry_t *entry = l->data;
@@ -888,12 +885,15 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 		    memcpy (&tex_coords[4], tex_coords, sizeof (float) * 4);
 	    }
 
-	    cogl_set_source (rect_entry->pipeline);
-	    cogl_push_matrix ();
-	    cogl_transform (&transform);
-	    cogl_rectangle_with_multitexture_coords (x1, y1, x2, y2,
-						     tex_coords, 4 * rect_entry->n_layers);
-	    cogl_pop_matrix ();
+	    cogl_framebuffer_push_matrix (surface->framebuffer);
+	    cogl_framebuffer_transform (surface->framebuffer, &transform);
+	    cogl_framebuffer_draw_multitextured_rectangle (surface->framebuffer,
+                                                           rect_entry->pipeline,
+                                                           x1, y1,
+                                                           x2, y2,
+						           tex_coords,
+                                                           4 * rect_entry->n_layers);
+	    cogl_framebuffer_pop_matrix (surface->framebuffer);
 	    break;
 	}
 	case CAIRO_COGL_JOURNAL_ENTRY_TYPE_PRIMITIVE: {
@@ -901,7 +901,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 		(cairo_cogl_journal_prim_entry_t *)entry;
 	    CoglMatrix transform;
 
-	    cogl_push_matrix ();
+	    cogl_framebuffer_push_matrix (surface->framebuffer);
 	    if (prim_entry->has_transform) {
 		cairo_matrix_t *ctm = &prim_entry->transform;
 		float ctmfv[16] = {
@@ -911,25 +911,27 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 		    ctm->x0, ctm->y0, 0, 1
 		};
 		cogl_matrix_init_from_array (&transform, ctmfv);
-		cogl_transform (&transform);
+		cogl_framebuffer_transform (surface->framebuffer, &transform);
 	    } else {
 		cogl_matrix_init_identity (&transform);
-		cogl_set_modelview_matrix (&transform);
+		cogl_framebuffer_set_modelview_matrix (surface->framebuffer, &transform);
 	    }
 
-	    cogl_set_source (prim_entry->pipeline);
 	    cogl_primitive_draw (prim_entry->primitive,
                                  surface->framebuffer,
                                  prim_entry->pipeline);
-	    cogl_pop_matrix ();
+	    cogl_framebuffer_pop_matrix (surface->framebuffer);
 	    break;
 	}
 	case CAIRO_COGL_JOURNAL_ENTRY_TYPE_PATH: {
 	    cairo_cogl_journal_path_entry_t *path_entry =
 		(cairo_cogl_journal_path_entry_t *)entry;
 
-	    cogl_set_source (path_entry->pipeline);
-	    cogl_path_fill (path_entry->path);
+            /* Use this until cogl2_path_fill is updated to take
+             * framebuffer and pipeline arguments */
+            cogl_framebuffer_fill_path (surface->framebuffer,
+                                        path_entry->pipeline,
+                                        path_entry->path);
 	    break;
 	}
 	default:
@@ -937,7 +939,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 	}
     }
 
-    cogl_pop_matrix ();
+    cogl_framebuffer_pop_matrix (surface->framebuffer);
 
     for (i = 0; i < clip_stack_depth; i++)
 	cogl_framebuffer_pop_clip (surface->framebuffer);
@@ -980,6 +982,57 @@ _cairo_cogl_surface_finish (void *abstract_surface)
 }
 
 static CoglPixelFormat
+get_default_cogl_format_from_components (CoglTextureComponents components)
+{
+    switch (components)
+    {
+    case COGL_TEXTURE_COMPONENTS_A:
+        return COGL_PIXEL_FORMAT_A_8;
+    case COGL_TEXTURE_COMPONENTS_RG:
+        return COGL_PIXEL_FORMAT_RG_88;
+    case COGL_TEXTURE_COMPONENTS_RGB:
+        return COGL_PIXEL_FORMAT_RGB_888;
+    case COGL_TEXTURE_COMPONENTS_RGBA:
+        return COGL_PIXEL_FORMAT_RGBA_8888_PRE;
+    case COGL_TEXTURE_COMPONENTS_DEPTH:
+        return COGL_PIXEL_FORMAT_DEPTH_32;
+    default:
+        return 0;
+    }
+}
+
+static CoglTextureComponents
+get_components_from_cogl_format (CoglPixelFormat format)
+{
+    switch ((int)format)
+    {
+    case COGL_PIXEL_FORMAT_BGRA_8888_PRE:
+    case COGL_PIXEL_FORMAT_ABGR_8888_PRE:
+    case COGL_PIXEL_FORMAT_RGBA_8888_PRE:
+        return COGL_TEXTURE_COMPONENTS_RGBA;
+
+    case COGL_PIXEL_FORMAT_RGB_565:
+    case COGL_PIXEL_FORMAT_RGB_888:
+        return COGL_TEXTURE_COMPONENTS_RGB;
+
+    case COGL_PIXEL_FORMAT_A_8:
+        return COGL_TEXTURE_COMPONENTS_A;
+    case COGL_PIXEL_FORMAT_RG_88:
+        return COGL_TEXTURE_COMPONENTS_RG;
+    case COGL_PIXEL_FORMAT_DEPTH_32:
+        return COGL_TEXTURE_COMPONENTS_DEPTH;
+    default:
+    g_warning("bad format: %x a? %d, bgr? %d, pre %d, format: %d\n",
+              format,
+              format & COGL_A_BIT,
+              format & COGL_BGR_BIT,
+              format & COGL_PREMULT_BIT,
+              format & ~(COGL_A_BIT | COGL_BGR_BIT | COGL_PREMULT_BIT));
+    return CAIRO_FORMAT_INVALID;
+    }
+}
+
+static CoglPixelFormat
 get_cogl_format_from_cairo_format (cairo_format_t cairo_format);
 
 /* XXX: We often use RGBA format for onscreen framebuffers so make sure
@@ -993,7 +1046,13 @@ get_cairo_format_from_cogl_format (CoglPixelFormat format)
 	return CAIRO_FORMAT_A8;
     case COGL_PIXEL_FORMAT_RGB_565:
 	return CAIRO_FORMAT_RGB16_565;
-
+    case COGL_PIXEL_FORMAT_RG_88:
+        g_warning ("cairo cannot handle red-green textures\n");
+        return CAIRO_FORMAT_INVALID;
+    case COGL_PIXEL_FORMAT_DEPTH_32:
+        g_warning ("cairo cannot handle depth textures\n");
+        return CAIRO_FORMAT_INVALID;
+    
     case COGL_PIXEL_FORMAT_BGRA_8888_PRE:
     case COGL_PIXEL_FORMAT_ARGB_8888_PRE:
     case COGL_PIXEL_FORMAT_RGBA_8888_PRE:
@@ -1031,6 +1090,8 @@ get_cogl_format_from_cairo_format (cairo_format_t cairo_format)
     case CAIRO_FORMAT_INVALID:
     case CAIRO_FORMAT_A1:
     case CAIRO_FORMAT_RGB30:
+    case CAIRO_FORMAT_RGB96F:
+    case CAIRO_FORMAT_RGBA128F:
 	return 0;
     }
 
@@ -1054,26 +1115,30 @@ _cairo_cogl_surface_read_rect_to_image_surface (cairo_cogl_surface_t   *surface,
     if (unlikely (status))
 	return status;
 
-    cairo_format = get_cairo_format_from_cogl_format (surface->cogl_format);
-    if (cairo_format == CAIRO_FORMAT_INVALID) {
-	cairo_format = CAIRO_FORMAT_ARGB32;
-	cogl_format = get_cogl_format_from_cairo_format (cairo_format);
+    if (surface->texture)
+    {
+        cogl_format =
+            get_default_cogl_format_from_components (
+                cogl_texture_get_components (surface->texture) );
     } else {
-	cogl_format = cogl_framebuffer_get_color_format (surface->framebuffer);
+        /* Cogl doesn't give internal formats of framebuffers anymore,
+         * nor does it provide a way to find which color components are
+         * present, making it so that we may lose data if we don't get
+         * all 4 possible components */
+        cogl_format = COGL_PIXEL_FORMAT_RGBA_8888_PRE;
     }
+    cairo_format = get_cairo_format_from_cogl_format (cogl_format);
 
     image = (cairo_image_surface_t *)
-	cairo_image_surface_create (cairo_format, surface->width, surface->height);
+        cairo_image_surface_create (cairo_format,
+                                    surface->width,
+                                    surface->height);
     if (image->base.status)
-	return image->base.status;
+        return image->base.status;
 
-    /* TODO: Add cogl_framebuffer_read_pixels() API */
-    cogl_push_framebuffer (surface->framebuffer);
-    cogl_read_pixels (0, 0, surface->width, surface->height,
-		      COGL_READ_PIXELS_COLOR_BUFFER,
-		      cogl_format,
-		      image->data);
-    cogl_pop_framebuffer ();
+    cogl_framebuffer_read_pixels (surface->framebuffer, 0, 0,
+                                  surface->width, surface->height,
+                                  cogl_format, image->data);
 
     *image_out = image;
 
@@ -1089,16 +1154,27 @@ _cairo_cogl_surface_acquire_source_image (void		         *abstract_surface,
     cairo_status_t status;
 
     if (surface->texture) {
-	cairo_format_t format = get_cairo_format_from_cogl_format (surface->cogl_format);
-	cairo_image_surface_t *image = (cairo_image_surface_t *)
-	    cairo_image_surface_create (format, surface->width, surface->height);
-	if (image->base.status)
-	    return image->base.status;
+        CoglTextureComponents components =
+            cogl_texture_get_components(surface->texture);
+        CoglPixelFormat cogl_format =
+            get_default_cogl_format_from_components (components);
+        cairo_format_t cairo_format =
+            get_cairo_format_from_cogl_format (cogl_format);
+        if (cairo_format == CAIRO_FORMAT_INVALID) {
+            cairo_format = CAIRO_FORMAT_ARGB32;
+            cogl_format =
+                get_cogl_format_from_cairo_format (cairo_format);
+        }
 
-	cogl_texture_get_data (surface->texture,
-			       cogl_texture_get_format (surface->texture),
-			       0,
-			       image->data);
+        cairo_image_surface_t *image = (cairo_image_surface_t *)
+	        cairo_image_surface_create (cairo_format, surface->width, surface->height);
+        if (image->base.status)
+            return image->base.status;
+
+        cogl_texture_get_data (surface->texture,
+                               cogl_format,
+                               0,
+                               image->data);
 
 	image->base.is_clear = FALSE;
 	*image_out = image;
@@ -1219,7 +1295,6 @@ _cairo_cogl_surface_paint (void                  *abstract_surface,
     if (unlikely (status))
 	goto BAIL;
 
-#ifdef NEED_COGL_CONTEXT
     /* XXX: in cairo-cogl-context.c we set some sideband data on the
      * surface before issuing a fill so we need to do that here too... */
     surface->user_path = &path;
@@ -1231,7 +1306,6 @@ _cairo_cogl_surface_paint (void                  *abstract_surface,
     surface->path_rectangle_y = 0;
     surface->path_rectangle_width = surface->width;
     surface->path_rectangle_height = surface->height;
-#endif
 
     status = _cairo_cogl_surface_fill (abstract_surface,
 				       op,
@@ -1289,16 +1363,11 @@ _cairo_cogl_get_pot_texture (CoglContext *context,
 	return CAIRO_INT_STATUS_SUCCESS;
 
     for (;;) {
-	error = NULL;
 	pot = cogl_texture_2d_new_with_size (context,
 					     pot_width,
-					     pot_height,
-					     cogl_texture_get_format (texture),
-					     &error);
+					     pot_height);
 	if (pot)
 	    break;
-	else
-	    g_error_free (error);
 
 	if (pot_width > pot_height)
 	    pot_width >>= 1;
@@ -1314,8 +1383,11 @@ _cairo_cogl_get_pot_texture (CoglContext *context,
     if (!pot)
 	return CAIRO_INT_STATUS_NO_MEMORY;
 
+    cogl_texture_set_components (COGL_TEXTURE (tex),
+                                 cogl_texture_get_components(texture));
+
     /* Use the GPU to do a bilinear filtered scale from npot to pot... */
-    offscreen = cogl_offscreen_new_to_texture (COGL_TEXTURE (pot));
+    offscreen = cogl_offscreen_new_with_texture (COGL_TEXTURE (pot));
     error = NULL;
     if (!cogl_framebuffer_allocate (COGL_FRAMEBUFFER (offscreen), &error)) {
 	/* NB: if we don't pass an error then Cogl is allowed to simply abort
@@ -1405,7 +1477,7 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
     texture = cogl_texture_2d_new_from_data (to_device(reference_surface->base.device)->cogl_context,
 					     image->width,
 					     image->height,
-					     format, /* both incoming and desired */
+					     format, /* incoming */
 					     image->stride,
 					     image->data,
 					     &error);
@@ -1695,14 +1767,12 @@ BAIL:
 
 #if 0
 CoglPrimitive *
-_cairo_cogl_rectangle_new_p2t2t2 (float x,
-				  float y,
-				  float width,
-				  float height)
+_cairo_cogl_rectangle_new_p2t2t2 (CoglContext *cogl_context,
+                                  float x,
+                                  float y,
+                                  float width,
+                                  float height)
 {
-    CoglContext *cogl_context =
-        cogl_framebuffer_get_context(surface->framebuffer);
-
     CoglVertexP2 vertices[] = {
 	{x, y}, {x, y + height}, {x + width, y + height},
 	{x, y}, {x + width, y + height}, {x + width, y}
@@ -2478,11 +2548,7 @@ _cairo_cogl_surface_show_glyphs (void			*surface,
 const cairo_surface_backend_t _cairo_cogl_surface_backend = {
     CAIRO_SURFACE_TYPE_COGL,
     _cairo_cogl_surface_finish,
-#ifdef NEED_COGL_CONTEXT
     _cairo_cogl_context_create,
-#else
-    _cairo_default_context_create,
-#endif
 
     _cairo_cogl_surface_create_similar,
     NULL, /* create similar image */
@@ -2507,7 +2573,7 @@ const cairo_surface_backend_t _cairo_cogl_surface_backend = {
     _cairo_cogl_surface_mask,
     _cairo_cogl_surface_stroke,
     _cairo_cogl_surface_fill,
-    NULL, /* fill_stroke*/
+    NULL, /* fill_stroke */
     _cairo_surface_fallback_glyphs,
 };
 
@@ -2534,7 +2600,6 @@ _cairo_cogl_surface_create_full (cairo_cogl_device_t *dev,
     if (framebuffer) {
 	surface->width = cogl_framebuffer_get_width (framebuffer);
 	surface->height = cogl_framebuffer_get_height (framebuffer);
-	surface->cogl_format = cogl_framebuffer_get_color_format (framebuffer);
 	cogl_object_ref (framebuffer);
     }
 
@@ -2545,7 +2610,6 @@ _cairo_cogl_surface_create_full (cairo_cogl_device_t *dev,
 	if (!framebuffer) {
 	    surface->width = cogl_texture_get_width (texture);
 	    surface->height = cogl_texture_get_height (texture);
-	    surface->cogl_format = cogl_texture_get_format (texture);
 	}
 	cogl_object_ref (texture);
     }
@@ -2759,9 +2823,8 @@ cairo_cogl_device_create (CoglContext *cogl_context)
 
     dev->cogl_context = cogl_context;
 
-    dev->dummy_texture = cogl_texture_new_with_size (1, 1,
-						     COGL_TEXTURE_NO_SLICING,
-						     COGL_PIXEL_FORMAT_ANY);
+    dev->dummy_texture = cogl_texture_2d_new_with_size (cogl_context,
+                                                        1, 1);
     if (!dev->dummy_texture)
 	goto ERROR;
 

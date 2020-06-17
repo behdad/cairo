@@ -197,24 +197,24 @@ _cairo_cogl_linear_gradient_width_for_stops (cairo_extend_t		  extend,
 
 /* Aim to create gradient textures without an alpha component so we can avoid
  * needing to use blending... */
-static CoglPixelFormat
-_cairo_cogl_linear_gradient_format_for_stops (cairo_extend_t		   extend,
-					      unsigned int                 n_stops,
-					      const cairo_gradient_stop_t *stops)
+static CoglTextureComponents
+_cairo_cogl_linear_gradient_components_for_stops (cairo_extend_t		   extend,
+					          unsigned int                 n_stops,
+					          const cairo_gradient_stop_t *stops)
 {
     unsigned int n;
 
     /* We have to add extra transparent texels to the end of the gradient to
      * handle CAIRO_EXTEND_NONE... */
     if (extend == CAIRO_EXTEND_NONE)
-	return COGL_PIXEL_FORMAT_BGRA_8888_PRE;
+	return COGL_TEXTURE_COMPONENTS_RGBA;
 
     for (n = 1; n < n_stops; n++) {
 	if (stops[n].color.alpha != 1.0)
-	    return COGL_PIXEL_FORMAT_BGRA_8888_PRE;
+	    return COGL_TEXTURE_COMPONENTS_RGBA;
     }
 
-    return COGL_PIXEL_FORMAT_BGR_888;
+    return COGL_TEXTURE_COMPONENTS_RGBA;
 }
 
 static cairo_cogl_gradient_compatibility_t
@@ -370,7 +370,7 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
     cairo_color_stop_t left_padding_color;
     int right_padding = 0;
     cairo_color_stop_t right_padding_color;
-    CoglPixelFormat format;
+    CoglTextureComponents components;
     CoglTexture2D *tex;
     GError *error = NULL;
     int un_padded_width;
@@ -383,6 +383,7 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
     CoglVertexP2C4 *vertices;
     CoglVertexP2C4 *p;
     CoglPrimitive *prim;
+    CoglPipeline *pipeline;
 
     hash = _cairo_cogl_linear_gradient_hash (n_stops, stops);
 
@@ -553,14 +554,11 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
 
     width = _cairo_cogl_util_next_p2 (width);
     width = MIN (4096, width); /* lets not go too stupidly big! */
-    format = _cairo_cogl_linear_gradient_format_for_stops (extend_mode, n_stops, stops);
+    components = _cairo_cogl_linear_gradient_components_for_stops (extend_mode, n_stops, stops);
 
     do {
-	tex = cogl_texture_2d_new_with_size (device->cogl_context,
-					     width,
-					     1,
-					     format,
-					     &error);
+	tex = cogl_texture_2d_new_with_size (device->cogl_context, width, 1);
+
 	if (!tex)
 	    g_error_free (error);
     } while (tex == NULL && width >> 1);
@@ -569,6 +567,8 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
 	status = CAIRO_INT_STATUS_NO_MEMORY;
 	goto BAIL;
     }
+
+    cogl_texture_set_components (COGL_TEXTURE (tex), components);
 
     entry->texture = COGL_TEXTURE (tex);
     entry->compatibility = compatibilities;
@@ -582,9 +582,9 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
     if (left_padding)
 	entry->translate_x += (entry->scale_x / (float)un_padded_width) * (float)left_padding;
 
-    offscreen = cogl_offscreen_new_to_texture (tex);
-    cogl_push_framebuffer (COGL_FRAMEBUFFER (offscreen));
-    cogl_ortho (0, width, 1, 0, -1, 100);
+    offscreen = cogl_offscreen_new_with_texture (tex);
+    cogl_framebuffer_orthographic (COGL_FRAMEBUFFER (offscreen),
+                                   0, 0, width, 1, -1, 100);
     cogl_framebuffer_clear4f (COGL_FRAMEBUFFER (offscreen),
 			      COGL_BUFFER_BIT_COLOR,
 			      0, 0, 0, 0);
@@ -604,15 +604,14 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
     if (right_padding)
 	emit_stop (&p, prev, width, &right_padding_color, &right_padding_color);
 
-    prim = cogl_primitive_new_p2c4 (COGL_VERTICES_MODE_TRIANGLES,
-				    n_vertices,
-				    vertices);
-    /* Just use this as the simplest way to setup a default pipeline... */
-    cogl_set_source_color4f (0, 0, 0, 0);
-    cogl_primitive_draw (prim);
+    prim = cogl_primitive_new_p2c4 (device->cogl_context,
+                                    COGL_VERTICES_MODE_TRIANGLES,
+                                    n_vertices,
+                                    vertices);
+    pipeline = cogl_pipeline_new (device->cogl_context);
+    cogl_primitive_draw (prim, COGL_FRAMEBUFFER (offscreen), pipeline);
     cogl_object_unref (prim);
 
-    cogl_pop_framebuffer ();
     cogl_object_unref (offscreen);
 
     gradient->textures = g_list_prepend (gradient->textures, entry);

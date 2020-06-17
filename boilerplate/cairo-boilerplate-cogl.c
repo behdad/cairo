@@ -38,6 +38,8 @@
 typedef struct _cogl_closure {
     cairo_device_t *device;
     CoglFramebuffer *fb;
+    CoglOnscreen *onscreen;
+    CoglOffscreen *offscreen;
     cairo_surface_t *surface;
 } cogl_closure_t;
 
@@ -79,23 +81,22 @@ _cairo_boilerplate_cogl_create_offscreen_color_surface (const char		*name,
 	context = cogl_context_new (NULL, NULL);
 
     device = cairo_cogl_device_create (context);
-    tex = cogl_texture_new_with_size (width, height,
-				      COGL_TEXTURE_NO_SLICING,
-				      COGL_PIXEL_FORMAT_BGRA_8888_PRE);
-    offscreen = cogl_offscreen_new_to_texture (tex);
+    tex = cogl_texture_2d_new_with_size (context, width, height);
+    cogl_texture_set_components (tex, COGL_TEXTURE_COMPONENTS_RGBA);
+    offscreen = cogl_offscreen_new_with_texture (tex);
     fb = COGL_FRAMEBUFFER (offscreen);
 
     cogl_framebuffer_allocate (fb, NULL);
-    cogl_push_framebuffer (fb);
-    cogl_ortho (0, cogl_framebuffer_get_width (fb),
-                cogl_framebuffer_get_height (fb), 0,
-                -1, 100);
-    cogl_pop_framebuffer ();
+    cogl_framebuffer_orthographic (fb, 0, 0,
+                                   cogl_framebuffer_get_width (fb),
+                                   cogl_framebuffer_get_height (fb),
+                                   -1, 100);
 
     closure = malloc (sizeof (cogl_closure_t));
     *abstract_closure = closure;
     closure->device = device;
     closure->fb = fb;
+    closure->offscreen = offscreen;
     closure->surface = cairo_cogl_surface_create (device, fb);
 
     status = cairo_surface_set_user_data (closure->surface,
@@ -132,16 +133,16 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
 
     cogl_onscreen_show (onscreen);
 
-    cogl_push_framebuffer (fb);
-    cogl_ortho (0, cogl_framebuffer_get_width (fb),
-                cogl_framebuffer_get_height (fb), 0,
-                -1, 100);
-    cogl_pop_framebuffer ();
+    cogl_framebuffer_orthographic (fb, 0, 0,
+                                   cogl_framebuffer_get_width (fb),
+                                   cogl_framebuffer_get_height (fb),
+                                   -1, 100);
 
     closure = malloc (sizeof (cogl_closure_t));
     *abstract_closure = closure;
     closure->device = device;
     closure->fb = fb;
+    closure->onscreen = onscreen;
     closure->surface = cairo_cogl_surface_create (device, fb);
 
     status = cairo_surface_set_user_data (closure->surface,
@@ -155,12 +156,18 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
 
 static cairo_status_t
 _cairo_boilerplate_cogl_finish_onscreen (cairo_surface_t *surface)
-{
+{	
     cogl_closure_t *closure = cairo_surface_get_user_data (surface, &cogl_closure_key);
+
+	if (!closure->onscreen) {
+            fprintf(stderr, "Attempted to close an offscreen surface "
+                "using onscreen closure function\n");
+            return CAIRO_STATUS_SURFACE_TYPE_MISMATCH;
+	}
 
     cairo_cogl_surface_end_frame (surface);
 
-    cogl_framebuffer_swap_buffers (closure->fb);
+    cogl_onscreen_swap_buffers (closure->onscreen);
 
     return CAIRO_STATUS_SUCCESS;
 }

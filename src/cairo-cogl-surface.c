@@ -1120,14 +1120,15 @@ _cairo_cogl_surface_read_rect_to_image_surface (cairo_cogl_surface_t   *surface,
         cogl_format =
             get_default_cogl_format_from_components (
                 cogl_texture_get_components (surface->texture) );
+        cairo_format = get_cairo_format_from_cogl_format (cogl_format);
     } else {
         /* Cogl doesn't give internal formats of framebuffers anymore,
          * nor does it provide a way to find which color components are
          * present, making it so that we may lose data if we don't get
          * all 4 possible components */
-        cogl_format = COGL_PIXEL_FORMAT_RGBA_8888_PRE;
+        cairo_format = CAIRO_FORMAT_ARGB32;
+        cogl_format = get_cogl_format_from_cairo_format (cairo_format);
     }
-    cairo_format = get_cairo_format_from_cogl_format (cogl_format);
 
     image = (cairo_image_surface_t *)
         cairo_image_surface_create (cairo_format,
@@ -1445,7 +1446,7 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
 	return surface->texture ? cogl_object_ref (surface->texture) : NULL;
     }
 
-    g_warning ("Uploading image surface to texture");
+    // g_warning ("Uploading image surface to texture");
 
     if (_cairo_surface_is_image (abstract_surface)) {
 	image = (cairo_image_surface_t *)abstract_surface;

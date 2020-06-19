@@ -850,7 +850,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 	    for (i = 0; i < clip_entry->clip->num_boxes; i++) {
 		clip_stack_depth++;
 		_cairo_cogl_clip_push_box (&clip_entry->clip->boxes[i],
-                                           &surface->framebuffer);
+                                           surface->framebuffer);
 	    }
 
 	    surface->n_clip_updates_per_frame++;
@@ -1861,6 +1861,7 @@ is_operator_supported (cairo_operator_t op)
 	return TRUE;
 
     default:
+        g_warning("cairo-cogl: Blend operator not supported\n");
 	return FALSE;
     }
 }

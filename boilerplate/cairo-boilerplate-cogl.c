@@ -159,15 +159,31 @@ _cairo_boilerplate_cogl_finish_onscreen (cairo_surface_t *surface)
 {	
     cogl_closure_t *closure = cairo_surface_get_user_data (surface, &cogl_closure_key);
 
-	if (!closure->onscreen) {
-            fprintf(stderr, "Attempted to close an offscreen surface "
-                "using onscreen closure function\n");
-            return CAIRO_STATUS_SURFACE_TYPE_MISMATCH;
-	}
+    if (!closure->onscreen) {
+        fprintf(stderr, "Attempted to close an offscreen surface "
+                        "using onscreen closure function\n");
+        return CAIRO_STATUS_SURFACE_TYPE_MISMATCH;
+    }
 
     cairo_cogl_surface_end_frame (surface);
 
     cogl_onscreen_swap_buffers (closure->onscreen);
+
+    return CAIRO_STATUS_SUCCESS;
+}
+
+static cairo_status_t
+_cairo_boilerplate_cogl_finish_offscreen (cairo_surface_t *surface)
+{
+    cogl_closure_t *closure = cairo_surface_get_user_data (surface, &cogl_closure_key);
+
+    if (!closure->offscreen) {
+        fprintf(stderr, "Attempted to close an onscreen surface "
+                        "using offscreen closure function\n");
+        return CAIRO_STATUS_SURFACE_TYPE_MISMATCH;
+    }
+
+    cairo_cogl_surface_end_frame (surface);
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -186,7 +202,8 @@ static const cairo_boilerplate_target_t targets[] = {
 	"cairo_cogl_device_create",
 	_cairo_boilerplate_cogl_create_offscreen_color_surface,
 	cairo_surface_create_similar,
-	NULL, NULL,
+	NULL,
+        _cairo_boilerplate_cogl_finish_offscreen,
 	_cairo_boilerplate_get_image_surface,
 	cairo_surface_write_to_png,
 	_cairo_boilerplate_cogl_cleanup,

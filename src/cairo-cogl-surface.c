@@ -993,7 +993,11 @@ get_default_cogl_format_from_components (CoglTextureComponents components)
     case COGL_TEXTURE_COMPONENTS_RGB:
         return COGL_PIXEL_FORMAT_RGB_888;
     case COGL_TEXTURE_COMPONENTS_RGBA:
-        return COGL_PIXEL_FORMAT_RGBA_8888_PRE;
+#if G_BYTE_ORDER == G_LITTLE_ENDIAN
+	return COGL_PIXEL_FORMAT_BGRA_8888_PRE;
+#else
+	return COGL_PIXEL_FORMAT_ARGB_8888_PRE;
+#endif
     case COGL_TEXTURE_COMPONENTS_DEPTH:
         return COGL_PIXEL_FORMAT_DEPTH_32;
     default:

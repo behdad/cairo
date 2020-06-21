@@ -33,8 +33,8 @@
  *      Robert Bragg <robert@linux.intel.com>
  */
 
-#ifndef CAIRO_VG_H
-#define CAIRO_VG_H
+#ifndef CAIRO_COGL_H
+#define CAIRO_COGL_H
 
 #include "cairo.h"
 

@@ -38,8 +38,6 @@
 typedef struct _cogl_closure {
     cairo_device_t *device;
     CoglFramebuffer *fb;
-    CoglOnscreen *onscreen;
-    CoglOffscreen *offscreen;
     cairo_surface_t *surface;
 } cogl_closure_t;
 
@@ -96,7 +94,6 @@ _cairo_boilerplate_cogl_create_offscreen_color_surface (const char		*name,
     *abstract_closure = closure;
     closure->device = device;
     closure->fb = fb;
-    closure->offscreen = offscreen;
     closure->surface = cairo_cogl_surface_create (device, fb);
 
     status = cairo_surface_set_user_data (closure->surface,
@@ -142,7 +139,6 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
     *abstract_closure = closure;
     closure->device = device;
     closure->fb = fb;
-    closure->onscreen = onscreen;
     closure->surface = cairo_cogl_surface_create (device, fb);
 
     status = cairo_surface_set_user_data (closure->surface,
@@ -155,35 +151,14 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
 }
 
 static cairo_status_t
-_cairo_boilerplate_cogl_finish_onscreen (cairo_surface_t *surface)
+_cairo_boilerplate_cogl_finish (cairo_surface_t *surface)
 {	
     cogl_closure_t *closure = cairo_surface_get_user_data (surface, &cogl_closure_key);
 
-    if (!closure->onscreen) {
-        fprintf(stderr, "Attempted to close an offscreen surface "
-                        "using onscreen closure function\n");
-        return CAIRO_STATUS_SURFACE_TYPE_MISMATCH;
-    }
-
     cairo_cogl_surface_end_frame (surface);
 
-    cogl_onscreen_swap_buffers (closure->onscreen);
-
-    return CAIRO_STATUS_SUCCESS;
-}
-
-static cairo_status_t
-_cairo_boilerplate_cogl_finish_offscreen (cairo_surface_t *surface)
-{
-    cogl_closure_t *closure = cairo_surface_get_user_data (surface, &cogl_closure_key);
-
-    if (!closure->offscreen) {
-        fprintf(stderr, "Attempted to close an onscreen surface "
-                        "using offscreen closure function\n");
-        return CAIRO_STATUS_SURFACE_TYPE_MISMATCH;
-    }
-
-    cairo_cogl_surface_end_frame (surface);
+    if (cogl_is_onscreen (closure->fb))
+        cogl_onscreen_swap_buffers (closure->fb);
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -203,7 +178,7 @@ static const cairo_boilerplate_target_t targets[] = {
 	_cairo_boilerplate_cogl_create_offscreen_color_surface,
 	cairo_surface_create_similar,
 	NULL,
-        _cairo_boilerplate_cogl_finish_offscreen,
+        _cairo_boilerplate_cogl_finish,
 	_cairo_boilerplate_get_image_surface,
 	cairo_surface_write_to_png,
 	_cairo_boilerplate_cogl_cleanup,
@@ -218,7 +193,7 @@ static const cairo_boilerplate_target_t targets[] = {
 	_cairo_boilerplate_cogl_create_onscreen_color_surface,
 	cairo_surface_create_similar,
 	NULL,
-	_cairo_boilerplate_cogl_finish_onscreen,
+	_cairo_boilerplate_cogl_finish,
 	_cairo_boilerplate_get_image_surface,
 	cairo_surface_write_to_png,
 	_cairo_boilerplate_cogl_cleanup,

@@ -807,6 +807,9 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 		cogl_framebuffer_pop_clip (surface->framebuffer);
 	    clip_stack_depth = 0;
 
+            if (clip_entry->clip == NULL)
+                continue; // there is no clip
+
 	    for (path = clip_entry->clip->path, i = 0; path; path = path->prev, i++) {
 		cairo_rectangle_int_t extents;
 		cairo_int_status_t status;
@@ -2619,8 +2622,6 @@ _cairo_cogl_surface_create_full (cairo_cogl_device_t *dev,
 	}
 	cogl_object_ref (texture);
     }
-
-    assert(surface->width && surface->height);
 
     surface->journal = NULL;
 

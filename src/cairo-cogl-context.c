@@ -350,6 +350,7 @@ _cairo_cogl_context_curve_to (void *abstract_cr,
 				       x3_fixed, y3_fixed);
 }
 
+#if 0
 static cairo_status_t
 _cairo_cogl_context_arc (void *abstract_cr,
 			  double xc, double yc, double radius,
@@ -403,6 +404,7 @@ _cairo_cogl_context_arc (void *abstract_cr,
 
     return CAIRO_STATUS_SUCCESS; /* any error will have already been set on cr */
 }
+#endif
 
 static cairo_status_t
 _cairo_cogl_context_rel_move_to (void *abstract_cr, double dx, double dy)
@@ -740,6 +742,61 @@ _cairo_cogl_context_destroy (void *abstract_cr)
     _freed_pool_put (&context_pool, cr);
 }
 
+static cairo_pattern_t *
+_cairo_cogl_context_pop_group (void *abstract_cr);
+
+void
+_cairo_cogl_context_set_custom_vtable_funcs (cairo_backend_t *backend);
+
+/* Pushed surfaces often take the form of image or recording surfaces,
+ * which are unable to handle the rectangle fast path or tessellation
+ * cacheing. Therfore, we need to restore the vtable functions from the
+ * default context. */
+static cairo_status_t
+_cairo_cogl_context_push_group (void *abstract_cr, cairo_content_t content)
+{
+    cairo_cogl_context_t *cr = abstract_cr;
+    cairo_status_t status;
+
+    /* Flush the values set in the side band to the normal path */
+    if (cr->path_is_rectangle) {
+        status = _flush_cr_rectangle (cr);
+        if (unlikely (status))
+            return status;
+    }
+
+    /* Just assume the ctm will be modified */
+    cr->path_ctm_age++;
+
+    status = cr->dev->backend_parent.push_group (abstract_cr, content);
+    if (unlikely (status))
+        return status;
+
+    /* Restore all the vtable functions except the popping function */
+    memcpy (&cr->dev->backend, &cr->dev->backend_parent, sizeof (cairo_backend_t));
+    cr->dev->backend.pop_group = _cairo_cogl_context_pop_group;
+
+    return CAIRO_STATUS_SUCCESS;
+}
+
+static cairo_pattern_t *
+_cairo_cogl_context_pop_group (void *abstract_cr)
+{
+    cairo_cogl_context_t *cr = abstract_cr;
+    cairo_pattern_t *group_pattern;
+
+    /* The default popping function can still be found at
+     * backend_parent */
+    group_pattern = cr->dev->backend_parent.pop_group (abstract_cr);
+
+    /* Skip restoring the vtable funcs if we are popping to a pushed
+     * surface */
+    if (cr->base.gstate->target->type == CAIRO_SURFACE_TYPE_COGL)
+        _cairo_cogl_context_set_custom_vtable_funcs (&cr->dev->backend);
+
+    return group_pattern;
+}
+
 /* We want to hook into the frontend of the path construction APIs so
  * we can build up a path description in user coordinates instead of
  * backend coordinates so that we can recognize user coordinate
@@ -769,46 +826,10 @@ _cairo_cogl_context_create (void *target)
     cr->dev = (cairo_cogl_device_t *)surface->base.device;
 
     if (unlikely (cr->dev->backend_vtable_initialized == FALSE)) {
-	cairo_backend_t *backend = &cr->dev->backend;
-	memcpy (backend, cr->base.base.backend, sizeof (cairo_backend_t));
+	memcpy (&cr->dev->backend, cr->base.base.backend, sizeof (cairo_backend_t));
 	memcpy (&cr->dev->backend_parent, cr->base.base.backend, sizeof (cairo_backend_t));
 
-	backend->destroy = _cairo_cogl_context_destroy;
-
-	backend->restore = _cairo_cogl_context_restore;
-	backend->translate = _cairo_cogl_context_translate;
-	backend->scale = _cairo_cogl_context_scale;
-	backend->rotate = _cairo_cogl_context_rotate;
-	backend->transform = _cairo_cogl_context_transform;
-	backend->set_matrix = _cairo_cogl_context_set_matrix;
-	backend->set_identity_matrix = _cairo_cogl_context_set_identity_matrix;
-
-	backend->new_path = _cairo_cogl_context_new_path;
-	backend->new_sub_path = _cairo_cogl_context_new_sub_path;
-	backend->move_to = _cairo_cogl_context_move_to;
-	backend->rel_move_to = _cairo_cogl_context_rel_move_to;
-	backend->line_to = _cairo_cogl_context_line_to;
-	backend->rel_line_to = _cairo_cogl_context_rel_line_to;
-	backend->curve_to = _cairo_cogl_context_curve_to;
-	backend->rel_curve_to = _cairo_cogl_context_rel_curve_to;
-#if 0
-	backend->arc_to = _cairo_cogl_context_arc_to;
-	backend->rel_arc_to = _cairo_cogl_context_rel_arc_to;
-#endif
-	backend->close_path = _cairo_cogl_context_close_path;
-	//backend->arc = _cairo_cogl_context_arc;
-	backend->rectangle = _cairo_cogl_context_rectangle;
-
-	/* Try to automatically catch if any new path APIs are added that mean
-	 * we may need to overload more functions... */
-	assert (((char *)&backend->path_extents - (char *)&backend->backend_to_user_distance)
-		== (sizeof (void *) * 14));
-
-	backend->fill = _cairo_cogl_context_fill;
-	backend->fill_preserve = _cairo_cogl_context_fill_preserve;
-	backend->stroke = _cairo_cogl_context_stroke;
-	backend->stroke_preserve = _cairo_cogl_context_stroke_preserve;
-	backend->clip = _cairo_cogl_context_clip;
+        _cairo_cogl_context_set_custom_vtable_funcs (&cr->dev->backend);
 
 	cr->dev->backend_vtable_initialized = TRUE;
     }
@@ -819,4 +840,50 @@ _cairo_cogl_context_create (void *target)
     cr->path_is_rectangle = FALSE;
 
     return &cr->base.base;
+}
+
+void
+_cairo_cogl_context_set_custom_vtable_funcs (cairo_backend_t *backend)
+{
+    backend->destroy = _cairo_cogl_context_destroy;
+
+    backend->restore = _cairo_cogl_context_restore;
+
+    backend->push_group = _cairo_cogl_context_push_group;
+    backend->pop_group = _cairo_cogl_context_pop_group;
+
+    backend->translate = _cairo_cogl_context_translate;
+    backend->scale = _cairo_cogl_context_scale;
+    backend->rotate = _cairo_cogl_context_rotate;
+    backend->transform = _cairo_cogl_context_transform;
+    backend->set_matrix = _cairo_cogl_context_set_matrix;
+    backend->set_identity_matrix = _cairo_cogl_context_set_identity_matrix;
+
+    backend->new_path = _cairo_cogl_context_new_path;
+    backend->new_sub_path = _cairo_cogl_context_new_sub_path;
+    backend->move_to = _cairo_cogl_context_move_to;
+    backend->rel_move_to = _cairo_cogl_context_rel_move_to;
+    backend->line_to = _cairo_cogl_context_line_to;
+    backend->rel_line_to = _cairo_cogl_context_rel_line_to;
+    backend->curve_to = _cairo_cogl_context_curve_to;
+    backend->rel_curve_to = _cairo_cogl_context_rel_curve_to;
+#if 0
+    backend->arc_to = _cairo_cogl_context_arc_to;
+    backend->rel_arc_to = _cairo_cogl_context_rel_arc_to;
+#endif
+    backend->close_path = _cairo_cogl_context_close_path;
+    //backend->arc = _cairo_cogl_context_arc;
+    backend->rectangle = _cairo_cogl_context_rectangle;
+
+    /* Try to automatically catch if any new path APIs are added that mean
+     * we may need to overload more functions... */
+    assert (((char *)&backend->path_extents
+             - (char *)&backend->backend_to_user_distance)
+            == (sizeof (void *) * 14));
+
+    backend->fill = _cairo_cogl_context_fill;
+    backend->fill_preserve = _cairo_cogl_context_fill_preserve;
+    backend->stroke = _cairo_cogl_context_stroke;
+    backend->stroke_preserve = _cairo_cogl_context_stroke_preserve;
+    backend->clip = _cairo_cogl_context_clip;
 }

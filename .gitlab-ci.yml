@@ -1,15 +1,15 @@
 # -*- indent-tabs-mode: nil -*-
 include:
   - template: 'Workflows/Branch-Pipelines.gitlab-ci.yml'
+  - project: 'freedesktop/ci-templates'
+    ref: '88ed1082df2af02090916566742543f1dbaee988'
+    file: '/templates/fedora.yml'
 
 variables:
-  # Docker images for various distros and architectures
+  FDO_UPSTREAM_REPO: 'cairo/cairo'
+  FDO_DISTRIBUTION_VERSION: '32'
+  FDO_DISTRIBUTION_TAG: '2020-09-29.0'
 
-  AMD64_FEDORA_LATEST:       "registry.gitlab.gnome.org/gnome/librsvg-oci-images/amd64/fedora:latest"
-  AMD64_FEDORA_RAWHIDE:      "registry.gitlab.gnome.org/gnome/librsvg-oci-images/amd64/fedora:rawhide"
-  AMD64_OPENSUSE_TUMBLEWEED: "registry.gitlab.gnome.org/gnome/librsvg-oci-images/amd64/opensuse:tumbleweed"
-  AMD64_DEBIAN_TESTING:      "registry.gitlab.gnome.org/gnome/librsvg-oci-images/amd64/debian:testing"
-  I386_DEBIAN_TESTING:       "registry.gitlab.gnome.org/gnome/librsvg-oci-images/i386/debian:testing"
   # TODO: should probably get its own image at some point instead of reusing the GStreamer one.
   WINDOWS_IMAGE:             "registry.freedesktop.org/gstreamer/gst-ci/amd64/windows:v12-master"
 
@@ -17,6 +17,7 @@ variables:
     --default-library=both
 
 stages:
+  - prep
   - test
 
 # Global CI policy: This can be used to configure global behaviour our our jobs
@@ -30,41 +31,92 @@ default:
       - 'api_failure'
   interruptible: true
 
-.test_template: &distro_test
+.ccache_setup:
+  variables:
+    CCACHE_BASEDIR: "$CI_PROJECT_DIR"
+    CCACHE_DIR: "$CI_PROJECT_DIR/ccache"
+    CC: "ccache gcc"
+    CXX: "ccache g++"
   before_script:
-    # CCache Config
     - mkdir -p ccache
-    - export CCACHE_BASEDIR=${PWD}
-    - export CCACHE_DIR=${PWD}/ccache
-    - export CC="ccache gcc"
-
-  script:
-    - ./autogen.sh
-    # Ignore test suite failures with CAIRO_TEST_FORCE_PASS=1
-    - make check CAIRO_TEST_FORCE_PASS=1 VERBOSE=1
-
-  artifacts:
-    when: on_failure
-    paths:
-      - test/*.log
-      - test/pdiff/*.log
-      - test/output
-
+    - ccache --show-stats
   cache:
     # Each job will have it's own cache
     key: "$CI_JOB_NAME"
     paths:
       - ccache/
 
-# TEST STAGE
-########################################################################
+fedora image:
+  extends:
+   - '.fdo.container-build@fedora'
+  stage: 'prep'
+  variables:
+    FDO_DISTRIBUTION_PACKAGES: >
+      meson
+      ninja-build
+      ccache
+      gcc
+      g++
+      zlib-devel
+      expat
+      libpng-devel
+      fontconfig-devel
+      freetype-devel
+      libX11-devel
+      libXrender-devel
+      glib2-devel
+      librsvg2-devel
+      libdrm-devel
+      poppler-glib-devel
+      pixman-devel
+      cogl-devel
+      systemd-devel
+      systemd-udev
+      mesa-libEGL
+      mesa-libGL
+      mesa-libGL-devel
+      mesa-libgbm
+      mesa-libgbm-devel
+      mesa-libglapi
+      autoconf
+      automake
+      make
+      which
+      libtool
+      diffutils
 
-fedora:test:
-  # Need pixman >= 0.36
-  #image: $AMD64_FEDORA_LATEST
-  image: $AMD64_FEDORA_RAWHIDE
-  stage: test
-  <<: *distro_test
+fedora autotools build:
+  extends:
+    - '.fdo.distribution-image@fedora'
+    - '.ccache_setup'
+  stage: 'test'
+  script:
+    - ./autogen.sh
+    # Ignore test suite failures with CAIRO_TEST_FORCE_PASS=1
+    - make check CAIRO_TEST_FORCE_PASS=1 VERBOSE=1
+  artifacts:
+    when: 'always'
+    expire_in: "7 days"
+    paths:
+      - test/*.log
+      - test/pdiff/*.log
+      - test/output
+
+fedora meson build:
+  extends:
+    - '.fdo.distribution-image@fedora'
+    - '.ccache_setup'
+  stage: 'test'
+  script:
+    - meson builddir
+    - ninja -C builddir
+    # - ninja -C builddir test
+    - ninja -C builddir install
+  artifacts:
+    expire_in: "7 days"
+    when: "always"
+    paths:
+      - 'builddir/meson-logs/'
 
 # Based on https://gitlab.freedesktop.org/gstreamer/gst-ci/-/blob/master/gitlab/ci_template.yml
 .build meson windows:

@@ -64,6 +64,10 @@
 #define USE_COGL_RECTANGLE_API
 #define ENABLE_RECTANGLES_FASTPATH
 
+#if defined (USE_COGL_RECTANGLE_API) || defined (ENABLE_PATH_CACHE)
+#define NEED_COGL_CONTEXT
+#endif
+
 #if CAIRO_COGL_DEBUG && __GNUC__
 #define UNSUPPORTED(reason) ({ \
     g_warning ("cairo-cogl: hit unsupported operation: %s", reason); \
@@ -835,7 +839,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 							path->fill_rule,
 							path->tolerance,
 							0,
-							TRUE,
+							FALSE,
 							&prim,
 							&prim_size);
 		if (unlikely (status)) {
@@ -1299,10 +1303,14 @@ _cairo_cogl_surface_paint (void                  *abstract_surface,
 
     _cairo_path_fixed_init (&path);
 
-    status = _cairo_cogl_path_fixed_rectangle (&path, 0, 0, surface->width, surface->height);
+    status =
+        _cairo_cogl_path_fixed_rectangle (&path, 0, 0,
+                                          _cairo_fixed_from_int (surface->width),
+                                          _cairo_fixed_from_int (surface->height));
     if (unlikely (status))
 	goto BAIL;
 
+#ifdef NEED_COGL_CONTEXT
     /* XXX: in cairo-cogl-context.c we set some sideband data on the
      * surface before issuing a fill so we need to do that here too... */
     surface->user_path = &path;
@@ -1314,6 +1322,7 @@ _cairo_cogl_surface_paint (void                  *abstract_surface,
     surface->path_rectangle_y = 0;
     surface->path_rectangle_width = surface->width;
     surface->path_rectangle_height = surface->height;
+#endif
 
     status = _cairo_cogl_surface_fill (abstract_surface,
 				       op,
@@ -2557,7 +2566,11 @@ _cairo_cogl_surface_show_glyphs (void			*surface,
 const cairo_surface_backend_t _cairo_cogl_surface_backend = {
     CAIRO_SURFACE_TYPE_COGL,
     _cairo_cogl_surface_finish,
+#ifdef NEED_COGL_CONTEXT
     _cairo_cogl_context_create,
+#else
+    _cairo_default_context_create,
+#endif
 
     _cairo_cogl_surface_create_similar,
     NULL, /* create similar image */

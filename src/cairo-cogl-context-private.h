@@ -38,12 +38,18 @@
 typedef struct _cairo_cogl_context {
     cairo_default_context_t base;
 
-    cairo_cogl_device_t *dev;
     int path_ctm_age;
     cairo_path_fixed_t user_path;
 
     cairo_bool_t path_is_rectangle;
     double x, y, width, height;
+
+    cairo_backend_t backend;
+
+    /* We save a copy of all the original backend methods that we override so
+     * we can chain up...
+     */
+    cairo_backend_t backend_parent;
 } cairo_cogl_context_t;
 
 cairo_t *

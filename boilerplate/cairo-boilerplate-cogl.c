@@ -70,7 +70,6 @@ _cairo_boilerplate_cogl_create_offscreen_color_surface (const char		*name,
 {
     cairo_device_t *device;
     CoglTexture *tex;
-    CoglHandle offscreen;
     CoglFramebuffer *fb;
     cogl_closure_t *closure;
     cairo_status_t status;
@@ -81,8 +80,7 @@ _cairo_boilerplate_cogl_create_offscreen_color_surface (const char		*name,
     device = cairo_cogl_device_create (context);
     tex = cogl_texture_2d_new_with_size (context, width, height);
     cogl_texture_set_components (tex, COGL_TEXTURE_COMPONENTS_RGBA);
-    offscreen = cogl_offscreen_new_with_texture (tex);
-    fb = COGL_FRAMEBUFFER (offscreen);
+    fb = cogl_offscreen_new_with_texture (tex);
 
     cogl_framebuffer_allocate (fb, NULL);
     cogl_framebuffer_orthographic (fb, 0, 0,
@@ -116,7 +114,6 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
 						       void		      **abstract_closure)
 {
     cairo_device_t *device;
-    CoglOnscreen *onscreen;
     CoglFramebuffer *fb;
     cogl_closure_t *closure;
     cairo_status_t status;
@@ -125,10 +122,9 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
 	context = cogl_context_new (NULL, NULL);
 
     device = cairo_cogl_device_create (context);
-    onscreen = cogl_onscreen_new (context, width, height);
-    fb = COGL_FRAMEBUFFER (onscreen);
+    fb = cogl_onscreen_new (context, width, height);
 
-    cogl_onscreen_show (onscreen);
+    cogl_onscreen_show (fb);
 
     cogl_framebuffer_orthographic (fb, 0, 0,
                                    cogl_framebuffer_get_width (fb),

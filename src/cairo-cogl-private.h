@@ -51,17 +51,14 @@ typedef enum _cairo_cogl_template_type {
 typedef struct _cairo_cogl_device {
     cairo_device_t base;
 
-    cairo_bool_t backend_vtable_initialized;
-    cairo_backend_t backend;
-
-    /* We save a copy of all the original backend methods that we override so
-     * we can chain up...
-     */
-    cairo_backend_t backend_parent;
-
     CoglContext *cogl_context;
 
     CoglTexture *dummy_texture;
+
+    CoglAttributeBuffer *buffer_stack;
+    size_t buffer_stack_size;
+    size_t buffer_stack_offset;
+    guint8 *buffer_stack_pointer;
 
     /* This is a sparsely filled set of templates because we don't support
      * the full range of operators that cairo has. All entries corresponding
@@ -111,11 +108,6 @@ typedef struct _cairo_cogl_surface {
     int height;
 
     GQueue *journal;
-
-    CoglAttributeBuffer *buffer_stack;
-    size_t buffer_stack_size;
-    size_t buffer_stack_offset;
-    guint8 *buffer_stack_pointer;
 
     cairo_clip_t *last_clip;
 

@@ -37,7 +37,7 @@
 #include <cogl/cogl2-experimental.h>
 #include <glib.h>
 
-#define DUMP_GRADIENTS_TO_PNG
+//#define DUMP_GRADIENTS_TO_PNG
 
 static unsigned long
 _cairo_cogl_linear_gradient_hash (unsigned int                  n_stops,
@@ -568,9 +568,9 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
 	goto BAIL;
     }
 
-    cogl_texture_set_components (COGL_TEXTURE (tex), components);
+    cogl_texture_set_components (tex, components);
 
-    entry->texture = COGL_TEXTURE (tex);
+    entry->texture = tex;
     entry->compatibility = compatibilities;
 
     un_padded_width = width - left_padding - right_padding;
@@ -583,11 +583,10 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
 	entry->translate_x += (entry->scale_x / (float)un_padded_width) * (float)left_padding;
 
     offscreen = cogl_offscreen_new_with_texture (tex);
-    cogl_framebuffer_orthographic (COGL_FRAMEBUFFER (offscreen),
-                                   0, 0, width, 1, -1, 100);
-    cogl_framebuffer_clear4f (COGL_FRAMEBUFFER (offscreen),
-			      COGL_BUFFER_BIT_COLOR,
-			      0, 0, 0, 0);
+    cogl_framebuffer_orthographic (offscreen, 0, 0, width, 1, -1, 100);
+    cogl_framebuffer_clear4f (offscreen,
+                              COGL_BUFFER_BIT_COLOR,
+			                  0, 0, 0, 0);
 
     n_quads = n_stops - 1 + !!left_padding + !!right_padding;
     n_vertices = 6 * n_quads;
@@ -609,7 +608,7 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
                                     n_vertices,
                                     vertices);
     pipeline = cogl_pipeline_new (device->cogl_context);
-    cogl_primitive_draw (prim, COGL_FRAMEBUFFER (offscreen), pipeline);
+    cogl_primitive_draw (prim, offscreen, pipeline);
     cogl_object_unref (prim);
 
     cogl_object_unref (offscreen);
@@ -618,7 +617,7 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
     gradient->cache_entry.size = _cairo_cogl_linear_gradient_size (gradient);
 
 #ifdef DUMP_GRADIENTS_TO_PNG
-    dump_gradient_to_png (COGL_TEXTURE (tex));
+    dump_gradient_to_png (tex);
 #endif
 
 #warning "FIXME:"

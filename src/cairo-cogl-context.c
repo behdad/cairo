@@ -58,6 +58,7 @@
 #include "cairo-freed-pool-private.h"
 #include "cairo-arc-private.h"
 #include "cairo-path-fixed-private.h"
+#include "cairo-surface-subsurface-inline.h"
 
 #include <glib.h>
 
@@ -75,7 +76,7 @@ _cairo_cogl_context_rectangle_real (cairo_cogl_context_t *cr,
 				    double width, double height)
 {
     cairo_status_t status;
-    status = cr->dev->backend_parent.rectangle (cr, x, y, width, height);
+    status = cr->backend_parent.rectangle (cr, x, y, width, height);
     if (unlikely (status))
 	return status;
 
@@ -124,7 +125,7 @@ _cairo_cogl_context_restore (void *abstract_cr)
     }
 
     cr->path_ctm_age++;
-    return cr->dev->backend_parent.restore (abstract_cr);
+    return cr->backend_parent.restore (abstract_cr);
 }
 
 static cairo_status_t
@@ -139,7 +140,7 @@ _cairo_cogl_context_translate (void *abstract_cr, double tx, double ty)
     }
 
     cr->path_ctm_age++;
-    return cr->dev->backend_parent.translate (abstract_cr, tx, ty);
+    return cr->backend_parent.translate (abstract_cr, tx, ty);
 }
 
 static cairo_status_t
@@ -154,7 +155,7 @@ _cairo_cogl_context_scale (void *abstract_cr, double sx, double sy)
     }
 
     cr->path_ctm_age++;
-    return cr->dev->backend_parent.scale (abstract_cr, sx, sy);
+    return cr->backend_parent.scale (abstract_cr, sx, sy);
 }
 
 static cairo_status_t
@@ -169,7 +170,7 @@ _cairo_cogl_context_rotate (void *abstract_cr, double theta)
     }
 
     cr->path_ctm_age++;
-    return cr->dev->backend_parent.rotate (abstract_cr, theta);
+    return cr->backend_parent.rotate (abstract_cr, theta);
 }
 
 static cairo_status_t
@@ -184,7 +185,7 @@ _cairo_cogl_context_transform (void *abstract_cr, const cairo_matrix_t *matrix)
     }
 
     cr->path_ctm_age++;
-    return cr->dev->backend_parent.transform (abstract_cr, matrix);
+    return cr->backend_parent.transform (abstract_cr, matrix);
 }
 
 static cairo_status_t
@@ -199,7 +200,7 @@ _cairo_cogl_context_set_matrix (void *abstract_cr, const cairo_matrix_t *matrix)
     }
 
     cr->path_ctm_age++;
-    return cr->dev->backend_parent.set_matrix (abstract_cr, matrix);
+    return cr->backend_parent.set_matrix (abstract_cr, matrix);
 }
 
 static cairo_status_t
@@ -214,7 +215,7 @@ _cairo_cogl_context_set_identity_matrix (void *abstract_cr)
     }
 
     cr->path_ctm_age++;
-    return cr->dev->backend_parent.set_identity_matrix (abstract_cr);
+    return cr->backend_parent.set_identity_matrix (abstract_cr);
 }
 
 static cairo_status_t
@@ -229,7 +230,7 @@ _cairo_cogl_context_new_path (void *abstract_cr)
 	    return status;
     }
 
-    status = cr->dev->backend_parent.new_path (abstract_cr);
+    status = cr->backend_parent.new_path (abstract_cr);
     if (unlikely (status))
 	return status;
 
@@ -252,7 +253,7 @@ _cairo_cogl_context_new_sub_path (void *abstract_cr)
 	    return status;
     }
 
-    status = cr->dev->backend_parent.new_sub_path (abstract_cr);
+    status = cr->backend_parent.new_sub_path (abstract_cr);
     if (unlikely (status))
 	return status;
 
@@ -274,7 +275,7 @@ _cairo_cogl_context_move_to (void *abstract_cr, double x, double y)
 	    return status;
     }
 
-    status = cr->dev->backend_parent.move_to (abstract_cr, x, y);
+    status = cr->backend_parent.move_to (abstract_cr, x, y);
     if (unlikely (status))
 	return status;
 
@@ -297,7 +298,7 @@ _cairo_cogl_context_line_to (void *abstract_cr, double x, double y)
 	    return status;
     }
 
-    status = cr->dev->backend_parent.line_to (abstract_cr, x, y);
+    status = cr->backend_parent.line_to (abstract_cr, x, y);
     if (unlikely (status))
 	return status;
 
@@ -328,7 +329,7 @@ _cairo_cogl_context_curve_to (void *abstract_cr,
 	    return status;
     }
 
-    status = cr->dev->backend_parent.curve_to (abstract_cr, x1, y1, x2, y2, x3, y3);
+    status = cr->backend_parent.curve_to (abstract_cr, x1, y1, x2, y2, x3, y3);
     if (unlikely (status))
 	return status;
 
@@ -366,7 +367,7 @@ _cairo_cogl_context_arc (void *abstract_cr,
 	    return status;
     }
 
-    status = cr->dev->backend_parent.arc (abstract_cr, xc, yc, radius, angle1, angle2, forward);
+    status = cr->backend_parent.arc (abstract_cr, xc, yc, radius, angle1, angle2, forward);
     if (unlikely (status))
 	return status;
 
@@ -419,7 +420,7 @@ _cairo_cogl_context_rel_move_to (void *abstract_cr, double dx, double dy)
 	    return status;
     }
 
-    status = cr->dev->backend_parent.rel_move_to (abstract_cr, dx, dy);
+    status = cr->backend_parent.rel_move_to (abstract_cr, dx, dy);
     if (unlikely (status))
 	return status;
 
@@ -442,7 +443,7 @@ _cairo_cogl_context_rel_line_to (void *abstract_cr, double dx, double dy)
 	    return status;
     }
 
-    status = cr->dev->backend_parent.rel_line_to (abstract_cr, dx, dy);
+    status = cr->backend_parent.rel_line_to (abstract_cr, dx, dy);
     if (unlikely (status))
 	return status;
 
@@ -474,7 +475,7 @@ _cairo_cogl_context_rel_curve_to (void *abstract_cr,
 	    return status;
     }
 
-    status = cr->dev->backend_parent.rel_curve_to (abstract_cr, dx1, dy1, dx2, dy2, dx3, dy3);
+    status = cr->backend_parent.rel_curve_to (abstract_cr, dx1, dy1, dx2, dy2, dx3, dy3);
     if (unlikely (status))
 	return status;
 
@@ -512,7 +513,7 @@ _cairo_cogl_context_arc_to (void *abstract_cr,
 	    return status;
     }
 
-    status = cr->dev->backend_parent.arc_to (abstract_cr, x1, y1, x2, y2, radius);
+    status = cr->backend_parent.arc_to (abstract_cr, x1, y1, x2, y2, radius);
     if (unlikely (status))
 	return status;
 #warning "FIXME"
@@ -533,7 +534,7 @@ _cairo_cogl_rel_arc_to (void *cr,
 	    return status;
     }
 
-    status = cr->dev->backend_parent.rel_arc_to (abstract_cr, dx1, dy2, dx2, dy2, radius);
+    status = cr->backend_parent.rel_arc_to (abstract_cr, dx1, dy2, dx2, dy2, radius);
     if (unlikely (status))
 	return status;
 #warning "FIXME"
@@ -552,7 +553,7 @@ _cairo_cogl_context_close_path (void *abstract_cr)
 	    return status;
     }
 
-    status = cr->dev->backend_parent.close_path (abstract_cr);
+    status = cr->backend_parent.close_path (abstract_cr);
     if (unlikely (status))
 	return status;
 
@@ -623,31 +624,55 @@ _cairo_cogl_surface_set_side_band_state (cairo_cogl_surface_t *surface,
     }
 }
 
+static cairo_cogl_surface_t *
+_cairo_cogl_get_cogl_surface (cairo_surface_t *target)
+{
+    /* Collapse all nested subsurfaces. If another method of target
+     * surface redirection is added to cairo, we can add a test here. */
+    while (1) {
+        if (_cairo_surface_is_subsurface (target)) {
+            target = _cairo_surface_subsurface_get_target (target);
+        } else if (target->type == CAIRO_SURFACE_TYPE_COGL) {
+            return (cairo_cogl_surface_t *)target;
+        } else {
+            /* return NULL if the target is not a cogl surface */
+            return NULL;
+        }
+    }
+}
+
 static cairo_status_t
 _cairo_cogl_context_fill (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = (cairo_cogl_surface_t *)cr->base.gstate->target;
+    cairo_cogl_surface_t *surface = 
+        _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
     if (cr->path_is_rectangle) {
-	status = _cairo_cogl_surface_fill_rectangle (cr->base.gstate->target,
-						     cr->base.gstate->op,
-						     cr->base.gstate->source,
-						     cr->x,
-						     cr->y,
-						     cr->width,
-						     cr->height,
-						     &cr->base.gstate->ctm,
-						     cr->base.gstate->clip);
-	if (status == CAIRO_STATUS_SUCCESS)
-	    goto DONE;
-	_flush_cr_rectangle (cr);
+        if (surface) {
+            status = _cairo_cogl_surface_fill_rectangle ((cairo_surface_t *)surface,
+                                                         cr->base.gstate->op,
+                                                         cr->base.gstate->source,
+                                                         cr->x,
+                                                         cr->y,
+                                                         cr->width,
+                                                         cr->height,
+                                                         &cr->base.gstate->ctm,
+                                                         cr->base.gstate->clip);
+            if (status == CAIRO_STATUS_SUCCESS)
+                goto DONE;
+        }
+
+        status = _flush_cr_rectangle (cr);
+        if (unlikely (status))
+            return status;
     }
 
-    _cairo_cogl_surface_set_side_band_state (surface, cr);
+    if (surface)
+        _cairo_cogl_surface_set_side_band_state (surface, cr);
 
-    status = cr->dev->backend_parent.fill (abstract_cr);
+    status = cr->backend_parent.fill (abstract_cr);
     if (unlikely (status))
 	return status;
 
@@ -664,14 +689,37 @@ _cairo_cogl_context_fill_preserve (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = (cairo_cogl_surface_t *)cr->base.gstate->target;
+    cairo_cogl_surface_t *surface = 
+        _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
-    _cairo_cogl_surface_set_side_band_state (surface, cr);
+    if (cr->path_is_rectangle) {
+        if (surface) {
+            status = _cairo_cogl_surface_fill_rectangle ((cairo_surface_t *)surface,
+                                                         cr->base.gstate->op,
+                                                         cr->base.gstate->source,
+                                                         cr->x,
+                                                         cr->y,
+                                                         cr->width,
+                                                         cr->height,
+                                                         &cr->base.gstate->ctm,
+                                                         cr->base.gstate->clip);
+            if (status == CAIRO_STATUS_SUCCESS)
+                goto DONE;
+        }
 
-    status = cr->dev->backend_parent.fill_preserve (abstract_cr);
+        status = _flush_cr_rectangle (cr);
+        if (unlikely (status))
+            return status;
+    }
+
+    if (surface)
+        _cairo_cogl_surface_set_side_band_state (surface, cr);
+
+    status = cr->backend_parent.fill_preserve (abstract_cr);
     if (unlikely (status))
 	return status;
 
+DONE:
     return CAIRO_STATUS_SUCCESS;
 }
 
@@ -680,11 +728,20 @@ _cairo_cogl_context_stroke (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = (cairo_cogl_surface_t *)cr->base.gstate->target;
+    cairo_cogl_surface_t *surface = 
+        _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
-    _cairo_cogl_surface_set_side_band_state (surface, cr);
+    /* This operator can't use an accelerated rectangle path yet */
+    if (cr->path_is_rectangle) {
+        status = _flush_cr_rectangle (cr);
+        if (unlikely (status))
+            return status;
+    }
 
-    status = cr->dev->backend_parent.stroke (abstract_cr);
+    if (surface)
+        _cairo_cogl_surface_set_side_band_state (surface, cr);
+
+    status = cr->backend_parent.stroke (abstract_cr);
     if (unlikely (status))
 	return status;
 
@@ -700,11 +757,20 @@ _cairo_cogl_context_stroke_preserve (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = (cairo_cogl_surface_t *)cr->base.gstate->target;
+    cairo_cogl_surface_t *surface = 
+        _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
-    _cairo_cogl_surface_set_side_band_state (surface, cr);
+    /* This operator can't use an accelerated rectangle path yet */
+    if (cr->path_is_rectangle) {
+        status = _flush_cr_rectangle (cr);
+        if (unlikely (status))
+            return status;
+    }
 
-    status = cr->dev->backend_parent.stroke_preserve (abstract_cr);
+    if (surface)
+        _cairo_cogl_surface_set_side_band_state (surface, cr);
+
+    status = cr->backend_parent.stroke_preserve (abstract_cr);
     if (unlikely (status))
 	return status;
 
@@ -716,14 +782,51 @@ _cairo_cogl_context_clip (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
+    cairo_cogl_surface_t *surface = 
+        _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
-    status = cr->dev->backend_parent.clip (abstract_cr);
+    /* This operator can't use an accelerated rectangle path yet */
+    if (cr->path_is_rectangle) {
+        status = _flush_cr_rectangle (cr);
+        if (unlikely (status))
+            return status;
+    }
+
+    if (surface)
+        _cairo_cogl_surface_set_side_band_state (surface, cr);
+
+    status = cr->backend_parent.clip (abstract_cr);
     if (unlikely (status))
 	return status;
 
     _cairo_path_fixed_fini (&cr->user_path);
     _cairo_path_fixed_init (&cr->user_path);
     cr->path_is_rectangle = FALSE;
+
+    return CAIRO_STATUS_SUCCESS;
+}
+
+static cairo_status_t
+_cairo_cogl_context_clip_preserve (void *abstract_cr)
+{
+    cairo_cogl_context_t *cr = abstract_cr;
+    cairo_status_t status;
+    cairo_cogl_surface_t *surface = 
+        _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
+
+    /* This operator can't use an accelerated rectangle path yet */
+    if (cr->path_is_rectangle) {
+        status = _flush_cr_rectangle (cr);
+        if (unlikely (status))
+            return status;
+    }
+
+    if (surface)
+        _cairo_cogl_surface_set_side_band_state (surface, cr);
+
+    status = cr->backend_parent.clip_preserve (abstract_cr);
+    if (unlikely (status))
+	return status;
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -742,60 +845,8 @@ _cairo_cogl_context_destroy (void *abstract_cr)
     _freed_pool_put (&context_pool, cr);
 }
 
-static cairo_pattern_t *
-_cairo_cogl_context_pop_group (void *abstract_cr);
-
 void
 _cairo_cogl_context_set_custom_vtable_funcs (cairo_backend_t *backend);
-
-/* Pushed surfaces often take the form of image or recording surfaces,
- * which are unable to handle the rectangle fast path or tessellation
- * cacheing. Therfore, we need to restore the vtable functions from the
- * default context. */
-static cairo_status_t
-_cairo_cogl_context_push_group (void *abstract_cr, cairo_content_t content)
-{
-    cairo_cogl_context_t *cr = abstract_cr;
-    cairo_status_t status;
-
-    /* Flush the values set in the side band to the normal path */
-    if (cr->path_is_rectangle) {
-        status = _flush_cr_rectangle (cr);
-        if (unlikely (status))
-            return status;
-    }
-
-    /* Just assume the ctm will be modified */
-    cr->path_ctm_age++;
-
-    status = cr->dev->backend_parent.push_group (abstract_cr, content);
-    if (unlikely (status))
-        return status;
-
-    /* Restore all the vtable functions except the popping function */
-    memcpy (&cr->dev->backend, &cr->dev->backend_parent, sizeof (cairo_backend_t));
-    cr->dev->backend.pop_group = _cairo_cogl_context_pop_group;
-
-    return CAIRO_STATUS_SUCCESS;
-}
-
-static cairo_pattern_t *
-_cairo_cogl_context_pop_group (void *abstract_cr)
-{
-    cairo_cogl_context_t *cr = abstract_cr;
-    cairo_pattern_t *group_pattern;
-
-    /* The default popping function can still be found at
-     * backend_parent */
-    group_pattern = cr->dev->backend_parent.pop_group (abstract_cr);
-
-    /* Skip restoring the vtable funcs if we are popping to a pushed
-     * surface */
-    if (cr->base.gstate->target->type == CAIRO_SURFACE_TYPE_COGL)
-        _cairo_cogl_context_set_custom_vtable_funcs (&cr->dev->backend);
-
-    return group_pattern;
-}
 
 /* We want to hook into the frontend of the path construction APIs so
  * we can build up a path description in user coordinates instead of
@@ -806,7 +857,6 @@ _cairo_cogl_context_pop_group (void *abstract_cr)
 cairo_t *
 _cairo_cogl_context_create (void *target)
 {
-    cairo_cogl_surface_t *surface = target;
     cairo_cogl_context_t *cr;
     cairo_status_t status;
 
@@ -823,18 +873,12 @@ _cairo_cogl_context_create (void *target)
 	return _cairo_create_in_error (status);
     }
 
-    cr->dev = (cairo_cogl_device_t *)surface->base.device;
+    memcpy (&cr->backend, cr->base.base.backend, sizeof (cairo_backend_t));
+    memcpy (&cr->backend_parent, cr->base.base.backend, sizeof (cairo_backend_t));
 
-    if (unlikely (cr->dev->backend_vtable_initialized == FALSE)) {
-	memcpy (&cr->dev->backend, cr->base.base.backend, sizeof (cairo_backend_t));
-	memcpy (&cr->dev->backend_parent, cr->base.base.backend, sizeof (cairo_backend_t));
+    _cairo_cogl_context_set_custom_vtable_funcs (&cr->backend);
 
-        _cairo_cogl_context_set_custom_vtable_funcs (&cr->dev->backend);
-
-	cr->dev->backend_vtable_initialized = TRUE;
-    }
-
-    cr->base.base.backend = &cr->dev->backend;
+    cr->base.base.backend = &cr->backend;
 
     _cairo_path_fixed_init (&cr->user_path);
     cr->path_is_rectangle = FALSE;
@@ -848,9 +892,6 @@ _cairo_cogl_context_set_custom_vtable_funcs (cairo_backend_t *backend)
     backend->destroy = _cairo_cogl_context_destroy;
 
     backend->restore = _cairo_cogl_context_restore;
-
-    backend->push_group = _cairo_cogl_context_push_group;
-    backend->pop_group = _cairo_cogl_context_pop_group;
 
     backend->translate = _cairo_cogl_context_translate;
     backend->scale = _cairo_cogl_context_scale;
@@ -886,4 +927,5 @@ _cairo_cogl_context_set_custom_vtable_funcs (cairo_backend_t *backend)
     backend->stroke = _cairo_cogl_context_stroke;
     backend->stroke_preserve = _cairo_cogl_context_stroke_preserve;
     backend->clip = _cairo_cogl_context_clip;
+    backend->clip_preserve = _cairo_cogl_context_clip_preserve;
 }

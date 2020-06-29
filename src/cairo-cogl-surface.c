@@ -236,7 +236,8 @@ _cairo_cogl_surface_ensure_framebuffer (cairo_cogl_surface_t *surface)
     if (surface->framebuffer)
 	return CAIRO_STATUS_SUCCESS;
 
-    surface->framebuffer = COGL_FRAMEBUFFER (cogl_offscreen_new_with_texture (surface->texture));
+    surface->framebuffer =
+        cogl_offscreen_new_with_texture (surface->texture);
     if (!cogl_framebuffer_allocate (surface->framebuffer, &error)) {
 	g_error_free (error);
 	cogl_object_unref (surface->framebuffer);
@@ -261,12 +262,10 @@ _cairo_cogl_surface_create_similar (void            *abstract_surface,
     cairo_cogl_surface_t *surface;
     CoglTexture *texture;
     cairo_status_t status;
-    CoglContext *cogl_context;
 
-    cogl_context = cogl_framebuffer_get_context(reference_surface->framebuffer);
-
-    texture = cogl_texture_2d_new_with_size (cogl_context, width,
-                                             height);
+    texture =
+        cogl_texture_2d_new_with_size (to_device(reference_surface->base.device)->cogl_context,
+                                       width, height);
     if (!texture)
         return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
 
@@ -452,16 +451,18 @@ static void
 _cairo_cogl_journal_discard (cairo_cogl_surface_t *surface)
 {
     GList *l;
+    cairo_cogl_device_t *dev;
 
     if (!surface->journal) {
 	assert (surface->last_clip == NULL);
 	return;
     }
 
-    if (surface->buffer_stack && surface->buffer_stack_offset) {
-	cogl_buffer_unmap (COGL_BUFFER (surface->buffer_stack));
-	cogl_object_unref (surface->buffer_stack);
-	surface->buffer_stack = NULL;
+    dev = to_device(surface->base.device);
+    if (dev->buffer_stack && dev->buffer_stack_offset) {
+	cogl_buffer_unmap (dev->buffer_stack);
+	cogl_object_unref (dev->buffer_stack);
+	dev->buffer_stack = NULL;
     }
 
     for (l = surface->journal->head; l; l = l->next) {
@@ -516,45 +517,42 @@ _cairo_cogl_journal_discard (cairo_cogl_surface_t *surface)
 }
 
 static CoglAttributeBuffer *
-_cairo_cogl_surface_allocate_buffer_space (cairo_cogl_surface_t *surface,
-					   size_t size,
-					   size_t *offset,
-					   void **pointer)
+_cairo_cogl_device_allocate_buffer_space (cairo_cogl_device_t *dev,
+                                          size_t size,
+                                          size_t *offset,
+                                          void **pointer)
 {
-    CoglContext *cogl_context =
-        cogl_framebuffer_get_context(surface->framebuffer);
-
     /* XXX: In the Cogl journal we found it more efficient to have a pool of
      * buffers that we re-cycle but for now we simply throw away our stack
      * buffer each time we flush. */
-    if (unlikely (surface->buffer_stack &&
-		  (surface->buffer_stack_size - surface->buffer_stack_offset) < size)) {
-	cogl_buffer_unmap (COGL_BUFFER (surface->buffer_stack));
-	cogl_object_unref (surface->buffer_stack);
-	surface->buffer_stack = NULL;
-	surface->buffer_stack_size *= 2;
+    if (unlikely (dev->buffer_stack &&
+		  (dev->buffer_stack_size - dev->buffer_stack_offset) < size)) {
+	cogl_buffer_unmap (dev->buffer_stack);
+	cogl_object_unref (dev->buffer_stack);
+	dev->buffer_stack = NULL;
+	dev->buffer_stack_size *= 2;
     }
 
-    if (unlikely (surface->buffer_stack_size < size))
-	surface->buffer_stack_size = size * 2;
+    if (unlikely (dev->buffer_stack_size < size))
+	dev->buffer_stack_size = size * 2;
 
-    if (unlikely (surface->buffer_stack == NULL)) {
-	surface->buffer_stack =
-            cogl_attribute_buffer_new (cogl_context,
-                                       surface->buffer_stack_size,
+    if (unlikely (dev->buffer_stack == NULL)) {
+	dev->buffer_stack =
+            cogl_attribute_buffer_new (dev->cogl_context,
+                                       dev->buffer_stack_size,
                                        NULL);
-	surface->buffer_stack_pointer =
-	    cogl_buffer_map (COGL_BUFFER (surface->buffer_stack),
+	dev->buffer_stack_pointer =
+	    cogl_buffer_map (dev->buffer_stack,
 			     COGL_BUFFER_ACCESS_WRITE,
 			     COGL_BUFFER_MAP_HINT_DISCARD);
-	surface->buffer_stack_offset = 0;
+	dev->buffer_stack_offset = 0;
     }
 
-    *pointer = surface->buffer_stack_pointer + surface->buffer_stack_offset;
-    *offset = surface->buffer_stack_offset;
+    *pointer = dev->buffer_stack_pointer + dev->buffer_stack_offset;
+    *offset = dev->buffer_stack_offset;
 
-    surface->buffer_stack_offset += size;
-    return cogl_object_ref (surface->buffer_stack);
+    dev->buffer_stack_offset += size;
+    return cogl_object_ref (dev->buffer_stack);
 }
 
 
@@ -564,29 +562,27 @@ _cairo_cogl_traps_to_triangles_buffer (cairo_cogl_surface_t *surface,
 				       size_t *offset,
 				       gboolean one_shot)
 {
-    CoglContext *cogl_context =
-        cogl_framebuffer_get_context(surface->framebuffer);
-
     CoglAttributeBuffer *buffer;
     int n_traps = traps->num_traps;
     int i;
     CoglVertexP2 *triangles;
 
     if (one_shot) {
-	buffer = _cairo_cogl_surface_allocate_buffer_space (surface,
-							    n_traps * sizeof (CoglVertexP2) * 6,
-							    offset,
-							    (void **)&triangles);
+	buffer =
+            _cairo_cogl_device_allocate_buffer_space (to_device(surface->base.device),
+                                                       n_traps * sizeof (CoglVertexP2) * 6,
+                                                       offset,
+                                                       (void **)&triangles);
 	if (!buffer)
 	    return NULL;
     } else {
 	buffer =
-            cogl_attribute_buffer_new (cogl_context,
+            cogl_attribute_buffer_new (to_device(surface->base.device)->cogl_context,
                                        n_traps * sizeof (CoglVertexP2) * 6,
                                        NULL);
 	if (!buffer)
 	    return NULL;
-	triangles = cogl_buffer_map (COGL_BUFFER (buffer),
+	triangles = cogl_buffer_map (buffer,
 				     COGL_BUFFER_ACCESS_WRITE,
 				     COGL_BUFFER_MAP_HINT_DISCARD);
 	if (!triangles)
@@ -626,7 +622,7 @@ _cairo_cogl_traps_to_triangles_buffer (cairo_cogl_surface_t *surface,
     }
 
     if (!one_shot)
-	cogl_buffer_unmap (COGL_BUFFER (buffer));
+	cogl_buffer_unmap (buffer);
 
     return buffer;
 }
@@ -780,16 +776,23 @@ static void
 _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 {
     GList *l;
+    cairo_cogl_device_t *dev;
     int clip_stack_depth = 0;
     int i;
 
     if (!surface->journal)
 	return;
 
-    if (surface->buffer_stack && surface->buffer_stack_offset) {
-	cogl_buffer_unmap (COGL_BUFFER (surface->buffer_stack));
-	cogl_object_unref (surface->buffer_stack);
-	surface->buffer_stack = NULL;
+    dev = to_device(surface->base.device);
+    if (dev->buffer_stack && dev->buffer_stack_offset) {
+	cogl_buffer_unmap (dev->buffer_stack);
+	cogl_object_unref (dev->buffer_stack);
+	dev->buffer_stack = NULL;
+    }
+
+    if (_cairo_cogl_surface_ensure_framebuffer (surface)) {
+        g_warning ("Could not get framebuffer for flushing journal\n");
+        assert (0);
     }
 
     cogl_framebuffer_push_matrix (surface->framebuffer);
@@ -1373,8 +1376,9 @@ _cairo_cogl_get_pot_texture (CoglContext *context,
     int height = cogl_texture_get_height (texture);
     int pot_width;
     int pot_height;
-    CoglHandle offscreen = NULL;
+    CoglOffscreen *offscreen = NULL;
     CoglTexture2D *pot = NULL;
+    CoglPipeline *pipeline;
     GError *error;
 
     pot_width = _cairo_cogl_util_next_p2 (width);
@@ -1399,18 +1403,18 @@ _cairo_cogl_get_pot_texture (CoglContext *context,
 	    break;
     }
 
-    *pot_texture = COGL_TEXTURE (pot);
+    *pot_texture = pot;
 
     if (!pot)
 	return CAIRO_INT_STATUS_NO_MEMORY;
 
-    cogl_texture_set_components (COGL_TEXTURE (tex),
+    cogl_texture_set_components (pot,
                                  cogl_texture_get_components(texture));
 
     /* Use the GPU to do a bilinear filtered scale from npot to pot... */
-    offscreen = cogl_offscreen_new_with_texture (COGL_TEXTURE (pot));
+    offscreen = cogl_offscreen_new_with_texture (pot);
     error = NULL;
-    if (!cogl_framebuffer_allocate (COGL_FRAMEBUFFER (offscreen), &error)) {
+    if (!cogl_framebuffer_allocate (offscreen, &error)) {
 	/* NB: if we don't pass an error then Cogl is allowed to simply abort
 	 * automatically. */
 	g_error_free (error);
@@ -1419,10 +1423,11 @@ _cairo_cogl_get_pot_texture (CoglContext *context,
 	return CAIRO_INT_STATUS_NO_MEMORY;
     }
 
-    cogl_push_framebuffer (COGL_FRAMEBUFFER (offscreen));
-    cogl_set_source_texture (texture);
-    cogl_rectangle (-1, 1, 1, -1);
-    cogl_pop_framebuffer ();
+    pipeline = cogl_pipeline_new (context);
+    cogl_pipeline_set_layer_texture (pipeline, 1, texture);
+    cogl_framebuffer_draw_textured_rectangle (offscreen, pipeline,
+                                              -1, 1, 1, -1,
+                                              0, 0, 1, 1);
 
     cogl_object_unref (offscreen);
 }
@@ -1432,7 +1437,7 @@ _cairo_cogl_get_pot_texture (CoglContext *context,
  * be unrefed */
 static CoglTexture *
 _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
-				     cairo_surface_t	   *abstract_surface)
+				     cairo_surface_t	   *surface)
 {
     cairo_image_surface_t *image;
     cairo_image_surface_t *acquired_image = NULL;
@@ -1443,27 +1448,25 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
     GError *error = NULL;
     cairo_surface_t *clone;
 
-    if (abstract_surface->device == reference_surface->base.device) {
-	cairo_cogl_surface_t *surface = (cairo_cogl_surface_t *)abstract_surface;
-	_cairo_cogl_surface_flush (surface, 0);
-	return surface->texture ? cogl_object_ref (surface->texture) : NULL;
+    if (surface->device == reference_surface->base.device) {
+        _cairo_cogl_surface_flush ((cairo_cogl_surface_t *)surface, 0);
+        if (((cairo_cogl_surface_t *)surface)->texture)
+            return cogl_object_ref (((cairo_cogl_surface_t *)surface)->texture);
     }
 
-    if (abstract_surface->type == CAIRO_SURFACE_TYPE_COGL) {
-	if (_cairo_surface_is_subsurface (abstract_surface)) {
-	    cairo_cogl_surface_t *surface;
-
-	    surface = (cairo_cogl_surface_t *)
-		_cairo_surface_subsurface_get_target (abstract_surface);
-	    if (surface->base.device == reference_surface->base.device)
-		return surface->texture ? cogl_object_ref (surface->texture) : NULL;
+    if (surface->type == CAIRO_SURFACE_TYPE_COGL) {
+	if (_cairo_surface_is_subsurface (surface)) {
+            surface = _cairo_surface_subsurface_get_target (surface);
+            if (surface->device == reference_surface->base.device)
+                if (((cairo_cogl_surface_t *)surface)->texture)
+                    return cogl_object_ref (((cairo_cogl_surface_t *)surface)->texture);
 	}
     }
 
-    clone = _cairo_surface_has_snapshot (abstract_surface, &_cairo_cogl_surface_backend);
+    clone = _cairo_surface_has_snapshot (surface, &_cairo_cogl_surface_backend);
     if (clone) {
-	cairo_cogl_surface_t *surface = (cairo_cogl_surface_t *)clone;
-	return surface->texture ? cogl_object_ref (surface->texture) : NULL;
+        if (((cairo_cogl_surface_t *)clone)->texture)
+            return cogl_object_ref (((cairo_cogl_surface_t *)clone)->texture);
     }
 
     if (_cairo_surface_is_recording (surface)) {
@@ -1490,16 +1493,18 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
         }
 
         cairo_surface_destroy (clone);
-        return ((cairo_cogl_surface_t *)clone)->texture;
+        return texture;
     }
 
     // g_warning ("Uploading image surface to texture");
 
-    if (_cairo_surface_is_image (abstract_surface)) {
-	image = (cairo_image_surface_t *)abstract_surface;
+    if (_cairo_surface_is_image (surface)) {
+	image = (cairo_image_surface_t *)surface;
     } else {
-	cairo_status_t status = _cairo_surface_acquire_source_image (abstract_surface,
-								     &acquired_image, &image_extra);
+        cairo_status_t status =
+            _cairo_surface_acquire_source_image (surface,
+                                                 &acquired_image,
+                                                 &image_extra);
 	if (unlikely (status)) {
 	    g_warning ("acquire_source_image failed: %s [%d]\n",
 		       cairo_status_to_string (status), status);
@@ -1537,9 +1542,9 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
 
     clone = _cairo_cogl_surface_create_full (to_device(reference_surface->base.device),
 					     reference_surface->ignore_alpha,
-					     NULL, COGL_TEXTURE (texture));
+					     NULL, texture);
 
-    _cairo_surface_attach_snapshot (abstract_surface, clone, NULL);
+    _cairo_surface_attach_snapshot (surface, clone, NULL);
 
     /* Attaching the snapshot will take a reference on the clone surface... */
     cairo_surface_destroy (clone);
@@ -1548,9 +1553,9 @@ BAIL:
     if (image_clone)
 	cairo_surface_destroy (&image_clone->base);
     if (acquired_image)
-	_cairo_surface_release_source_image (abstract_surface, acquired_image, image_extra);
+	_cairo_surface_release_source_image (surface, acquired_image, image_extra);
 
-    return COGL_TEXTURE (texture);
+    return texture;
 }
 
 /* NB: a reference for the texture is transferred to the caller which should
@@ -1847,7 +1852,7 @@ _cairo_cogl_rectangle_new_p2t2t2 (CoglContext *cogl_context,
 						     COGL_ATTRIBUTE_TYPE_FLOAT);
     CoglPrimitive *prim;
 
-    cogl_buffer_set_data (COGL_BUFFER (buffer), 0, vertices, sizeof (vertices));
+    cogl_buffer_set_data (buffer, 0, vertices, sizeof (vertices));
 
     /* The attributes will now keep the buffer alive... */
     cogl_object_unref (buffer);
@@ -2669,12 +2674,12 @@ _cairo_cogl_surface_create_full (cairo_cogl_device_t *dev,
 
     surface->journal = NULL;
 
-    surface->buffer_stack = NULL;
-    surface->buffer_stack_size = 4096;
-
     surface->last_clip = NULL;
 
     surface->n_clip_updates_per_frame = 0;
+
+    surface->path_is_rectangle = FALSE;
+    surface->user_path = NULL;
 
     _cairo_surface_init (&surface->base,
                          &_cairo_cogl_surface_backend,
@@ -2870,14 +2875,15 @@ cairo_cogl_device_create (CoglContext *cogl_context)
     cairo_cogl_device_t *dev = g_new0 (cairo_cogl_device_t, 1);
     cairo_status_t status;
 
-    dev->backend_vtable_initialized = FALSE;
-
     dev->cogl_context = cogl_context;
 
     dev->dummy_texture = cogl_texture_2d_new_with_size (cogl_context,
                                                         1, 1);
     if (!dev->dummy_texture)
 	goto ERROR;
+
+    dev->buffer_stack = NULL;
+    dev->buffer_stack_size = 4096;
 
     memset (dev->template_pipelines, 0, sizeof (dev->template_pipelines));
     create_templates_for_op (dev, CAIRO_OPERATOR_SOURCE);

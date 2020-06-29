@@ -34,6 +34,7 @@
 #include "cairo-error-private.h"
 #include "cairo-path-fixed-private.h"
 #include "cairo-recording-surface-private.h"
+#include "cairo-recording-surface-inline.h"
 #include "cairo-surface-clipper-private.h"
 #include "cairo-fixed-private.h"
 #include "cairo-device-private.h"
@@ -1287,6 +1288,10 @@ _cairo_cogl_surface_paint (void                  *abstract_surface,
     cairo_matrix_t identity;
 
     if (clip == NULL) {
+        status = _cairo_cogl_surface_ensure_framebuffer (abstract_surface);
+        if (unlikely (status))
+            goto BAIL;
+
 	if (op == CAIRO_OPERATOR_CLEAR)
             return _cairo_cogl_surface_clear (abstract_surface, CAIRO_COLOR_TRANSPARENT);
 	else if (source->type == CAIRO_PATTERN_TYPE_SOLID &&
@@ -1349,8 +1354,7 @@ get_cogl_wrap_mode_for_extend (cairo_extend_t extend_mode)
     case CAIRO_EXTEND_REPEAT:
 	return COGL_PIPELINE_WRAP_MODE_REPEAT;
     case CAIRO_EXTEND_REFLECT:
-	/* TODO: return COGL_PIPELINE_WRAP_MODE_MIRROR; */
-	return CAIRO_EXTEND_REPEAT;
+	return COGL_PIPELINE_WRAP_MODE_MIRRORED_REPEAT;
     }
     assert (0); /* not reached */
     return COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE;
@@ -1460,6 +1464,33 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
     if (clone) {
 	cairo_cogl_surface_t *surface = (cairo_cogl_surface_t *)clone;
 	return surface->texture ? cogl_object_ref (surface->texture) : NULL;
+    }
+
+    if (_cairo_surface_is_recording (surface)) {
+        texture =
+            cogl_texture_2d_new_with_size (to_device(reference_surface->base.device)->cogl_context,
+                                           reference_surface->width,
+                                           reference_surface->height);
+        if (!texture) {
+	    g_warning ("Failed to allocate texture: %s", error->message);
+	    g_error_free (error);
+	    goto BAIL;
+        }
+
+        clone =
+            _cairo_cogl_surface_create_full (to_device(reference_surface->base.device),
+                                             reference_surface->ignore_alpha,
+                                             NULL,
+                                             texture);
+
+        if (_cairo_recording_surface_replay (surface, clone)) {
+            g_warning ("could not replay recording surface \n");
+            texture = NULL;
+            goto BAIL;
+        }
+
+        cairo_surface_destroy (clone);
+        return ((cairo_cogl_surface_t *)clone)->texture;
     }
 
     // g_warning ("Uploading image surface to texture");

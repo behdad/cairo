@@ -1589,15 +1589,21 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 	}
 #endif
 
-	cairo_matrix_init_identity (&attributes->matrix);
+	attributes->matrix = pattern->matrix;
 
 	/* Convert from un-normalized source coordinates in backend
-	 * coordinates to normalized texture coordinates */
-	cairo_matrix_scale (&attributes->matrix,
-			    1.0f / cogl_texture_get_width (texture),
-			    1.0f / cogl_texture_get_height (texture));
-
-	/* XXX: need to multiply in the pattern->matrix */
+	 * coordinates to normalized texture coordinates. Since
+         * cairo_matrix_scale does not scale the x0 and y0 components,
+         * which is required for translations in normalized
+         * coordinates, use a custom solution here. */
+        double xscale = 1.0 / cogl_texture_get_width (texture);
+        double yscale = 1.0 / cogl_texture_get_height (texture);
+        attributes->matrix.xx *= xscale;
+        attributes->matrix.yx *= yscale;
+        attributes->matrix.xy *= xscale;
+        attributes->matrix.yy *= yscale;
+        attributes->matrix.x0 *= xscale;
+        attributes->matrix.y0 *= yscale;
 
 	attributes->extend = pattern->extend;
 	attributes->filter = CAIRO_FILTER_BILINEAR;
@@ -1629,13 +1635,21 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 
 	cairo_matrix_init_identity (&texture_matrix);
 
-	/* Convert from un-normalized source coordinates in backend
-	 * coordinates to normalized texture coordinates */
-	cairo_matrix_scale (&texture_matrix,
-			    1.0f / cogl_texture_get_width (texture),
-			    1.0f / cogl_texture_get_height (texture));
-
 	cairo_matrix_translate (&texture_matrix, -extents->x, -extents->y);
+
+	/* Convert from un-normalized source coordinates in backend
+	 * coordinates to normalized texture coordinates. Since
+         * cairo_matrix_scale does not scale the x0 and y0 components,
+         * which is required for translations in normalized
+         * coordinates, use a custom solution here. */
+        double xscale = 1.0 / cogl_texture_get_width (texture);
+        double yscale = 1.0 / cogl_texture_get_height (texture);
+        attributes->matrix.xx *= xscale;
+        attributes->matrix.yx *= yscale;
+        attributes->matrix.xy *= xscale;
+        attributes->matrix.yy *= yscale;
+        attributes->matrix.x0 *= xscale;
+        attributes->matrix.y0 *= yscale;
 
 	attributes->matrix = texture_matrix;
 	attributes->extend = pattern->extend;
@@ -1656,10 +1670,6 @@ BAIL:
 	cairo_cogl_linear_gradient_t *gradient;
 	cairo_cogl_linear_texture_entry_t *linear_texture;
 	cairo_int_status_t status;
-	float a, b;
-	float dist;
-	float scale;
-	float angle;
 
 	status = _cairo_cogl_get_linear_gradient (to_device(destination->base.device),
 						  pattern->extend,
@@ -1677,29 +1687,31 @@ BAIL:
 	attributes->s_wrap = get_cogl_wrap_mode_for_extend (pattern->extend);
 	attributes->t_wrap = COGL_PIPELINE_WRAP_MODE_REPEAT;
 
-	cairo_matrix_init_identity (&attributes->matrix);
+        attributes->matrix = pattern->matrix;
 
-	a = linear_pattern->pd2.x - linear_pattern->pd1.x;
-	b = linear_pattern->pd2.y - linear_pattern->pd1.y;
-	dist = sqrtf (a*a + b*b);
-	scale = 1.0f / dist;
-	angle = - atan2f (b, a);
+	double a = linear_pattern->pd2.x - linear_pattern->pd1.x;
+	double b = linear_pattern->pd2.y - linear_pattern->pd1.y;
+	double angle = - atan2f (b, a);
 
 	cairo_matrix_rotate (&attributes->matrix, angle);
-	cairo_matrix_scale (&attributes->matrix, scale, scale);
 
 	cairo_matrix_translate (&attributes->matrix,
 				-linear_pattern->pd1.x,
 				-linear_pattern->pd1.y);
 
-	/* XXX: this caught me out: cairo doesn't follow the standard
-	 * maths convention for multiplying two matrices A x B - cairo
-	 * does B x A so the final matrix is as if A's transforms were
-	 * applied first.
-	 */
-	cairo_matrix_multiply (&attributes->matrix,
-			       &pattern->matrix,
-			       &attributes->matrix);
+	/* Convert from un-normalized source coordinates in backend
+	 * coordinates to normalized texture coordinates. Since
+         * cairo_matrix_scale does not scale the x0 and y0 components,
+         * which is required for translations in normalized
+         * coordinates, use a custom solution here. */
+	double dist = sqrtf (a*a + b*b);
+	double scale = 1.0 / dist;
+        attributes->matrix.xx *= scale;
+        attributes->matrix.yx *= scale;
+        attributes->matrix.xy *= scale;
+        attributes->matrix.yy *= scale;
+        attributes->matrix.x0 *= scale;
+        attributes->matrix.y0 *= scale;
 
 	return cogl_object_ref (linear_texture->texture);
     }

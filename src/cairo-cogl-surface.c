@@ -1746,6 +1746,7 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
 {
     cairo_cogl_template_type template_type;
     CoglPipeline *pipeline;
+    int layer_counter = 0;
 
     switch ((int)source->type)
     {
@@ -1783,7 +1784,10 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
 						 &attributes);
 	if (!texture)
 	    goto BAIL;
-	set_layer_texture_with_attributes (pipeline, 0, texture, &attributes);
+	set_layer_texture_with_attributes (pipeline,
+                                           layer_counter++,
+                                           texture,
+                                           &attributes);
 	cogl_object_unref (texture);
     }
 
@@ -1796,7 +1800,9 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
 				     solid_pattern->color.green * solid_pattern->color.alpha,
 				     solid_pattern->color.blue * solid_pattern->color.alpha,
 				     solid_pattern->color.alpha);
-	    cogl_pipeline_set_layer_combine_constant (pipeline, 1, &color);
+	    cogl_pipeline_set_layer_combine_constant (pipeline,
+                                                      layer_counter++,
+                                                      &color);
 	} else {
 	    cairo_cogl_texture_attributes_t attributes;
 	    CoglTexture *texture =
@@ -1806,7 +1812,10 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
 						     &attributes);
 	    if (!texture)
 		goto BAIL;
-	    set_layer_texture_with_attributes (pipeline, 1, texture, &attributes);
+	    set_layer_texture_with_attributes (pipeline,
+                                               layer_counter++,
+                                               texture,
+                                               &attributes);
 	    cogl_object_unref (texture);
 	}
     }

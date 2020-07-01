@@ -646,7 +646,7 @@ _cairo_cogl_context_fill (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = 
+    cairo_cogl_surface_t *surface =
         _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
     if (cr->path_is_rectangle) {
@@ -689,7 +689,7 @@ _cairo_cogl_context_fill_preserve (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = 
+    cairo_cogl_surface_t *surface =
         _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
     if (cr->path_is_rectangle) {
@@ -728,7 +728,7 @@ _cairo_cogl_context_stroke (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = 
+    cairo_cogl_surface_t *surface =
         _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
     /* This operator can't use an accelerated rectangle path yet */
@@ -757,7 +757,7 @@ _cairo_cogl_context_stroke_preserve (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = 
+    cairo_cogl_surface_t *surface =
         _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
     /* This operator can't use an accelerated rectangle path yet */
@@ -782,7 +782,7 @@ _cairo_cogl_context_clip (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = 
+    cairo_cogl_surface_t *surface =
         _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
     /* This operator can't use an accelerated rectangle path yet */
@@ -811,7 +811,7 @@ _cairo_cogl_context_clip_preserve (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
-    cairo_cogl_surface_t *surface = 
+    cairo_cogl_surface_t *surface =
         _cairo_cogl_get_cogl_surface (cr->base.gstate->target);
 
     /* This operator can't use an accelerated rectangle path yet */

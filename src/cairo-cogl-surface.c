@@ -675,7 +675,7 @@ _cairo_cogl_traps_to_composite_prim_p2t2 (cairo_cogl_surface_t *surface,
     CoglAttribute *tex_coords = cogl_attribute_new (buffer,
 						    "cogl_tex_coord0_in",
 						    sizeof (CoglVertexP2),
-						    0,
+						    offset,
 						    2,
 						    COGL_ATTRIBUTE_TYPE_FLOAT);
     CoglPrimitive *prim;

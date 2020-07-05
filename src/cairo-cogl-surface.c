@@ -1721,6 +1721,139 @@ BAIL:
     }
 }
 
+static cairo_bool_t
+set_blend (CoglPipeline *pipeline, const char *blend_string)
+{
+    GError *error = NULL;
+    if (!cogl_pipeline_set_blend (pipeline, blend_string, &error)) {
+	g_warning ("Unsupported blend string with current gpu/driver: %s", blend_string);
+	g_error_free (error);
+	return FALSE;
+    }
+    return TRUE;
+}
+
+static cairo_bool_t
+_cairo_cogl_setup_op_state (CoglPipeline *pipeline, cairo_operator_t op)
+{
+    cairo_bool_t status = FALSE;
+
+    switch ((int)op)
+    {
+    case CAIRO_OPERATOR_CLEAR:
+        status = set_blend (pipeline, "RGBA = ADD (0, 0)");
+        break;
+    case CAIRO_OPERATOR_SOURCE:
+	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR, 0)");
+	break;
+    case CAIRO_OPERATOR_OVER:
+	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR, DST_COLOR * (1 - SRC_COLOR[A]))");
+	break;
+    case CAIRO_OPERATOR_IN:
+	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR * DST_COLOR[A], 0)");
+	break;
+    case CAIRO_OPERATOR_OUT:
+        status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR * (1 - DST_COLOR[A]), 0)");
+        break;
+    case CAIRO_OPERATOR_ATOP:
+        status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR * DST_COLOR[A], DST_COLOR * (1 - SRC_COLOR[A]))");
+        break;
+    case CAIRO_OPERATOR_DEST:
+        status = set_blend (pipeline, "RGBA = ADD (0, DST_COLOR)");
+        break;
+    case CAIRO_OPERATOR_DEST_OVER:
+	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR * (1 - DST_COLOR[A]), DST_COLOR)");
+	break;
+    case CAIRO_OPERATOR_DEST_IN:
+	status = set_blend (pipeline, "RGBA = ADD (0, DST_COLOR * SRC_COLOR[A])");
+	break;
+    case CAIRO_OPERATOR_DEST_OUT:
+        status = set_blend (pipeline, "RGBA = ADD (0, DST_COLOR * (1 - SRC_COLOR[A]))");
+        break;
+    case CAIRO_OPERATOR_DEST_ATOP:
+        status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR * (1 - DST_COLOR[A]), DST_COLOR * SRC_COLOR[A])");
+        break;
+    case CAIRO_OPERATOR_XOR:
+        status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR * (1 - DST_COLOR[A]), DST_COLOR * (1 - SRC_COLOR[A]))");
+        break;
+    case CAIRO_OPERATOR_ADD:
+	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR, DST_COLOR)");
+	break;
+    }
+
+    return status;
+}
+
+static void
+create_templates_for_op_type (cairo_cogl_device_t *dev,
+                              cairo_operator_t op,
+                              cairo_cogl_template_type type)
+{
+    CoglPipeline *pipeline;
+    CoglColor color;
+
+    if (!dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]) {
+        CoglPipeline *base = cogl_pipeline_new (dev->cogl_context);
+
+        if (!_cairo_cogl_setup_op_state (base, op)) {
+            cogl_object_unref (base);
+            return;
+        }
+
+        dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID] = base;
+    }
+
+    switch ((int)type)
+    {
+    case CAIRO_COGL_TEMPLATE_TYPE_SOLID:
+        return;
+    case CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_SOLID:
+        pipeline =
+            cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
+        cogl_pipeline_set_layer_combine (pipeline, 0,
+                                         "RGBA = MODULATE (PRIMARY, CONSTANT[A])",
+                                         NULL);
+        cogl_pipeline_set_layer_combine_constant (pipeline, 0, &color);
+        break;
+    case CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_SOLID:
+        pipeline =
+            cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
+        cogl_pipeline_set_layer_combine (pipeline, 0,
+                                         "RGBA = MODULATE (PRIMARY, TEXTURE[A])",
+                                         NULL);
+        cogl_pipeline_set_layer_texture (pipeline, 0, dev->dummy_texture);
+        break;
+    case CAIRO_COGL_TEMPLATE_TYPE_TEXTURE:
+        pipeline =
+            cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
+        cogl_pipeline_set_layer_texture (pipeline, 0, dev->dummy_texture);
+        break;
+    case CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_TEXTURE:
+        pipeline =
+            cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
+        cogl_pipeline_set_layer_texture (pipeline, 0, dev->dummy_texture);
+        cogl_pipeline_set_layer_combine (pipeline, 1,
+                                         "RGBA = MODULATE (PREVIOUS, CONSTANT[A])",
+                                         NULL);
+        cogl_pipeline_set_layer_combine_constant (pipeline, 1, &color);
+        break;
+    case CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_TEXTURE:
+        pipeline =
+            cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
+        cogl_pipeline_set_layer_texture (pipeline, 0, dev->dummy_texture);
+        cogl_pipeline_set_layer_combine (pipeline, 1,
+                                         "RGBA = MODULATE (PREVIOUS, TEXTURE[A])",
+                                         NULL);
+        cogl_pipeline_set_layer_texture (pipeline, 1, dev->dummy_texture);
+        break;
+    default:
+        g_warning ("Invalid cogl pipeline template type\n");
+        return;
+    }
+
+    dev->template_pipelines[op][type] = pipeline;
+}
+
 static void
 set_layer_texture_with_attributes (CoglPipeline *pipeline,
 				   int layer_index,
@@ -1758,27 +1891,49 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
 {
     cairo_cogl_template_type template_type;
     CoglPipeline *pipeline;
+    cairo_cogl_device_t *dev = to_device(destination->base.device);
     int layer_counter = 0;
 
     switch ((int)source->type)
     {
     case CAIRO_PATTERN_TYPE_SOLID:
-	template_type = mask ?
-	    CAIRO_COGL_TEMPLATE_TYPE_MASK_SOLID : CAIRO_COGL_TEMPLATE_TYPE_SOLID;
-	break;
+        if (mask) {
+            if (mask->type == CAIRO_PATTERN_TYPE_SOLID)
+                template_type =
+                    CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_SOLID;
+            else
+                template_type =
+                    CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_SOLID;
+        } else {
+            template_type = CAIRO_COGL_TEMPLATE_TYPE_SOLID;
+        }
+        break;
     case CAIRO_PATTERN_TYPE_SURFACE:
     case CAIRO_PATTERN_TYPE_LINEAR:
     case CAIRO_PATTERN_TYPE_RADIAL:
     case CAIRO_PATTERN_TYPE_MESH:
-	template_type = mask ?
-	    CAIRO_COGL_TEMPLATE_TYPE_MASK_TEXTURE : CAIRO_COGL_TEMPLATE_TYPE_TEXTURE;
-	break;
+        if (mask) {
+            if (mask->type == CAIRO_PATTERN_TYPE_SOLID)
+                template_type =
+                    CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_TEXTURE;
+            else
+                template_type =
+                    CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_TEXTURE;
+        } else {
+            template_type = CAIRO_COGL_TEMPLATE_TYPE_TEXTURE;
+        }
+        break;
     default:
 	g_warning ("Un-supported source type");
 	return NULL;
     }
 
-    pipeline = cogl_pipeline_copy (to_device(destination->base.device)->template_pipelines[op][template_type]);
+    /* Lazily create pipeline templates */
+    if (unlikely (dev->template_pipelines[op][template_type] == NULL))
+        create_templates_for_op_type (dev, op, template_type);
+
+    pipeline =
+        cogl_pipeline_copy (dev->template_pipelines[op][template_type]);
 
     if (source->type == CAIRO_PATTERN_TYPE_SOLID) {
 	cairo_solid_pattern_t *solid_pattern = (cairo_solid_pattern_t *)source;
@@ -1921,11 +2076,18 @@ static cairo_bool_t
 is_operator_supported (cairo_operator_t op)
 {
     switch ((int)op) {
+    case CAIRO_OPERATOR_CLEAR:
     case CAIRO_OPERATOR_SOURCE:
     case CAIRO_OPERATOR_OVER:
     case CAIRO_OPERATOR_IN:
+    case CAIRO_OPERATOR_OUT:
+    case CAIRO_OPERATOR_ATOP:
+    case CAIRO_OPERATOR_DEST:
     case CAIRO_OPERATOR_DEST_OVER:
     case CAIRO_OPERATOR_DEST_IN:
+    case CAIRO_OPERATOR_DEST_OUT:
+    case CAIRO_OPERATOR_DEST_ATOP:
+    case CAIRO_OPERATOR_XOR:
     case CAIRO_OPERATOR_ADD:
 	return TRUE;
 
@@ -2814,82 +2976,6 @@ static const cairo_device_backend_t _cairo_cogl_device_backend = {
     _cairo_cogl_device_destroy,
 };
 
-static cairo_bool_t
-set_blend (CoglPipeline *pipeline, const char *blend_string)
-{
-    GError *error = NULL;
-    if (!cogl_pipeline_set_blend (pipeline, blend_string, &error)) {
-	g_warning ("Unsupported blend string with current gpu/driver: %s", blend_string);
-	g_error_free (error);
-	return FALSE;
-    }
-    return TRUE;
-}
-
-static cairo_bool_t
-_cairo_cogl_setup_op_state (CoglPipeline *pipeline, cairo_operator_t op)
-{
-    cairo_bool_t status = FALSE;
-
-    switch ((int)op)
-    {
-    case CAIRO_OPERATOR_SOURCE:
-	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR, 0)");
-	break;
-    case CAIRO_OPERATOR_OVER:
-	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR, DST_COLOR * (1 - SRC_COLOR[A]))");
-	break;
-    case CAIRO_OPERATOR_IN:
-	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR * DST_COLOR[A], 0)");
-	break;
-    case CAIRO_OPERATOR_DEST_OVER:
-	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR * (1 - DST_COLOR[A]), DST_COLOR)");
-	break;
-    case CAIRO_OPERATOR_DEST_IN:
-	status = set_blend (pipeline, "RGBA = ADD (0, DST_COLOR * SRC_COLOR[A])");
-	break;
-    case CAIRO_OPERATOR_ADD:
-	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR, DST_COLOR)");
-	break;
-    }
-
-    return status;
-}
-
-static void
-create_templates_for_op (cairo_cogl_device_t *dev, cairo_operator_t op)
-{
-    CoglPipeline *base = cogl_pipeline_new (dev->cogl_context);
-    CoglPipeline *pipeline;
-    CoglColor color;
-
-    if (!_cairo_cogl_setup_op_state (base, op)) {
-	cogl_object_unref (base);
-	return;
-    }
-
-    dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID] = base;
-
-    pipeline = cogl_pipeline_copy (base);
-    cogl_pipeline_set_layer_texture (pipeline, 0, dev->dummy_texture);
-    dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_TEXTURE] = pipeline;
-
-    pipeline = cogl_pipeline_copy (base);
-    cogl_pipeline_set_layer_combine (pipeline, 1,
-                                     "RGBA = MODULATE (PREVIOUS, CONSTANT[A])",
-                                     NULL);
-    cogl_pipeline_set_layer_combine_constant (pipeline, 1, &color);
-    cogl_pipeline_set_layer_texture (pipeline, 1, dev->dummy_texture);
-    dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_MASK_SOLID] = pipeline;
-
-    pipeline = cogl_pipeline_copy (base);
-    cogl_pipeline_set_layer_combine (pipeline, 1,
-                                     "RGBA = MODULATE (PREVIOUS, TEXTURE[A])",
-                                     NULL);
-    cogl_pipeline_set_layer_texture (pipeline, 1, dev->dummy_texture);
-    dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_MASK_TEXTURE] = pipeline;
-}
-
 cairo_device_t *
 cairo_cogl_device_create (CoglContext *cogl_context)
 {
@@ -2906,13 +2992,8 @@ cairo_cogl_device_create (CoglContext *cogl_context)
     dev->buffer_stack = NULL;
     dev->buffer_stack_size = 4096;
 
+    /* Set all template pipelines to NULL */
     memset (dev->template_pipelines, 0, sizeof (dev->template_pipelines));
-    create_templates_for_op (dev, CAIRO_OPERATOR_SOURCE);
-    create_templates_for_op (dev, CAIRO_OPERATOR_OVER);
-    create_templates_for_op (dev, CAIRO_OPERATOR_IN);
-    create_templates_for_op (dev, CAIRO_OPERATOR_DEST_OVER);
-    create_templates_for_op (dev, CAIRO_OPERATOR_DEST_IN);
-    create_templates_for_op (dev, CAIRO_OPERATOR_ADD);
 
     status = _cairo_cache_init (&dev->linear_cache,
                                 _cairo_cogl_linear_gradient_equal,

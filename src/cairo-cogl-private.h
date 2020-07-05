@@ -41,10 +41,18 @@
 #include <cogl/cogl2-experimental.h>
 
 typedef enum _cairo_cogl_template_type {
+	/* solid source */
     CAIRO_COGL_TEMPLATE_TYPE_SOLID,
+    /* texture source */
     CAIRO_COGL_TEMPLATE_TYPE_TEXTURE,
-    CAIRO_COGL_TEMPLATE_TYPE_MASK_SOLID,
-    CAIRO_COGL_TEMPLATE_TYPE_MASK_TEXTURE,
+    /* solid source with solid mask */
+    CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_SOLID,
+    /* solid source with texture mask */
+    CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_SOLID,
+    /* texture source with solid mask */
+    CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_TEXTURE,
+    /* texture source with texture mask */
+    CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_TEXTURE,
     CAIRO_COGL_TEMPLATE_TYPE_COUNT
 } cairo_cogl_template_type;
 
@@ -60,15 +68,18 @@ typedef struct _cairo_cogl_device {
     size_t buffer_stack_offset;
     guint8 *buffer_stack_pointer;
 
-    /* This is a sparsely filled set of templates because we don't support
-     * the full range of operators that cairo has. All entries corresponding
-     * to unsupported operators are NULL.
+    /* This is a limited set of templates because we don't support the
+     * full range of operators that cairo has. The CAIRO_OPERATOR_ADD
+     * is the operator enum with the highest value that we support so
+     * we cap the size of the array by that.
      *
-     * The CAIRO_OPERATOR_ADD is the operator enum with the highest value that
-     * we support so we at least cap the size of the array by that.
+     * For each operator, we have a template for when we have a solid
+     * source and a non-solid source. For each of those, we also have
+     * additional templates for when we have a solid mask or a
+     * non-solid mask, for a total of six templates per operator.
      *
-     * For each operator we have a template for when we have a solid source
-     * and another for each texture format that could be used as a source.
+     * The templates are set to null at device creation time and only
+     * actually created on their first use.
      */
     CoglPipeline *template_pipelines[CAIRO_OPERATOR_ADD + 1][CAIRO_COGL_TEMPLATE_TYPE_COUNT];
 

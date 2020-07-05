@@ -1279,72 +1279,6 @@ _cairo_cogl_path_fixed_rectangle (cairo_path_fixed_t *path,
     return CAIRO_STATUS_SUCCESS;
 }
 
-static cairo_int_status_t
-_cairo_cogl_surface_paint (void                  *abstract_surface,
-                           cairo_operator_t       op,
-                           const cairo_pattern_t *source,
-                           const cairo_clip_t    *clip)
-{
-    cairo_cogl_surface_t *surface;
-    cairo_path_fixed_t path;
-    cairo_status_t status;
-    cairo_matrix_t identity;
-
-    if (clip == NULL) {
-        status = _cairo_cogl_surface_ensure_framebuffer (abstract_surface);
-        if (unlikely (status))
-            goto BAIL;
-
-	if (op == CAIRO_OPERATOR_CLEAR)
-            return _cairo_cogl_surface_clear (abstract_surface, CAIRO_COLOR_TRANSPARENT);
-	else if (source->type == CAIRO_PATTERN_TYPE_SOLID &&
-                (op == CAIRO_OPERATOR_SOURCE ||
-                 (op == CAIRO_OPERATOR_OVER && (((cairo_surface_t *)abstract_surface)->is_clear || _cairo_pattern_is_opaque_solid (source))))) {
-            return _cairo_cogl_surface_clear (abstract_surface,
-					      &((cairo_solid_pattern_t *) source)->color);
-        }
-    }
-
-    /* fallback to handling the paint in terms of a fill... */
-
-    surface = abstract_surface;
-
-    _cairo_path_fixed_init (&path);
-
-    status =
-        _cairo_cogl_path_fixed_rectangle (&path, 0, 0,
-                                          _cairo_fixed_from_int (surface->width),
-                                          _cairo_fixed_from_int (surface->height));
-    if (unlikely (status))
-	goto BAIL;
-
-#ifdef NEED_COGL_CONTEXT
-    /* XXX: in cairo-cogl-context.c we set some sideband data on the
-     * surface before issuing a fill so we need to do that here too... */
-    surface->user_path = &path;
-    cairo_matrix_init_identity (&identity);
-    surface->ctm = &identity;
-    surface->ctm_inverse = &identity;
-    surface->path_is_rectangle = TRUE;
-    surface->path_rectangle_x = 0;
-    surface->path_rectangle_y = 0;
-    surface->path_rectangle_width = surface->width;
-    surface->path_rectangle_height = surface->height;
-#endif
-
-    status = _cairo_cogl_surface_fill (abstract_surface,
-				       op,
-				       source,
-				       &path,
-				       CAIRO_FILL_RULE_WINDING,
-				       1,
-				       CAIRO_ANTIALIAS_DEFAULT,
-				       clip);
-BAIL:
-    _cairo_path_fixed_fini (&path);
-    return status;
-}
-
 static CoglPipelineWrapMode
 get_cogl_wrap_mode_for_extend (cairo_extend_t extend_mode)
 {
@@ -1558,14 +1492,44 @@ BAIL:
     return texture;
 }
 
+static cairo_status_t
+_cairo_cogl_create_tex_clip (cairo_clip_t **tex_clip,
+                             cairo_matrix_t inverse)
+{
+    cairo_path_fixed_t path;
+    cairo_status_t status;
+
+    _cairo_path_fixed_init (&path);
+    status = cairo_matrix_invert (&inverse);
+    if (unlikely (status))
+        return status;
+
+    status = _cairo_cogl_path_fixed_rectangle (&path, 0, 0,
+                                               CAIRO_FIXED_ONE,
+                                               CAIRO_FIXED_ONE);
+    if (unlikely (status))
+        return status;
+
+    _cairo_path_fixed_transform (&path, &inverse);
+
+    *tex_clip = _cairo_clip_intersect_path (NULL,
+                                            &path,
+                                            CAIRO_FILL_RULE_WINDING,
+                                            1,
+                                            CAIRO_ANTIALIAS_DEFAULT);
+
+    _cairo_path_fixed_fini (&path);
+    return CAIRO_STATUS_SUCCESS;
+}
+
 /* NB: a reference for the texture is transferred to the caller which should
  * be unrefed */
 static CoglTexture *
 _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 				     cairo_cogl_surface_t *destination,
 				     const cairo_rectangle_int_t *extents,
-				     const cairo_rectangle_int_t *sample,
-				     cairo_cogl_texture_attributes_t *attributes)
+				     cairo_cogl_texture_attributes_t *attributes,
+                                     cairo_clip_t **tex_clip)
 {
     CoglTexture *texture = NULL;
 
@@ -1611,6 +1575,17 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 
 	attributes->s_wrap = get_cogl_wrap_mode_for_extend (pattern->extend);
 	attributes->t_wrap = attributes->s_wrap;
+
+        /* In order to support CAIRO_EXTEND_NONE, we use the same wrap
+         * mode as CAIRO_EXTEND_PAD, but pass a clip to the drawing
+         * function to make sure that we never sample anything beyond
+         * the texture boundaries. */
+        if (pattern->extend == CAIRO_EXTEND_NONE && tex_clip)
+            if (_cairo_cogl_create_tex_clip (tex_clip,
+                                             attributes->matrix)) {
+                cogl_object_unref (texture);
+                return NULL;
+            }
 
 	return texture;
     }
@@ -1659,6 +1634,18 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 	/* any pattern extend modes have already been dealt with... */
 	attributes->s_wrap = COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE;
 	attributes->t_wrap = attributes->s_wrap;
+
+        /* In order to support CAIRO_EXTEND_NONE, we use the same wrap
+         * mode as CAIRO_EXTEND_PAD, but pass a clip to the drawing
+         * function to make sure that we never sample anything beyond
+         * the texture boundaries. */
+        if (pattern->extend == CAIRO_EXTEND_NONE && tex_clip)
+            if (_cairo_cogl_create_tex_clip (tex_clip,
+                                             attributes->matrix)) {
+                cogl_object_unref (texture);
+                cairo_surface_destroy (surface);
+                return NULL;
+            }
 
 BAIL:
 	cairo_surface_destroy (surface);
@@ -1887,12 +1874,16 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
 					       const cairo_pattern_t *source,
 					       cairo_operator_t op,
 					       cairo_cogl_surface_t *destination,
-					       cairo_composite_rectangles_t *extents)
+					       cairo_composite_rectangles_t *extents,
+                                               cairo_clip_t **tex_clip)
 {
     cairo_cogl_template_type template_type;
     CoglPipeline *pipeline;
     cairo_cogl_device_t *dev = to_device(destination->base.device);
     int layer_counter = 0;
+
+    if (tex_clip)
+        *tex_clip = NULL;
 
     switch ((int)source->type)
     {
@@ -1947,8 +1938,8 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
 	CoglTexture *texture =
 	    _cairo_cogl_acquire_pattern_texture (source, destination,
 						 &extents->bounded,
-						 &extents->source_sample_area,
-						 &attributes);
+						 &attributes,
+                                                 tex_clip);
 	if (!texture)
 	    goto BAIL;
 	set_layer_texture_with_attributes (pipeline,
@@ -1972,11 +1963,15 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
                                                       &color);
 	} else {
 	    cairo_cogl_texture_attributes_t attributes;
+            /* We don't properly support CAIRO_EXTEND_NONE on mask
+             * textures. However, if this ends up being an issue, we
+             * can pass get_source_mask_operator_destination_pipeline
+             * two clip pointers. */
 	    CoglTexture *texture =
 		_cairo_cogl_acquire_pattern_texture (mask, destination,
 						     &extents->bounded,
-						     &extents->mask_sample_area,
-						     &attributes);
+						     &attributes,
+                                                     NULL);
 	    if (!texture)
 		goto BAIL;
 	    set_layer_texture_with_attributes (pipeline,
@@ -2097,6 +2092,113 @@ is_operator_supported (cairo_operator_t op)
     }
 }
 
+static int
+_cairo_cogl_source_n_layers (const cairo_pattern_t *source)
+{
+    switch ((int)source->type)
+    {
+    case CAIRO_PATTERN_TYPE_SOLID:
+	return 0;
+    case CAIRO_PATTERN_TYPE_LINEAR:
+    case CAIRO_PATTERN_TYPE_RADIAL:
+    case CAIRO_PATTERN_TYPE_MESH:
+    case CAIRO_PATTERN_TYPE_SURFACE:
+	return 1;
+    default:
+	g_warning ("Unsupported source type");
+	return 0;
+    }
+}
+
+static cairo_int_status_t
+_cairo_cogl_surface_paint (void                  *abstract_surface,
+                           cairo_operator_t       op,
+                           const cairo_pattern_t *source,
+                           const cairo_clip_t    *clip)
+{
+    cairo_cogl_surface_t *surface;
+    cairo_status_t status;
+    cairo_matrix_t identity;
+    CoglPipeline *pipeline;
+    cairo_composite_rectangles_t extents;
+    cairo_clip_t *tex_clip;
+
+    if (clip == NULL) {
+        status = _cairo_cogl_surface_ensure_framebuffer (abstract_surface);
+        if (unlikely (status))
+            goto BAIL;
+
+	if (op == CAIRO_OPERATOR_CLEAR)
+            return _cairo_cogl_surface_clear (abstract_surface, CAIRO_COLOR_TRANSPARENT);
+	else if (source->type == CAIRO_PATTERN_TYPE_SOLID &&
+                (op == CAIRO_OPERATOR_SOURCE ||
+                 (op == CAIRO_OPERATOR_OVER && (((cairo_surface_t *)abstract_surface)->is_clear || _cairo_pattern_is_opaque_solid (source))))) {
+            return _cairo_cogl_surface_clear (abstract_surface,
+					      &((cairo_solid_pattern_t *) source)->color);
+        }
+    }
+
+    /* fall back to handling the paint in terms of a rectangle... */
+
+    surface = (cairo_cogl_surface_t *)abstract_surface;
+
+    if (!is_operator_supported (op))
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
+    status =
+        _cairo_composite_rectangles_init_for_paint (&extents,
+                                                    &surface->base,
+                                                    op,
+                                                    source,
+                                                    clip);
+    if (unlikely (status))
+	return status;
+
+    pipeline =
+        get_source_mask_operator_destination_pipeline (NULL,
+                                                       source,
+                                                       op,
+                                                       surface,
+                                                       &extents,
+                                                       &tex_clip);
+    if (!pipeline) {
+	status = CAIRO_INT_STATUS_UNSUPPORTED;
+	goto BAIL;
+    }
+
+    if (tex_clip) {
+        tex_clip = _cairo_clip_intersect_clip (tex_clip, clip);
+        status =
+            _cairo_composite_rectangles_init_for_paint (&extents,
+                                                        &surface->base,
+                                                        op,
+                                                        source,
+                                                        clip);
+        if (unlikely (status))
+            goto BAIL;
+    }
+
+    _cairo_cogl_maybe_log_clip (surface, &extents);
+
+    cairo_matrix_init_identity (&identity);
+    _cairo_cogl_journal_log_rectangle (surface, pipeline,
+				       extents.bounded.x,
+				       extents.bounded.y,
+				       extents.bounded.width,
+				       extents.bounded.height,
+				       _cairo_cogl_source_n_layers (source),
+				       &identity);
+
+    /* The journal will take a reference on the pipeline and clip_path... */
+    cogl_object_unref (pipeline);
+
+BAIL:
+    if (tex_clip)
+        _cairo_clip_destroy (tex_clip);
+
+    return status;
+}
+
 static cairo_int_status_t
 _cairo_cogl_surface_mask (void                    *abstract_surface,
                           cairo_operator_t         op,
@@ -2109,6 +2211,7 @@ _cairo_cogl_surface_mask (void                    *abstract_surface,
     cairo_status_t status;
     CoglPipeline *pipeline;
     cairo_matrix_t identity;
+    cairo_clip_t *tex_clip;
 
     /* XXX: Use this to smoke test the acquire_source/dest_image fallback
      * paths... */
@@ -2123,11 +2226,29 @@ _cairo_cogl_surface_mask (void                    *abstract_surface,
     if (unlikely (status))
 	return status;
 
-    pipeline = get_source_mask_operator_destination_pipeline (mask, source,
-							      op, surface, &extents);
-    if (!pipeline){
+    pipeline =
+        get_source_mask_operator_destination_pipeline (mask,
+                                                       source,
+                                                       op,
+                                                       surface,
+                                                       &extents,
+                                                       &tex_clip);
+    if (!pipeline) {
 	status = CAIRO_INT_STATUS_UNSUPPORTED;
 	goto BAIL;
+    }
+
+    if (tex_clip) {
+        tex_clip = _cairo_clip_intersect_clip (tex_clip, clip);
+        status =
+            _cairo_composite_rectangles_init_for_mask (&extents,
+                                                       &surface->base,
+                                                       op,
+                                                       source,
+                                                       mask,
+                                                       clip);
+        if (unlikely (status))
+            goto BAIL;
     }
 
     _cairo_cogl_maybe_log_clip (surface, &extents);
@@ -2145,25 +2266,10 @@ _cairo_cogl_surface_mask (void                    *abstract_surface,
     cogl_object_unref (pipeline);
 
 BAIL:
-    return status;
-}
+    if (tex_clip)
+        _cairo_clip_destroy (tex_clip);
 
-static int
-_cairo_cogl_source_n_layers (const cairo_pattern_t *source)
-{
-    switch ((int)source->type)
-    {
-    case CAIRO_PATTERN_TYPE_SOLID:
-	return 0;
-    case CAIRO_PATTERN_TYPE_LINEAR:
-    case CAIRO_PATTERN_TYPE_RADIAL:
-    case CAIRO_PATTERN_TYPE_MESH:
-    case CAIRO_PATTERN_TYPE_SURFACE:
-	return 1;
-    default:
-	g_warning ("Unsupported source type");
-	return 0;
-    }
+    return status;
 }
 
 static cairo_bool_t
@@ -2414,6 +2520,7 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
     gboolean one_shot = TRUE;
     CoglPrimitive *prim = NULL;
     cairo_bool_t new_prim = FALSE;
+    cairo_clip_t *tex_clip;
 
     if (! is_operator_supported (op))
 	return CAIRO_INT_STATUS_UNSUPPORTED;
@@ -2468,12 +2575,24 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
 #endif
     }
 
-    pipeline = get_source_mask_operator_destination_pipeline (NULL, source,
-							      op, surface, &extents);
-    if (!pipeline)
-	return CAIRO_INT_STATUS_UNSUPPORTED;
+    pipeline =
+        get_source_mask_operator_destination_pipeline (NULL,
+                                                       source,
+                                                       op,
+                                                       surface,
+                                                       &extents,
+                                                       &tex_clip);
+    if (!pipeline) {
+	status = CAIRO_INT_STATUS_UNSUPPORTED;
+        goto BAIL;
+    }
 
-    _cairo_cogl_maybe_log_clip (surface, &extents);
+    if (tex_clip) {
+        tex_clip = _cairo_clip_intersect_clip (tex_clip, clip);
+        _cairo_cogl_log_clip (surface, tex_clip);
+    } else {
+        _cairo_cogl_maybe_log_clip (surface, &extents);
+    }
 
     _cairo_cogl_journal_log_primitive (surface, pipeline, prim, transform);
 
@@ -2482,7 +2601,11 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
     if (new_prim)
 	cogl_object_unref (prim);
 
-    return CAIRO_INT_STATUS_SUCCESS;
+BAIL:
+    if (tex_clip)
+        _cairo_clip_destroy (tex_clip);
+
+    return status;
 }
 
 static cairo_cogl_path_fill_meta_t *
@@ -2624,6 +2747,7 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
     CoglPrimitive *prim = NULL;
     cairo_bool_t new_prim = FALSE;
     CoglPipeline *pipeline;
+    cairo_clip_t *tex_clip;
 
     if (! is_operator_supported (op))
 	return CAIRO_INT_STATUS_UNSUPPORTED;
@@ -2675,12 +2799,24 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
 
 #endif /* !FILL_WITH_COGL_PATH */
 
-    pipeline = get_source_mask_operator_destination_pipeline (NULL, source,
-							      op, surface, &extents);
-    if (!pipeline)
-	return CAIRO_INT_STATUS_UNSUPPORTED;
+    pipeline =
+        get_source_mask_operator_destination_pipeline (NULL,
+                                                       source,
+                                                       op,
+                                                       surface,
+                                                       &extents,
+                                                       &tex_clip);
+    if (!pipeline) {
+	status = CAIRO_INT_STATUS_UNSUPPORTED;
+        goto BAIL;
+    }
 
-    _cairo_cogl_maybe_log_clip (surface, &extents);
+    if (tex_clip) {
+        tex_clip = _cairo_clip_intersect_clip (tex_clip, clip);
+        _cairo_cogl_log_clip (surface, tex_clip);
+    } else {
+        _cairo_cogl_maybe_log_clip (surface, &extents);
+    }
 
 #ifndef FILL_WITH_COGL_PATH
     _cairo_cogl_journal_log_primitive (surface, pipeline, prim, transform);
@@ -2696,7 +2832,11 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
     /* The journal will take a reference on the pipeline... */
     cogl_object_unref (pipeline);
 
-    return CAIRO_INT_STATUS_SUCCESS;
+BAIL:
+    if (tex_clip)
+        _cairo_clip_destroy (tex_clip);
+
+    return status;
 }
 
 cairo_int_status_t
@@ -2741,8 +2881,13 @@ _cairo_cogl_surface_fill_rectangle (void		     *abstract_surface,
 	double x2 = x1 + width;
 	double y2 = y1 + height;
 
-	pipeline = get_source_mask_operator_destination_pipeline (NULL, source,
-								  op, surface, NULL);
+	pipeline =
+            get_source_mask_operator_destination_pipeline (NULL,
+                                                           source,
+                                                           op,
+                                                           surface,
+                                                           NULL,
+                                                           NULL);
 	if (!pipeline)
 	    return CAIRO_INT_STATUS_UNSUPPORTED;
 

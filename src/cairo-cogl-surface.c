@@ -64,6 +64,8 @@
 //#define DISABLE_BATCHING
 #define USE_COGL_RECTANGLE_API
 #define ENABLE_RECTANGLES_FASTPATH
+/* This hasn't been implemented yet */
+//#define ENABLE_CLIP_CACHE
 
 #if defined (USE_COGL_RECTANGLE_API) || defined (ENABLE_PATH_CACHE)
 #define NEED_COGL_CONTEXT
@@ -303,6 +305,32 @@ _cairo_cogl_surface_get_extents (void *abstract_surface,
     extents->height = surface->height;
 
     return TRUE;
+}
+
+/* Taken from cairo-surface-clipper.c */
+static cairo_status_t
+_cairo_path_fixed_add_box (cairo_path_fixed_t *path,
+			   const cairo_box_t *box)
+{
+    cairo_status_t status;
+
+    status = _cairo_path_fixed_move_to (path, box->p1.x, box->p1.y);
+    if (unlikely (status))
+	return status;
+
+    status = _cairo_path_fixed_line_to (path, box->p2.x, box->p1.y);
+    if (unlikely (status))
+	return status;
+
+    status = _cairo_path_fixed_line_to (path, box->p2.x, box->p2.y);
+    if (unlikely (status))
+	return status;
+
+    status = _cairo_path_fixed_line_to (path, box->p1.x, box->p2.y);
+    if (unlikely (status))
+	return status;
+
+    return _cairo_path_fixed_close_path (path);
 }
 
 static void
@@ -757,19 +785,56 @@ BAIL:
 }
 
 static void
-_cairo_cogl_clip_push_box (const cairo_box_t *box,
-                           CoglFramebuffer *framebuffer)
+_cairo_cogl_set_path_prim_clip (cairo_cogl_surface_t *surface,
+                                cairo_path_fixed_t *path,
+                                int *clip_stack_depth,
+#ifdef ENABLE_CLIP_CACHE
+                                cairo_bool_t *checked_for_primitives,
+                                cairo_cogl_clip_primitives_t *clip_primitives;
+#endif
+                                cairo_fill_rule_t fill_rule,
+                                double tolerance)
 {
-    if (_cairo_box_is_pixel_aligned (box)) {
-	cairo_rectangle_int_t rect;
-	_cairo_box_round_to_rectangle (box, &rect);
-	cogl_framebuffer_push_scissor_clip (framebuffer, rect.x, rect.y,
-					 rect.width, rect.height);
-    } else {
-	double x1, y1, x2, y2;
-	_cairo_box_to_doubles (box, &x1, &y1, &x2, &y2);
-	cogl_framebuffer_push_rectangle_clip (framebuffer, x1, y1, x2, y2);
+    cairo_rectangle_int_t extents;
+    CoglPrimitive *prim;
+    size_t prim_size;
+
+    _cairo_path_fixed_approximate_clip_extents (path, &extents);
+
+    /* TODO - maintain a fifo of the last 10 used clips with cached
+     * primitives to see if we can avoid tessellating the path and
+     * uploading the vertices...
+     */
+#ifdef ENABLE_CLIP_CACHE
+    if (!*checked_for_primitives) {
+        clip_primitives = find_clip_primitives (clip);
+        checked_for_primitives = TRUE;
     }
+    if (clip_primitives)
+        prim = clip_primitives->primitives[i];
+#endif
+
+    if (unlikely (_cairo_cogl_fill_to_primitive (surface,
+                                                 path,
+                                                 fill_rule,
+                                                 tolerance,
+                                                 0,
+                                                 FALSE,
+                                                 &prim,
+                                                 &prim_size)))
+    {
+        g_warning ("Failed to get primitive for clip path while flushing journal");
+        goto BAIL;
+    }
+
+    (*clip_stack_depth)++;
+    cogl_framebuffer_push_primitive_clip (surface->framebuffer, prim,
+                                          extents.x, extents.y,
+                                          extents.x + extents.width,
+                                          extents.y + extents.height);
+
+BAIL:
+    cogl_object_unref (prim);
 }
 
 static void
@@ -791,7 +856,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
     }
 
     if (_cairo_cogl_surface_ensure_framebuffer (surface)) {
-        g_warning ("Could not get framebuffer for flushing journal\n");
+        g_warning ("Could not get framebuffer for flushing journal");
         assert (0);
     }
 
@@ -806,7 +871,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 	    cairo_cogl_journal_clip_entry_t *clip_entry =
 		(cairo_cogl_journal_clip_entry_t *)entry;
 	    cairo_clip_path_t *path;
-#if 0
+#ifdef ENABLE_CLIP_CACHE
 	    cairo_bool_t checked_for_primitives = FALSE;
 	    cairo_cogl_clip_primitives_t *clip_primitives;
 #endif
@@ -818,50 +883,46 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
             if (clip_entry->clip == NULL)
                 continue; // there is no clip
 
-	    for (path = clip_entry->clip->path, i = 0; path; path = path->prev, i++) {
-		cairo_rectangle_int_t extents;
-		cairo_int_status_t status;
-		CoglPrimitive *prim;
-		size_t prim_size;
-
-		_cairo_path_fixed_approximate_clip_extents (&path->path, &extents);
-
-		/* TODO - maintain a fifo of the last 10 used clips with cached
-		 * primitives to see if we can avoid tessellating the path and
-		 * uploading the vertices...
-		 */
-#if 0
-		if (!checked_for_primitives) {
-		    clip_primitives = find_clip_primitives (clip);
-		    checked_for_primitives = TRUE;
-		}
-		if (clip_primitives)
-		    prim = clip_primitives->primitives[i];
+	    for (path = clip_entry->clip->path, i = 0;
+                 path;
+                 path = path->prev, i++)
+            {
+                _cairo_cogl_set_path_prim_clip (surface,
+                                                &path->path,
+                                                &clip_stack_depth,
+#ifdef ENABLE_CLIP_CACHE
+                                                &checked_for_primitives,
+                                                clip_primitives,
 #endif
-		status = _cairo_cogl_fill_to_primitive (surface,
-							&path->path,
-							path->fill_rule,
-							path->tolerance,
-							0,
-							FALSE,
-							&prim,
-							&prim_size);
-		if (unlikely (status)) {
-		    g_warning ("Failed to get primitive for clip path while flushing journal");
-		    continue;
-		}
-		clip_stack_depth++;
-		cogl_framebuffer_push_primitive_clip (surface->framebuffer, prim,
-                                                      extents.x, extents.y,
-                                                      extents.x + extents.width,
-                                                      extents.y + extents.height);
-		cogl_object_unref (prim);
-	    }
+                                                path->fill_rule,
+                                                path->tolerance);
+            }
 
-	    for (i = 0; i < clip_entry->clip->num_boxes; i++) {
-		clip_stack_depth++;
-		_cairo_cogl_clip_push_box (&clip_entry->clip->boxes[i],
-                                           surface->framebuffer);
+	    if (clip_entry->clip->num_boxes > 0) {
+                cairo_path_fixed_t boxes_path;
+
+                _cairo_path_fixed_init (&boxes_path);
+                for (int i = 0; i < clip_entry->clip->num_boxes; i++) {
+                    if (unlikely (_cairo_path_fixed_add_box (&boxes_path,
+                                                             &clip_entry->clip->boxes[i])))
+                    {
+                        g_warning ("Could not add all clip boxes while "
+                                   "flushing journal");
+                        break;
+                    }
+                }
+
+                _cairo_cogl_set_path_prim_clip (surface,
+                                                &boxes_path,
+                                                &clip_stack_depth,
+#ifdef ENABLE_CLIP_CACHE
+                                                &checked_for_primitives,
+                                                clip_primitives,
+#endif
+                                                CAIRO_FILL_RULE_WINDING,
+                                                0.);
+
+                _cairo_path_fixed_fini (&boxes_path);
 	    }
 
 	    surface->n_clip_updates_per_frame++;
@@ -1037,7 +1098,7 @@ get_components_from_cogl_format (CoglPixelFormat format)
     case COGL_PIXEL_FORMAT_DEPTH_32:
         return COGL_TEXTURE_COMPONENTS_DEPTH;
     default:
-    g_warning("bad format: %x a? %d, bgr? %d, pre %d, format: %d\n",
+    g_warning("bad format: %x a? %d, bgr? %d, pre %d, format: %d",
               format,
               format & COGL_A_BIT,
               format & COGL_BGR_BIT,
@@ -1062,10 +1123,10 @@ get_cairo_format_from_cogl_format (CoglPixelFormat format)
     case COGL_PIXEL_FORMAT_RGB_565:
 	return CAIRO_FORMAT_RGB16_565;
     case COGL_PIXEL_FORMAT_RG_88:
-        g_warning ("cairo cannot handle red-green textures\n");
+        g_warning ("cairo cannot handle red-green textures");
         return CAIRO_FORMAT_INVALID;
     case COGL_PIXEL_FORMAT_DEPTH_32:
-        g_warning ("cairo cannot handle depth textures\n");
+        g_warning ("cairo cannot handle depth textures");
         return CAIRO_FORMAT_INVALID;
     
     case COGL_PIXEL_FORMAT_BGRA_8888_PRE:
@@ -1076,7 +1137,7 @@ get_cairo_format_from_cogl_format (CoglPixelFormat format)
 	return CAIRO_FORMAT_ARGB32;
 
     default:
-	g_warning("bad format: %x a? %d, bgr? %d, pre %d, format: %d\n",
+	g_warning("bad format: %x a? %d, bgr? %d, pre %d, format: %d",
 		  format,
 		  format & COGL_A_BIT,
 		  format & COGL_BGR_BIT,
@@ -1421,7 +1482,7 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
                                              texture);
 
         if (_cairo_recording_surface_replay (surface, clone)) {
-            g_warning ("could not replay recording surface \n");
+            g_warning ("could not replay recording surface");
             texture = NULL;
             goto BAIL;
         }
@@ -1440,7 +1501,7 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
                                                  &acquired_image,
                                                  &image_extra);
 	if (unlikely (status)) {
-	    g_warning ("acquire_source_image failed: %s [%d]\n",
+	    g_warning ("acquire_source_image failed: %s [%d]",
 		       cairo_status_to_string (status), status);
 	    return NULL;
 	}
@@ -1541,10 +1602,6 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 	if (!texture)
 	    return NULL;
 
-	/* XXX: determine if it would have no effect to change the
-	 * extend mode to EXTEND_PAD instead since we can simply map
-	 * EXTEND_PAD to CLAMP_TO_EDGE without needing fragment shader
-	 * tricks or extra border texels. */
 #if 0
 	/* TODO: We still need to consider HW such as SGX which doesn't have
 	 * full support for NPOT textures. */
@@ -1727,12 +1784,12 @@ _cairo_cogl_setup_op_state (CoglPipeline *pipeline, cairo_operator_t op)
 
     switch ((int)op)
     {
-    case CAIRO_OPERATOR_CLEAR:
-        status = set_blend (pipeline, "RGBA = ADD (0, 0)");
-        break;
+    /* Use OVER for SOURCE so we can use a bounding mask. We will
+     * replace the source alpha with ones or the mask alpha when we do
+     * the rest of the pipeline setup. Note that this doesn't actually
+     * give the right result alpha value, which would be directly
+     * copied in a true SORUCE operation. */
     case CAIRO_OPERATOR_SOURCE:
-	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR, 0)");
-	break;
     case CAIRO_OPERATOR_OVER:
 	status = set_blend (pipeline, "RGBA = ADD (SRC_COLOR, DST_COLOR * (1 - SRC_COLOR[A]))");
 	break;
@@ -1754,6 +1811,8 @@ _cairo_cogl_setup_op_state (CoglPipeline *pipeline, cairo_operator_t op)
     case CAIRO_OPERATOR_DEST_IN:
 	status = set_blend (pipeline, "RGBA = ADD (0, DST_COLOR * SRC_COLOR[A])");
 	break;
+    /* Use DEST_OUT for CLEAR so we can use a bounding mask */
+    case CAIRO_OPERATOR_CLEAR:
     case CAIRO_OPERATOR_DEST_OUT:
         status = set_blend (pipeline, "RGBA = ADD (0, DST_COLOR * (1 - SRC_COLOR[A]))");
         break;
@@ -1772,12 +1831,17 @@ _cairo_cogl_setup_op_state (CoglPipeline *pipeline, cairo_operator_t op)
 }
 
 static void
-create_templates_for_op_type (cairo_cogl_device_t *dev,
+create_template_for_op_type (cairo_cogl_device_t *dev,
                               cairo_operator_t op,
                               cairo_cogl_template_type type)
 {
     CoglPipeline *pipeline;
     CoglColor color;
+
+    if (dev->template_pipelines[op][type])
+        return;
+
+    cogl_color_init_from_4f (&color, 1.0f, 1.0f, 1.0f, 1.0f);
 
     if (!dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]) {
         CoglPipeline *base = cogl_pipeline_new (dev->cogl_context);
@@ -1785,6 +1849,19 @@ create_templates_for_op_type (cairo_cogl_device_t *dev,
         if (!_cairo_cogl_setup_op_state (base, op)) {
             cogl_object_unref (base);
             return;
+        }
+
+        if (op == CAIRO_OPERATOR_CLEAR || op == CAIRO_OPERATOR_SOURCE) {
+            /* This will make it so that the DEST_OUT or OVER blending
+             * functions receives a source alpha indicating a mask of
+             * uniform ones */
+            cogl_pipeline_set_layer_combine_constant (base,
+                                                      0,
+                                                      &color);
+            cogl_pipeline_set_layer_combine (base, 0,
+                                             "RGB = REPLACE (PRIMARY)"
+                                             "A = REPLACE (CONSTANT)",
+                                             NULL);
         }
 
         dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID] = base;
@@ -1797,44 +1874,71 @@ create_templates_for_op_type (cairo_cogl_device_t *dev,
     case CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_SOLID:
         pipeline =
             cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
-        cogl_pipeline_set_layer_combine (pipeline, 0,
-                                         "RGBA = MODULATE (PRIMARY, CONSTANT[A])",
-                                         NULL);
         cogl_pipeline_set_layer_combine_constant (pipeline, 0, &color);
+        if (op == CAIRO_OPERATOR_CLEAR || op == CAIRO_OPERATOR_SOURCE)
+            cogl_pipeline_set_layer_combine (pipeline, 0,
+                                             "RGB = MODULATE (PRIMARY, CONSTANT[A])"
+                                             "A = REPLACE (CONSTANT)",
+                                             NULL);
+        else
+            cogl_pipeline_set_layer_combine (pipeline, 0,
+                                             "RGBA = MODULATE (PRIMARY, CONSTANT[A])",
+                                             NULL);
         break;
     case CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_SOLID:
         pipeline =
             cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
-        cogl_pipeline_set_layer_combine (pipeline, 0,
-                                         "RGBA = MODULATE (PRIMARY, TEXTURE[A])",
-                                         NULL);
         cogl_pipeline_set_layer_texture (pipeline, 0, dev->dummy_texture);
+        if (op == CAIRO_OPERATOR_OVER || op == CAIRO_OPERATOR_SOURCE)
+            cogl_pipeline_set_layer_combine (pipeline, 0,
+                                             "RGB = MODULATE (PRIMARY, TEXTURE[A])"
+                                             "A = REPLACE (TEXTURE)",
+                                             NULL);
+        else
+            cogl_pipeline_set_layer_combine (pipeline, 0,
+                                             "RGBA = MODULATE (PRIMARY, TEXTURE[A])",
+                                             NULL);
         break;
     case CAIRO_COGL_TEMPLATE_TYPE_TEXTURE:
         pipeline =
             cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
         cogl_pipeline_set_layer_texture (pipeline, 0, dev->dummy_texture);
+        if (op == CAIRO_OPERATOR_CLEAR || op == CAIRO_OPERATOR_SOURCE)
+            cogl_pipeline_set_layer_combine (pipeline, 0,
+                                             "RGB = REPLACE (TEXTURE)"
+                                             "A = REPLACE (CONSTANT)",
+                                             NULL);
         break;
     case CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_TEXTURE:
         pipeline =
             cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
         cogl_pipeline_set_layer_texture (pipeline, 0, dev->dummy_texture);
+        if (op == CAIRO_OPERATOR_CLEAR || op == CAIRO_OPERATOR_SOURCE)
+            cogl_pipeline_set_layer_combine (pipeline, 0,
+                                             "RGB = REPLACE (TEXTURE)"
+                                             "A = REPLACE (CONSTANT)",
+                                             NULL);
+        cogl_pipeline_set_layer_combine_constant (pipeline, 1, &color);
         cogl_pipeline_set_layer_combine (pipeline, 1,
                                          "RGBA = MODULATE (PREVIOUS, CONSTANT[A])",
                                          NULL);
-        cogl_pipeline_set_layer_combine_constant (pipeline, 1, &color);
         break;
     case CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_TEXTURE:
         pipeline =
             cogl_pipeline_copy (dev->template_pipelines[op][CAIRO_COGL_TEMPLATE_TYPE_SOLID]);
         cogl_pipeline_set_layer_texture (pipeline, 0, dev->dummy_texture);
+        if (op == CAIRO_OPERATOR_CLEAR || op == CAIRO_OPERATOR_SOURCE)
+            cogl_pipeline_set_layer_combine (pipeline, 0,
+                                             "RGB = REPLACE (TEXTURE)"
+                                             "A = REPLACE (CONSTANT)",
+                                             NULL);
+        cogl_pipeline_set_layer_texture (pipeline, 1, dev->dummy_texture);
         cogl_pipeline_set_layer_combine (pipeline, 1,
                                          "RGBA = MODULATE (PREVIOUS, TEXTURE[A])",
                                          NULL);
-        cogl_pipeline_set_layer_texture (pipeline, 1, dev->dummy_texture);
         break;
     default:
-        g_warning ("Invalid cogl pipeline template type\n");
+        g_warning ("Invalid cogl pipeline template type");
         return;
     }
 
@@ -1921,7 +2025,7 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
 
     /* Lazily create pipeline templates */
     if (unlikely (dev->template_pipelines[op][template_type] == NULL))
-        create_templates_for_op_type (dev, op, template_type);
+        create_template_for_op_type (dev, op, template_type);
 
     pipeline =
         cogl_pipeline_copy (dev->template_pipelines[op][template_type]);
@@ -2087,7 +2191,7 @@ is_operator_supported (cairo_operator_t op)
 	return TRUE;
 
     default:
-        g_warning("cairo-cogl: Blend operator not supported\n");
+        g_warning("cairo-cogl: Blend operator not supported");
 	return FALSE;
     }
 }
@@ -2907,11 +3011,6 @@ _cairo_cogl_surface_fill_rectangle (void		     *abstract_surface,
      * attributes and see if this can be trivially handled by logging
      * a textured rectangle only needing simple scaling or translation
      * of texture coordinates.
-     *
-     * At this point we should also aim to remap the default
-     * EXTEND_NONE mode to EXTEND_PAD which is more efficient if we
-     * know it makes no difference either way since we can map that to
-     * CLAMP_TO_EDGE.
      */
 }
 

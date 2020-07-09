@@ -1352,6 +1352,8 @@ get_cogl_wrap_mode_for_extend (cairo_extend_t extend_mode)
     case CAIRO_EXTEND_REPEAT:
 	return COGL_PIPELINE_WRAP_MODE_REPEAT;
     case CAIRO_EXTEND_REFLECT:
+        /* TODO: Detect hardware where MIRRORED_REPEAT is not available
+         * and implement fallback */
 	return COGL_PIPELINE_WRAP_MODE_MIRRORED_REPEAT;
     }
     assert (0); /* not reached */
@@ -2629,15 +2631,6 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
     if (! is_operator_supported (op))
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
-    /* FIXME - support unbounded operators */
-    if (!_cairo_operator_bounded_by_mask (op)) {
-	/* Currently IN this is the only unbounded operator we aim to support
-	 * in cairo-cogl. */
-	assert (op == CAIRO_OPERATOR_IN);
-	g_warning ("FIXME: handle stroking with unbounded operators!");
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-    }
-
     status = _cairo_composite_rectangles_init_for_stroke (&extents,
 							  &surface->base,
 							  op, source, path,
@@ -2856,15 +2849,6 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
     if (! is_operator_supported (op))
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
-    /* FIXME - support unbounded operators */
-    if (!_cairo_operator_bounded_by_mask (op)) {
-	/* Currently IN this is the only unbounded operator we aim to support
-	 * in cairo-cogl. */
-	assert (op == CAIRO_OPERATOR_IN);
-	g_warning ("FIXME: handle filling with unbounded operators!");
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-    }
-
     status = _cairo_composite_rectangles_init_for_fill (&extents,
 							&surface->base,
 							op, source, path,
@@ -2959,15 +2943,6 @@ _cairo_cogl_surface_fill_rectangle (void		     *abstract_surface,
 
     if (! is_operator_supported (op))
 	return CAIRO_INT_STATUS_UNSUPPORTED;
-
-    /* FIXME - support unbounded operators */
-    if (!_cairo_operator_bounded_by_mask (op)) {
-	/* Currently IN this is the only unbounded operator we aim to support
-	 * in cairo-cogl. */
-	assert (op == CAIRO_OPERATOR_IN);
-	g_warning ("FIXME: handle filling with unbounded operators!");
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-    }
 
     /* FIXME */
 #if 0

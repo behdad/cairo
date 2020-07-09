@@ -570,7 +570,9 @@ _cairo_cogl_context_rectangle (void *abstract_cr,
 {
     cairo_cogl_context_t *cr = abstract_cr;
 
-    if (cr->user_path.buf.base.num_ops == 0) {
+    /* Do not take the single-rectangle shortcut if we already have a
+     * path, whether conventional or rectangle */
+    if (cr->user_path.buf.base.num_ops == 0 && !cr->path_is_rectangle) {
 	cr->path_ctm_age = 0;
 
 #if 1

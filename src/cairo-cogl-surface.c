@@ -1433,8 +1433,11 @@ _cairo_cogl_get_pot_texture (CoglContext *context,
 /* NB: a reference for the texture is transferred to the caller which should
  * be unrefed */
 static CoglTexture *
-_cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
-				     cairo_surface_t	   *surface)
+_cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t        *reference_surface,
+                                     cairo_surface_t             *surface,
+                                     const cairo_rectangle_int_t *extents,
+                                     const cairo_matrix_t        *pattern_matrix,
+                                     cairo_bool_t                *has_pre_transform)
 {
     cairo_image_surface_t *image;
     cairo_image_surface_t *acquired_image = NULL;
@@ -1444,6 +1447,9 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
     CoglTexture2D *texture;
     GError *error = NULL;
     cairo_surface_t *clone;
+    cairo_matrix_t transform;
+
+    *has_pre_transform = FALSE;
 
     if (surface->device == reference_surface->base.device) {
         _cairo_cogl_surface_flush ((cairo_cogl_surface_t *)surface, 0);
@@ -1467,10 +1473,17 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
     }
 
     if (_cairo_surface_is_recording (surface)) {
+        /* We pre-transform the recording surface here and make the
+         * target surface the size of the extents in order to reduce
+         * texture size. When we return to the acquire_pattern_texture
+         * function, it will know to adjust the texture matrix
+         * accordingly. */
+        *has_pre_transform = TRUE;
+
         texture =
             cogl_texture_2d_new_with_size (to_device(reference_surface->base.device)->cogl_context,
-                                           reference_surface->width,
-                                           reference_surface->height);
+                                           extents->width,
+                                           extents->height);
         if (!texture) {
 	    g_warning ("Failed to allocate texture: %s", error->message);
 	    g_error_free (error);
@@ -1483,7 +1496,16 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t  *reference_surface,
                                              NULL,
                                              texture);
 
-        if (_cairo_recording_surface_replay (surface, clone)) {
+        cairo_matrix_init_translate (&transform,
+                                     extents->x,
+                                     extents->y);
+        cairo_matrix_multiply (&transform, &transform, pattern_matrix);
+
+        if (_cairo_recording_surface_replay_with_clip (surface,
+                                                       &transform,
+                                                       clone,
+                                                       NULL))
+        {
             g_warning ("could not replay recording surface");
             texture = NULL;
             goto BAIL;
@@ -1595,12 +1617,18 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
                                      cairo_clip_t **tex_clip)
 {
     CoglTexture *texture = NULL;
+    cairo_bool_t has_pre_transform;
 
     switch ((int)pattern->type)
     {
     case CAIRO_PATTERN_TYPE_SURFACE: {
 	cairo_surface_t *surface = ((cairo_surface_pattern_t *)pattern)->surface;
-	texture = _cairo_cogl_acquire_surface_texture (destination, surface);
+	texture =
+            _cairo_cogl_acquire_surface_texture (destination,
+                                                 surface,
+                                                 extents,
+                                                 &pattern->matrix,
+                                                 &has_pre_transform);
 	if (!texture)
 	    return NULL;
 
@@ -1612,7 +1640,12 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 	}
 #endif
 
-	attributes->matrix = pattern->matrix;
+        if (has_pre_transform)
+            cairo_matrix_init_translate (&attributes->matrix,
+                                         -extents->x,
+                                         -extents->y);
+        else
+	    attributes->matrix = pattern->matrix;
 
 	/* Convert from un-normalized source coordinates in backend
 	 * coordinates to normalized texture coordinates. Since
@@ -1651,7 +1684,6 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
     case CAIRO_PATTERN_TYPE_RADIAL:
     case CAIRO_PATTERN_TYPE_MESH: {
 	cairo_surface_t *surface;
-	cairo_matrix_t texture_matrix;
 
 	surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
 					      extents->width, extents->height);
@@ -1663,13 +1695,18 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 	    return NULL;
 	}
 
-	texture = _cairo_cogl_acquire_surface_texture (destination, surface);
+	texture =
+            _cairo_cogl_acquire_surface_texture (destination,
+                                                 surface,
+                                                 NULL, // As long as the surface is an image,
+                                                 NULL, // acquire_surface_texture shouldn't access these values
+                                                 &has_pre_transform);
 	if (!texture)
 	    goto BAIL;
 
-	cairo_matrix_init_identity (&texture_matrix);
-
-	cairo_matrix_translate (&texture_matrix, -extents->x, -extents->y);
+        cairo_matrix_init_translate (&attributes->matrix,
+                                     -extents->x,
+                                     -extents->y);
 
 	/* Convert from un-normalized source coordinates in backend
 	 * coordinates to normalized texture coordinates. Since
@@ -1685,7 +1722,6 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
         attributes->matrix.x0 *= xscale;
         attributes->matrix.y0 *= yscale;
 
-	attributes->matrix = texture_matrix;
 	attributes->extend = pattern->extend;
 	attributes->filter = CAIRO_FILTER_NEAREST;
 	attributes->has_component_alpha = pattern->has_component_alpha;

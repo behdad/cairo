@@ -74,6 +74,11 @@ _cairo_boilerplate_cogl_create_offscreen_color_surface (const char		*name,
     cogl_closure_t *closure;
     cairo_status_t status;
 
+    if (width < 1)
+        width = 1;
+    if (height < 1)
+        height = 1;
+
     if (!context)
 	context = cogl_context_new (NULL, NULL);
 
@@ -117,6 +122,11 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
     CoglFramebuffer *fb;
     cogl_closure_t *closure;
     cairo_status_t status;
+
+    if (width < 1)
+        width = 1;
+    if (height < 1)
+        height = 1;
 
     if (!context)
 	context = cogl_context_new (NULL, NULL);

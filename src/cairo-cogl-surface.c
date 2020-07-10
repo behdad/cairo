@@ -1682,7 +1682,8 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 	return texture;
     }
     case CAIRO_PATTERN_TYPE_RADIAL:
-    case CAIRO_PATTERN_TYPE_MESH: {
+    case CAIRO_PATTERN_TYPE_MESH:
+    case CAIRO_PATTERN_TYPE_RASTER_SOURCE: {
 	cairo_surface_t *surface;
 
 	surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
@@ -2045,6 +2046,7 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
     case CAIRO_PATTERN_TYPE_LINEAR:
     case CAIRO_PATTERN_TYPE_RADIAL:
     case CAIRO_PATTERN_TYPE_MESH:
+    case CAIRO_PATTERN_TYPE_RASTER_SOURCE:
         if (mask) {
             if (mask->type == CAIRO_PATTERN_TYPE_SOLID)
                 template_type =
@@ -2244,6 +2246,7 @@ _cairo_cogl_source_n_layers (const cairo_pattern_t *source)
     case CAIRO_PATTERN_TYPE_LINEAR:
     case CAIRO_PATTERN_TYPE_RADIAL:
     case CAIRO_PATTERN_TYPE_MESH:
+    case CAIRO_PATTERN_TYPE_RASTER_SOURCE:
     case CAIRO_PATTERN_TYPE_SURFACE:
 	return 1;
     default:

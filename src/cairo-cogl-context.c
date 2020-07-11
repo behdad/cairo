@@ -351,7 +351,6 @@ _cairo_cogl_context_curve_to (void *abstract_cr,
 				       x3_fixed, y3_fixed);
 }
 
-#if 0
 static cairo_status_t
 _cairo_cogl_context_arc (void *abstract_cr,
 			  double xc, double yc, double radius,
@@ -367,10 +366,6 @@ _cairo_cogl_context_arc (void *abstract_cr,
 	    return status;
     }
 
-    status = cr->backend_parent.arc (abstract_cr, xc, yc, radius, angle1, angle2, forward);
-    if (unlikely (status))
-	return status;
-
     if (cr->user_path.buf.base.num_ops == 0)
 	cr->path_ctm_age = 0;
 
@@ -380,11 +375,15 @@ _cairo_cogl_context_arc (void *abstract_cr,
 
 	x_fixed = _cairo_fixed_from_double (xc);
 	y_fixed = _cairo_fixed_from_double (yc);
-	status = _cairo_path_fixed_line_to (&cr->user_path, x_fixed, y_fixed);
+	status = _cairo_cogl_context_line_to (abstract_cr,
+                                              x_fixed,
+                                              y_fixed);
 	if (unlikely (status))
 	    return status;
 
-	status = _cairo_path_fixed_line_to (&cr->user_path, x_fixed, y_fixed);
+	status = _cairo_cogl_context_line_to (abstract_cr,
+                                              x_fixed,
+                                              y_fixed);
 	if (unlikely (status))
 	    return status;
 
@@ -398,14 +397,27 @@ _cairo_cogl_context_arc (void *abstract_cr,
     if (unlikely (status))
 	return status;
 
+    /* These functions will be expressed in terms of the backend
+     * functions for line_to and curve_to, which we already add the
+     * appropriate segments to the user path in */
     if (forward)
-	_cairo_arc_path (&cr->base.base, xc, yc, radius, angle1, angle2);
+	_cairo_arc_path (&cr->base.base,
+                         xc,
+                         yc,
+                         radius,
+                         angle1,
+                         angle2);
     else
-	_cairo_arc_path_negative (&cr->base.base, xc, yc, radius, angle1, angle2);
+	_cairo_arc_path_negative (&cr->base.base,
+                                  xc,
+                                  yc,
+                                  radius,
+                                  angle1,
+                                  angle2);
 
-    return CAIRO_STATUS_SUCCESS; /* any error will have already been set on cr */
+    /* any error will have already been set on cr */
+    return CAIRO_STATUS_SUCCESS;
 }
-#endif
 
 static cairo_status_t
 _cairo_cogl_context_rel_move_to (void *abstract_cr, double dx, double dy)
@@ -583,6 +595,7 @@ _cairo_cogl_context_rectangle (void *abstract_cr,
 	cr->width = width;
 	cr->height = height;
 	cr->path_is_rectangle = TRUE;
+        cr->base.path->fill_is_empty = FALSE;
 	return CAIRO_STATUS_SUCCESS;
 #endif
     }
@@ -594,6 +607,128 @@ _cairo_cogl_context_rectangle (void *abstract_cr,
     }
 
     return _cairo_cogl_context_rectangle_real (cr, x, y, width, height);
+}
+
+static void
+_cairo_cogl_context_path_extents (void *abstract_cr,
+                                  double *x1,
+                                  double *y1,
+                                  double *x2,
+                                  double *y2)
+{
+    cairo_cogl_context_t *cr = abstract_cr;
+    cairo_status_t status;
+
+    if (cr->path_is_rectangle) {
+        /* We do not flush the rectangle, as we are not modifying the
+         * path */
+        status = _cairo_cogl_context_rectangle_real (cr,
+                                                     cr->x,
+                                                     cr->y,
+                                                     cr->width,
+                                                     cr->height);
+        assert (status == CAIRO_STATUS_SUCCESS);
+    }
+
+    cr->backend_parent.path_extents (abstract_cr, x1, y1, x2, y2);
+}
+
+static cairo_bool_t
+_cairo_cogl_context_has_current_point (void *abstract_cr)
+{
+    cairo_cogl_context_t *cr = abstract_cr;
+    cairo_status_t status;
+
+    if (cr->path_is_rectangle) {
+        /* We do not flush the rectangle, as we are not modifying the
+         * path */
+        status = _cairo_cogl_context_rectangle_real (cr,
+                                                     cr->x,
+                                                     cr->y,
+                                                     cr->width,
+                                                     cr->height);
+        assert (status == CAIRO_STATUS_SUCCESS);
+    }
+
+    return cr->backend_parent.has_current_point (abstract_cr);
+}
+
+static cairo_bool_t
+_cairo_cogl_context_get_current_point (void *abstract_cr,
+                                       double *x,
+                                       double *y)
+{
+    cairo_cogl_context_t *cr = abstract_cr;
+    cairo_status_t status;
+
+    if (cr->path_is_rectangle) {
+        /* We do not flush the rectangle, as we are not modifying the
+         * path */
+        status = _cairo_cogl_context_rectangle_real (cr,
+                                                     cr->x,
+                                                     cr->y,
+                                                     cr->width,
+                                                     cr->height);
+        assert (status == CAIRO_STATUS_SUCCESS);
+    }
+
+    return cr->backend_parent.get_current_point (abstract_cr, x, y);
+}
+
+static cairo_path_t *
+_cairo_cogl_context_copy_path (void *abstract_cr)
+{
+    cairo_cogl_context_t *cr = abstract_cr;
+    cairo_status_t status;
+
+    if (cr->path_is_rectangle) {
+        /* We do not flush the rectangle, as we are not modifying the
+         * path */
+        status = _cairo_cogl_context_rectangle_real (cr,
+                                                     cr->x,
+                                                     cr->y,
+                                                     cr->width,
+                                                     cr->height);
+        assert (status == CAIRO_STATUS_SUCCESS);
+    }
+
+    return cr->backend_parent.copy_path (abstract_cr);
+}
+
+static cairo_path_t *
+_cairo_cogl_context_copy_path_flat (void *abstract_cr)
+{
+    cairo_cogl_context_t *cr = abstract_cr;
+    cairo_status_t status;
+
+    if (cr->path_is_rectangle) {
+        /* We do not flush the rectangle, as we are not modifying the
+         * path */
+        status = _cairo_cogl_context_rectangle_real (cr,
+                                                     cr->x,
+                                                     cr->y,
+                                                     cr->width,
+                                                     cr->height);
+        assert (status == CAIRO_STATUS_SUCCESS);
+    }
+
+    return cr->backend_parent.copy_path_flat (abstract_cr);
+}
+
+static cairo_status_t
+_cairo_cogl_context_append_path (void *abstract_cr,
+                                 const cairo_path_t *path)
+{
+    cairo_cogl_context_t *cr = abstract_cr;
+    cairo_status_t status;
+
+    if (cr->path_is_rectangle) {
+	status = _flush_cr_rectangle (cr);
+	if (unlikely (status))
+	    return status;
+    }
+
+    return cr->backend_parent.append_path (abstract_cr, path);
 }
 
 /* Since the surface backend drawing operator functions don't get
@@ -915,14 +1050,20 @@ _cairo_cogl_context_set_custom_vtable_funcs (cairo_backend_t *backend)
     backend->rel_arc_to = _cairo_cogl_context_rel_arc_to;
 #endif
     backend->close_path = _cairo_cogl_context_close_path;
-    //backend->arc = _cairo_cogl_context_arc;
+    backend->arc = _cairo_cogl_context_arc;
     backend->rectangle = _cairo_cogl_context_rectangle;
+    backend->path_extents = _cairo_cogl_context_path_extents;
+    backend->has_current_point = _cairo_cogl_context_has_current_point;
+    backend->get_current_point = _cairo_cogl_context_get_current_point;
+    backend->copy_path = _cairo_cogl_context_copy_path;
+    backend->copy_path_flat = _cairo_cogl_context_copy_path_flat;
+    backend->append_path = _cairo_cogl_context_append_path;
 
-    /* Try to automatically catch if any new path APIs are added that mean
-     * we may need to overload more functions... */
-    assert (((char *)&backend->path_extents
+    /* Try to automatically catch if any new path APIs are added that
+     * mean we may need to overload more functions... */
+    assert (((char *)&backend->clip
              - (char *)&backend->backend_to_user_distance)
-            == (sizeof (void *) * 14));
+            == (sizeof (void *) * 21));
 
     backend->fill = _cairo_cogl_context_fill;
     backend->fill_preserve = _cairo_cogl_context_fill_preserve;

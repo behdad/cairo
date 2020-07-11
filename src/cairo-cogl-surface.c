@@ -1799,7 +1799,7 @@ BAIL:
 	return cogl_object_ref (linear_texture->texture);
     }
     default:
-	g_warning ("Un-supported source type");
+	g_warning ("Unsupported source type");
 	return NULL;
     }
 }
@@ -2059,7 +2059,7 @@ get_source_mask_operator_destination_pipeline (const cairo_pattern_t *mask,
         }
         break;
     default:
-	g_warning ("Un-supported source type");
+	g_warning ("Unsupported source type");
 	return NULL;
     }
 
@@ -2994,11 +2994,6 @@ _cairo_cogl_surface_fill_rectangle (void		     *abstract_surface,
 #endif
 
     if (source->type == CAIRO_PATTERN_TYPE_SOLID) {
-	double x1 = x;
-	double y1 = y;
-	double x2 = x1 + width;
-	double y2 = y1 + height;
-
 	pipeline =
             get_source_mask_operator_destination_pipeline (NULL,
                                                            source,
@@ -3013,7 +3008,7 @@ _cairo_cogl_surface_fill_rectangle (void		     *abstract_surface,
 
 	_cairo_cogl_journal_log_rectangle (surface,
 					   pipeline,
-					   x1, y1, x2, y2,
+					   x, y, width, height,
 					   0,
 					   ctm);
 	return CAIRO_INT_STATUS_SUCCESS;

@@ -609,7 +609,7 @@ _cairo_cogl_surface_set_side_band_state (cairo_cogl_surface_t *surface,
 					 cairo_cogl_context_t *cr)
 {
 
-    if (cr->path_ctm_age <= 1) {
+    if (cr->path_ctm_age == 0) {
 	surface->user_path = &cr->user_path;
 	surface->ctm = &cr->base.gstate->ctm;
 	surface->ctm_inverse = &cr->base.gstate->ctm_inverse;

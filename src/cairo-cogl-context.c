@@ -617,18 +617,9 @@ _cairo_cogl_context_path_extents (void *abstract_cr,
                                   double *y2)
 {
     cairo_cogl_context_t *cr = abstract_cr;
-    cairo_status_t status;
 
-    if (cr->path_is_rectangle) {
-        /* We do not flush the rectangle, as we are not modifying the
-         * path */
-        status = _cairo_cogl_context_rectangle_real (cr,
-                                                     cr->x,
-                                                     cr->y,
-                                                     cr->width,
-                                                     cr->height);
-        assert (status == CAIRO_STATUS_SUCCESS);
-    }
+    if (cr->path_is_rectangle)
+        assert (_flush_cr_rectangle (cr) == CAIRO_STATUS_SUCCESS);
 
     cr->backend_parent.path_extents (abstract_cr, x1, y1, x2, y2);
 }
@@ -637,18 +628,9 @@ static cairo_bool_t
 _cairo_cogl_context_has_current_point (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
-    cairo_status_t status;
 
-    if (cr->path_is_rectangle) {
-        /* We do not flush the rectangle, as we are not modifying the
-         * path */
-        status = _cairo_cogl_context_rectangle_real (cr,
-                                                     cr->x,
-                                                     cr->y,
-                                                     cr->width,
-                                                     cr->height);
-        assert (status == CAIRO_STATUS_SUCCESS);
-    }
+    if (cr->path_is_rectangle)
+        assert (_flush_cr_rectangle (cr) == CAIRO_STATUS_SUCCESS);
 
     return cr->backend_parent.has_current_point (abstract_cr);
 }
@@ -659,18 +641,9 @@ _cairo_cogl_context_get_current_point (void *abstract_cr,
                                        double *y)
 {
     cairo_cogl_context_t *cr = abstract_cr;
-    cairo_status_t status;
 
-    if (cr->path_is_rectangle) {
-        /* We do not flush the rectangle, as we are not modifying the
-         * path */
-        status = _cairo_cogl_context_rectangle_real (cr,
-                                                     cr->x,
-                                                     cr->y,
-                                                     cr->width,
-                                                     cr->height);
-        assert (status == CAIRO_STATUS_SUCCESS);
-    }
+    if (cr->path_is_rectangle)
+        assert (_flush_cr_rectangle (cr) == CAIRO_STATUS_SUCCESS);
 
     return cr->backend_parent.get_current_point (abstract_cr, x, y);
 }
@@ -679,18 +652,9 @@ static cairo_path_t *
 _cairo_cogl_context_copy_path (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
-    cairo_status_t status;
 
-    if (cr->path_is_rectangle) {
-        /* We do not flush the rectangle, as we are not modifying the
-         * path */
-        status = _cairo_cogl_context_rectangle_real (cr,
-                                                     cr->x,
-                                                     cr->y,
-                                                     cr->width,
-                                                     cr->height);
-        assert (status == CAIRO_STATUS_SUCCESS);
-    }
+    if (cr->path_is_rectangle)
+        assert (_flush_cr_rectangle (cr) == CAIRO_STATUS_SUCCESS);
 
     return cr->backend_parent.copy_path (abstract_cr);
 }
@@ -699,18 +663,9 @@ static cairo_path_t *
 _cairo_cogl_context_copy_path_flat (void *abstract_cr)
 {
     cairo_cogl_context_t *cr = abstract_cr;
-    cairo_status_t status;
 
-    if (cr->path_is_rectangle) {
-        /* We do not flush the rectangle, as we are not modifying the
-         * path */
-        status = _cairo_cogl_context_rectangle_real (cr,
-                                                     cr->x,
-                                                     cr->y,
-                                                     cr->width,
-                                                     cr->height);
-        assert (status == CAIRO_STATUS_SUCCESS);
-    }
+    if (cr->path_is_rectangle)
+        assert (_flush_cr_rectangle (cr) == CAIRO_STATUS_SUCCESS);
 
     return cr->backend_parent.copy_path_flat (abstract_cr);
 }

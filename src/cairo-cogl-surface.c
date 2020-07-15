@@ -1814,7 +1814,8 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t        *reference_surf
                                      cairo_surface_t             *surface,
                                      const cairo_rectangle_int_t *extents,
                                      const cairo_matrix_t        *pattern_matrix,
-                                     cairo_bool_t                *has_pre_transform)
+                                     cairo_bool_t                *has_pre_transform,
+                                     cairo_bool_t                *vertical_invert)
 {
     cairo_image_surface_t *image;
     cairo_image_surface_t *acquired_image = NULL;
@@ -1825,8 +1826,11 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t        *reference_surf
     GError *error = NULL;
     cairo_surface_t *clone;
     cairo_matrix_t transform;
+    ptrdiff_t stride;
+    unsigned char *data;
 
     *has_pre_transform = FALSE;
+    *vertical_invert = FALSE;
 
     if (surface->device == reference_surface->base.device) {
         _cairo_cogl_surface_flush ((cairo_cogl_surface_t *)surface, 0);
@@ -1923,12 +1927,26 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t        *reference_surf
 	assert (format);
     }
 
+    if (image->stride < 0) {
+        /* If the stride is negative, this modifies the data pointer so
+         * that all of the pixels are read into the texture, but
+         * upside-down. We then set invert_vertical so that
+         * acquire_pattern_texture will adjust the texture sampling
+         * matrix to correct this. */
+        stride = image->stride * -1;
+        data = image->data - stride * (image->height - 1);
+        *vertical_invert = TRUE;
+    } else {
+        stride = image->stride;
+        data = image->data;
+    }
+
     texture = cogl_texture_2d_new_from_data (to_device(reference_surface->base.device)->cogl_context,
 					     image->width,
 					     image->height,
 					     format, /* incoming */
-					     image->stride,
-					     image->data,
+					     stride,
+					     data,
 					     &error);
     if (!texture) {
 	g_warning ("Failed to allocate texture: %s", error->message);
@@ -1987,6 +2005,7 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
 {
     CoglTexture *texture = NULL;
     cairo_bool_t has_pre_transform;
+    cairo_bool_t vertical_invert;
 
     switch ((int)pattern->type)
     {
@@ -1997,7 +2016,8 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
                                                  surface,
                                                  extents,
                                                  &pattern->matrix,
-                                                 &has_pre_transform);
+                                                 &has_pre_transform,
+                                                 &vertical_invert);
 	if (!texture)
 	    return NULL;
 
@@ -2029,6 +2049,15 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
         attributes->matrix.yy *= yscale;
         attributes->matrix.x0 *= xscale;
         attributes->matrix.y0 *= yscale;
+
+        if (vertical_invert) {
+            /* Convert the normalized texture matrix so that we read
+             * the texture from the bottom up instead of from the top
+             * down */
+            attributes->matrix.yx *= -1.0;
+            attributes->matrix.yy *= -1.0;
+            attributes->matrix.y0 += 1.0;
+        }
 
 	attributes->extend = pattern->extend;
 	attributes->filter = CAIRO_FILTER_BILINEAR;
@@ -2070,7 +2099,8 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
                                                  surface,
                                                  NULL, // As long as the surface is an image,
                                                  NULL, // acquire_surface_texture shouldn't access these values
-                                                 &has_pre_transform);
+                                                 &has_pre_transform,
+                                                 &vertical_invert);
 	if (!texture)
 	    goto BAIL;
 
@@ -2091,6 +2121,15 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t *pattern,
         attributes->matrix.yy *= yscale;
         attributes->matrix.x0 *= xscale;
         attributes->matrix.y0 *= yscale;
+
+        if (vertical_invert) {
+            /* Convert the normalized texture matrix so that we read
+             * the texture from the bottom up instead of from the top
+             * down */
+            attributes->matrix.yx *= -1.0;
+            attributes->matrix.yy *= -1.0;
+            attributes->matrix.y0 += 1.0;
+        }
 
 	attributes->extend = pattern->extend;
 	attributes->filter = CAIRO_FILTER_NEAREST;

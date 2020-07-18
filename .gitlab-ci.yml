@@ -1,4 +1,6 @@
 # -*- indent-tabs-mode: nil -*-
+include:
+  - template: 'Workflows/Branch-Pipelines.gitlab-ci.yml'
 
 variables:
   # Docker images for various distros and architectures
@@ -7,11 +9,26 @@ variables:
   AMD64_FEDORA_RAWHIDE:      "registry.gitlab.gnome.org/gnome/librsvg-oci-images/amd64/fedora:rawhide"
   AMD64_OPENSUSE_TUMBLEWEED: "registry.gitlab.gnome.org/gnome/librsvg-oci-images/amd64/opensuse:tumbleweed"
   AMD64_DEBIAN_TESTING:      "registry.gitlab.gnome.org/gnome/librsvg-oci-images/amd64/debian:testing"
-
   I386_DEBIAN_TESTING:       "registry.gitlab.gnome.org/gnome/librsvg-oci-images/i386/debian:testing"
+  # TODO: should probably get its own image at some point instead of reusing the GStreamer one.
+  WINDOWS_IMAGE:             "registry.freedesktop.org/gstreamer/gst-ci/amd64/windows:v12-master"
+
+  DEFAULT_MESON_ARGS: >
+    --default-library=both
 
 stages:
   - test
+
+# Global CI policy: This can be used to configure global behaviour our our jobs
+default:
+  retry:
+    max: 2
+    when:
+      - 'runner_system_failure'
+      - 'stuck_or_timeout_failure'
+      - 'scheduler_failure'
+      - 'api_failure'
+  interruptible: true
 
 .test_template: &distro_test
   before_script:
@@ -48,3 +65,51 @@ fedora:test:
   image: $AMD64_FEDORA_RAWHIDE
   stage: test
   <<: *distro_test
+
+# Based on https://gitlab.freedesktop.org/gstreamer/gst-ci/-/blob/master/gitlab/ci_template.yml
+.build meson windows:
+  image: $WINDOWS_IMAGE
+  tags:
+    - 'docker'
+    - 'windows'
+    - '1809'
+  timeout: '30min'
+  variables:
+    MESON_ARGS: >
+      ${DEFAULT_MESON_ARGS}
+      -Dfontconfig=enabled
+      -Dfreetype=enabled
+      -Dglib=enabled
+      -Dzlib=enabled
+  before_script:
+    # Make sure meson is up to date, so we don't need to rebuild the image with each release
+    - pip3 install -U meson
+  script:
+    # Make sure powershell exists on errors
+    # https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_preference_variables?view=powershell-6
+    - $ErrorActionPreference = "Stop"
+
+    # Copy GLib from existing subproject cache to avoid downloading it
+    - cd $env:CI_PROJECT_DIR
+    - cp -r C:/subprojects/glib subprojects/
+
+    # For some reason, options are separated by newline instead of space, so we
+    # have to replace them first.
+    - $env:MESON_ARGS = $env:MESON_ARGS.replace("`n"," ")
+    
+    # Gitlab executes PowerShell in docker, but VsDevCmd.bat is a batch script.
+    # Environment variables substitutions is done by PowerShell before calling
+    # cmd.exe, that's why we use $env:FOO instead of %FOO%
+    - cmd.exe /C "C:\BuildTools\Common7\Tools\VsDevCmd.bat -host_arch=amd64 -arch=$env:ARCH &&
+        meson build $env:MESON_ARGS &&
+        ninja -C build"
+
+meson vs2017 amd64:
+  extends: '.build meson windows'
+  variables:
+    ARCH: 'amd64'
+
+meson vs2017 x86:
+  extends: '.build meson windows'
+  variables:
+    ARCH: 'x86'

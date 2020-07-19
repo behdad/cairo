@@ -48,8 +48,18 @@ cairo_public cairo_device_t *
 cairo_cogl_device_create (CoglContext *context);
 
 cairo_public cairo_surface_t *
-cairo_cogl_surface_create (cairo_device_t  *device,
-			   CoglFramebuffer *framebuffer);
+cairo_cogl_onscreen_surface_create (cairo_device_t *device,
+                                    cairo_content_t content,
+                                    int width, int height);
+
+cairo_public cairo_surface_t *
+cairo_cogl_offscreen_surface_create (cairo_device_t *device,
+                                     cairo_content_t content,
+                                     int width, int height);
+
+cairo_public cairo_surface_t *
+cairo_cogl_surface_create_for_fb (cairo_device_t  *device,
+                                  CoglFramebuffer *framebuffer);
 
 cairo_public CoglFramebuffer *
 cairo_cogl_surface_get_framebuffer (cairo_surface_t *surface);
@@ -57,8 +67,11 @@ cairo_cogl_surface_get_framebuffer (cairo_surface_t *surface);
 cairo_public CoglTexture *
 cairo_cogl_surface_get_texture (cairo_surface_t *surface);
 
-cairo_public void
+cairo_public cairo_status_t
 cairo_cogl_surface_end_frame (cairo_surface_t *surface);
+
+cairo_public cairo_status_t
+cairo_cogl_surface_synchronize (cairo_surface_t *surface);
 
 CAIRO_END_DECLS
 

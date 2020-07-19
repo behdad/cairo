@@ -211,10 +211,13 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface);
 cairo_private extern const cairo_surface_backend_t _cairo_cogl_surface_backend;
 
 slim_hidden_proto (cairo_cogl_device_create);
-slim_hidden_proto (cairo_cogl_surface_create);
+slim_hidden_proto (cairo_cogl_surface_create_for_fb);
+slim_hidden_proto (cairo_cogl_onscreen_surface_create);
+slim_hidden_proto (cairo_cogl_offscreen_surface_create);
 slim_hidden_proto (cairo_cogl_surface_get_framebuffer);
 slim_hidden_proto (cairo_cogl_surface_get_texture);
 slim_hidden_proto (cairo_cogl_surface_end_frame);
+slim_hidden_proto (cairo_cogl_surface_synchronize);
 
 static cairo_cogl_device_t *
 to_device (cairo_device_t *device)
@@ -273,10 +276,11 @@ _cairo_cogl_surface_create_similar (void            *abstract_surface,
     cairo_cogl_surface_t *surface;
     CoglTexture *texture;
     cairo_status_t status;
+    cairo_cogl_device_t *dev =
+        to_device(reference_surface->base.device);
 
-    texture =
-        cogl_texture_2d_new_with_size (to_device(reference_surface->base.device)->cogl_context,
-                                       width, height);
+    texture = cogl_texture_2d_new_with_size (dev->cogl_context,
+                                             width, height);
     if (!texture)
         return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
 
@@ -286,7 +290,7 @@ _cairo_cogl_surface_create_similar (void            *abstract_surface,
                                  COGL_TEXTURE_COMPONENTS_A);
 
     surface = (cairo_cogl_surface_t *)
-	_cairo_cogl_surface_create_full (to_device(reference_surface->base.device),
+	_cairo_cogl_surface_create_full (dev,
 					 (content & CAIRO_CONTENT_ALPHA) == 0,
 					 NULL,
 					 texture);
@@ -346,18 +350,10 @@ static void
 _cairo_cogl_journal_discard (cairo_cogl_surface_t *surface)
 {
     GList *l;
-    cairo_cogl_device_t *dev;
 
     if (!surface->journal) {
 	assert (surface->last_clip == NULL);
 	return;
-    }
-
-    dev = to_device(surface->base.device);
-    if (dev->buffer_stack && dev->buffer_stack_offset) {
-	cogl_buffer_unmap (dev->buffer_stack);
-	cogl_object_unref (dev->buffer_stack);
-	dev->buffer_stack = NULL;
     }
 
     for (l = surface->journal->head; l; l = l->next) {
@@ -604,18 +600,19 @@ _cairo_cogl_traps_to_triangles_buffer (cairo_cogl_surface_t *surface,
     int n_traps = traps->num_traps;
     int i;
     CoglVertexP2 *triangles;
+    cairo_cogl_device_t *dev = to_device(surface->base.device);
 
     if (one_shot) {
 	buffer =
-            _cairo_cogl_device_allocate_buffer_space (to_device(surface->base.device),
-                                                       n_traps * sizeof (CoglVertexP2) * 6,
-                                                       offset,
-                                                       (void **)&triangles);
+            _cairo_cogl_device_allocate_buffer_space (dev,
+                                                      n_traps * sizeof (CoglVertexP2) * 6,
+                                                      offset,
+                                                      (void **)&triangles);
 	if (!buffer)
 	    return NULL;
     } else {
 	buffer =
-            cogl_attribute_buffer_new (to_device(surface->base.device)->cogl_context,
+            cogl_attribute_buffer_new (dev->cogl_context,
                                        n_traps * sizeof (CoglVertexP2) * 6,
                                        NULL);
 	if (!buffer)
@@ -1310,6 +1307,23 @@ _cairo_cogl_surface_finish (void *abstract_surface)
     return CAIRO_STATUS_SUCCESS;
 }
 
+static CoglTextureComponents
+get_components_from_cairo_content (cairo_content_t content)
+{
+    switch (content)
+    {
+    case CAIRO_CONTENT_ALPHA:
+       return COGL_TEXTURE_COMPONENTS_A;
+    case CAIRO_CONTENT_COLOR:
+       return COGL_TEXTURE_COMPONENTS_RGB;
+    case CAIRO_CONTENT_COLOR_ALPHA:
+       return COGL_TEXTURE_COMPONENTS_RGBA;
+    default:
+        g_warning ("Unrecognized content type");
+        assert (0);
+    }
+}
+
 static CoglPixelFormat
 get_default_cogl_format_from_components (CoglTextureComponents components)
 {
@@ -1732,10 +1746,9 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t        *reference_surf
          * accordingly. */
         *has_pre_transform = TRUE;
 
-        texture =
-            cogl_texture_2d_new_with_size (to_device(reference_surface->base.device)->cogl_context,
-                                           extents->width,
-                                           extents->height);
+        texture = cogl_texture_2d_new_with_size (dev->cogl_context,
+                                                 extents->width,
+                                                 extents->height);
         if (!texture) {
 	    g_warning ("Failed to allocate texture: %s", error->message);
 	    g_error_free (error);
@@ -1743,7 +1756,7 @@ _cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t        *reference_surf
         }
 
         clone =
-            _cairo_cogl_surface_create_full (to_device(reference_surface->base.device),
+            _cairo_cogl_surface_create_full (dev,
                                              reference_surface->ignore_alpha,
                                              NULL,
                                              texture);
@@ -3514,8 +3527,8 @@ _cairo_cogl_surface_create_full (cairo_cogl_device_t *dev,
 }
 
 cairo_surface_t *
-cairo_cogl_surface_create (cairo_device_t  *abstract_device,
-			   CoglFramebuffer *framebuffer)
+cairo_cogl_surface_create_for_fb (cairo_device_t  *abstract_device,
+                                  CoglFramebuffer *framebuffer)
 {
     cairo_cogl_device_t *dev = (cairo_cogl_device_t *)abstract_device;
 
@@ -3530,7 +3543,65 @@ cairo_cogl_surface_create (cairo_device_t  *abstract_device,
 
     return _cairo_cogl_surface_create_full (dev, FALSE, framebuffer, NULL);
 }
-slim_hidden_def (cairo_cogl_surface_create);
+slim_hidden_def (cairo_cogl_surface_create_for_fb);
+
+cairo_surface_t *
+cairo_cogl_onscreen_surface_create (cairo_device_t *abstract_device,
+                                    cairo_content_t content,
+                                    int width, int height)
+{
+    CoglFramebuffer *fb;
+    CoglTextureComponents components;
+    cairo_cogl_device_t *dev = (cairo_cogl_device_t *)abstract_device;
+
+    if (abstract_device->backend->type != CAIRO_DEVICE_TYPE_COGL)
+	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
+
+    /* We don't yet have a way to set the components of a framebuffer */
+    components = get_components_from_cairo_content (content);
+
+    fb = cogl_onscreen_new (dev->cogl_context, width, height);
+
+    if (!cogl_framebuffer_allocate (fb, NULL))
+        return _cairo_surface_create_in_error (CAIRO_STATUS_DEVICE_ERROR);
+    cogl_framebuffer_orthographic (fb, 0, 0,
+                                   cogl_framebuffer_get_width (fb),
+                                   cogl_framebuffer_get_height (fb),
+                                   -1, 100);
+
+    return cairo_cogl_surface_create_for_fb (abstract_device, fb);
+}
+slim_hidden_def (cairo_cogl_onscreen_surface_create);
+
+cairo_surface_t *
+cairo_cogl_offscreen_surface_create (cairo_device_t *abstract_device,
+                                     cairo_content_t content,
+                                     int width, int height)
+{
+    CoglFramebuffer *fb;
+    CoglTexture *tex;
+    CoglTextureComponents components;
+    cairo_cogl_device_t *dev = (cairo_cogl_device_t *)abstract_device;
+
+    if (abstract_device->backend->type != CAIRO_DEVICE_TYPE_COGL)
+	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
+
+    components = get_components_from_cairo_content (content);
+    tex = cogl_texture_2d_new_with_size (dev->cogl_context,
+                                         width, height);
+    cogl_texture_set_components (tex, components);
+    fb = cogl_offscreen_new_with_texture (tex);
+
+    if (!cogl_framebuffer_allocate (fb, NULL))
+        return _cairo_surface_create_in_error (CAIRO_STATUS_DEVICE_ERROR);
+    cogl_framebuffer_orthographic (fb, 0, 0,
+                                   cogl_framebuffer_get_width (fb),
+                                   cogl_framebuffer_get_height (fb),
+                                   -1, 100);
+
+    return cairo_cogl_surface_create_for_fb (abstract_device, fb);
+}
+slim_hidden_def (cairo_cogl_offscreen_surface_create);
 
 CoglFramebuffer *
 cairo_cogl_surface_get_framebuffer (cairo_surface_t *abstract_surface)
@@ -3568,6 +3639,7 @@ static cairo_status_t
 _cairo_cogl_device_flush (void *device)
 {
     cairo_status_t status;
+    cairo_cogl_device_t *dev = device;
 
     status = cairo_device_acquire (device);
     if (unlikely (status))
@@ -3575,6 +3647,12 @@ _cairo_cogl_device_flush (void *device)
 
     /* XXX: we don't need to flush Cogl here, we just need to flush
      * any batching we do of compositing primitives. */
+
+    if (dev->buffer_stack && dev->buffer_stack_offset) {
+        cogl_buffer_unmap (dev->buffer_stack);
+        cogl_object_unref (dev->buffer_stack);
+        dev->buffer_stack = NULL;
+    }
 
     cairo_device_release (device);
 
@@ -3585,12 +3663,35 @@ static void
 _cairo_cogl_device_finish (void *device)
 {
     cairo_status_t status;
+    cairo_cogl_device_t *dev = device;
+    int i, j;
 
     status = cairo_device_acquire (device);
     if (unlikely (status))
 	return;
 
     /* XXX: Drop references to external resources */
+
+    _cairo_cache_fini (&dev->linear_cache);
+    _cairo_cache_fini (&dev->path_fill_staging_cache);
+    _cairo_cache_fini (&dev->path_fill_prim_cache);
+    _cairo_cache_fini (&dev->path_stroke_staging_cache);
+    _cairo_cache_fini (&dev->path_stroke_prim_cache);
+
+    if (dev->buffer_stack && dev->buffer_stack_offset) {
+        cogl_buffer_unmap (dev->buffer_stack);
+        cogl_object_unref (dev->buffer_stack);
+        dev->buffer_stack = NULL;
+    }
+
+    for (i = 0; i < CAIRO_OPERATOR_SATURATE; i++)
+        for (j = 0; j < CAIRO_COGL_TEMPLATE_TYPE_COUNT; j++)
+            if (dev->template_pipelines[i][j] != NULL) {
+                cogl_object_unref (dev->template_pipelines[i][j]);
+                dev->template_pipelines[i][j] = NULL;
+            }
+
+    cogl_object_unref (dev->cogl_context);
 
     cairo_device_release (device);
 }
@@ -3599,8 +3700,6 @@ static void
 _cairo_cogl_device_destroy (void *device)
 {
     cairo_cogl_device_t *dev = device;
-
-    /* FIXME: Free stuff! */
 
     g_free (dev);
 }
@@ -3679,13 +3778,38 @@ cairo_cogl_device_create (CoglContext *cogl_context)
 }
 slim_hidden_def (cairo_cogl_device_create);
 
-void
+cairo_status_t
 cairo_cogl_surface_end_frame (cairo_surface_t *abstract_surface)
 {
     cairo_cogl_surface_t *surface = (cairo_cogl_surface_t *)abstract_surface;
+
+    if (abstract_surface->backend != &_cairo_cogl_surface_backend)
+        return CAIRO_STATUS_SURFACE_TYPE_MISMATCH;
+
     cairo_surface_flush (abstract_surface);
+
+    if (surface->framebuffer)
+        if (cogl_is_onscreen (surface->framebuffer))
+            cogl_onscreen_swap_buffers (surface->framebuffer);
 
     //g_print ("n_clip_updates_per_frame = %d\n", surface->n_clip_updates_per_frame);
     surface->n_clip_updates_per_frame = 0;
+
+    return CAIRO_STATUS_SUCCESS;
 }
 slim_hidden_def (cairo_cogl_surface_end_frame);
+
+cairo_status_t
+cairo_cogl_surface_synchronize (cairo_surface_t *abstract_surface)
+{
+    cairo_cogl_surface_t *surface = (cairo_cogl_surface_t *)abstract_surface;
+
+    if (abstract_surface->backend != &_cairo_cogl_surface_backend)
+        return CAIRO_STATUS_SURFACE_TYPE_MISMATCH;
+
+    if (surface->framebuffer)
+        cogl_framebuffer_finish (surface->framebuffer);
+
+    return CAIRO_STATUS_SUCCESS;
+}
+slim_hidden_def (cairo_cogl_surface_synchronize);

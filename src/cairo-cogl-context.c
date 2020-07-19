@@ -72,7 +72,7 @@ _cairo_cogl_context_reset_static_data (void)
 
 static cairo_status_t
 _cairo_cogl_context_rectangle_real (cairo_cogl_context_t *cr,
-				    double x, double y,
+				    double x,     double y,
 				    double width, double height)
 {
     cairo_status_t status;
@@ -174,7 +174,8 @@ _cairo_cogl_context_rotate (void *abstract_cr, double theta)
 }
 
 static cairo_status_t
-_cairo_cogl_context_transform (void *abstract_cr, const cairo_matrix_t *matrix)
+_cairo_cogl_context_transform (void                 *abstract_cr,
+                               const cairo_matrix_t *matrix)
 {
     cairo_cogl_context_t *cr = abstract_cr;
 
@@ -189,7 +190,8 @@ _cairo_cogl_context_transform (void *abstract_cr, const cairo_matrix_t *matrix)
 }
 
 static cairo_status_t
-_cairo_cogl_context_set_matrix (void *abstract_cr, const cairo_matrix_t *matrix)
+_cairo_cogl_context_set_matrix (void                 *abstract_cr,
+                                const cairo_matrix_t *matrix)
 {
     cairo_cogl_context_t *cr = abstract_cr;
 
@@ -313,9 +315,9 @@ _cairo_cogl_context_line_to (void *abstract_cr, double x, double y)
 
 static cairo_status_t
 _cairo_cogl_context_curve_to (void *abstract_cr,
-			       double x1, double y1,
-			       double x2, double y2,
-			       double x3, double y3)
+                              double x1, double y1,
+                              double x2, double y2,
+                              double x3, double y3)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
@@ -352,10 +354,13 @@ _cairo_cogl_context_curve_to (void *abstract_cr,
 }
 
 static cairo_status_t
-_cairo_cogl_context_arc (void *abstract_cr,
-			  double xc, double yc, double radius,
-			  double angle1, double angle2,
-			  cairo_bool_t forward)
+_cairo_cogl_context_arc (void        *abstract_cr,
+                         double       xc,
+                         double       yc,
+                         double       radius,
+                         double       angle1,
+                         double       angle2,
+                         cairo_bool_t forward)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
@@ -471,9 +476,9 @@ _cairo_cogl_context_rel_line_to (void *abstract_cr, double dx, double dy)
 
 static cairo_status_t
 _cairo_cogl_context_rel_curve_to (void *abstract_cr,
-				   double dx1, double dy1,
-				   double dx2, double dy2,
-				   double dx3, double dy3)
+                                  double dx1, double dy1,
+                                  double dx2, double dy2,
+                                  double dx3, double dy3)
 {
     cairo_cogl_context_t *cr = abstract_cr;
     cairo_status_t status;
@@ -577,8 +582,8 @@ _cairo_cogl_context_close_path (void *abstract_cr)
 
 static cairo_status_t
 _cairo_cogl_context_rectangle (void *abstract_cr,
-			       double x, double y,
-			       double width, double height)
+                               double x,     double y,
+                               double width, double height)
 {
     cairo_cogl_context_t *cr = abstract_cr;
 
@@ -636,7 +641,7 @@ _cairo_cogl_context_has_current_point (void *abstract_cr)
 }
 
 static cairo_bool_t
-_cairo_cogl_context_get_current_point (void *abstract_cr,
+_cairo_cogl_context_get_current_point (void   *abstract_cr,
                                        double *x,
                                        double *y)
 {
@@ -671,7 +676,7 @@ _cairo_cogl_context_copy_path_flat (void *abstract_cr)
 }
 
 static cairo_status_t
-_cairo_cogl_context_append_path (void *abstract_cr,
+_cairo_cogl_context_append_path (void               *abstract_cr,
                                  const cairo_path_t *path)
 {
     cairo_cogl_context_t *cr = abstract_cr;
@@ -719,18 +724,15 @@ _cairo_cogl_surface_set_side_band_state (cairo_cogl_surface_t *surface,
 static cairo_cogl_surface_t *
 _cairo_cogl_get_cogl_surface (cairo_surface_t *target)
 {
-    /* Collapse all nested subsurfaces. If another method of target
-     * surface redirection is added to cairo, we can add a test here. */
-    while (1) {
-        if (_cairo_surface_is_subsurface (target)) {
-            target = _cairo_surface_subsurface_get_target (target);
-        } else if (target->type == CAIRO_SURFACE_TYPE_COGL) {
-            return (cairo_cogl_surface_t *)target;
-        } else {
-            /* return NULL if the target is not a cogl surface */
-            return NULL;
-        }
-    }
+    /* Subsurfaces are always 1-depth */
+    if (_cairo_surface_is_subsurface (target))
+        target = _cairo_surface_subsurface_get_target (target);
+
+    if (target->type == CAIRO_SURFACE_TYPE_COGL)
+        return (cairo_cogl_surface_t *)target;
+    else
+        /* return NULL if the target is not a cogl surface */
+        return NULL;
 }
 
 static cairo_status_t
@@ -743,6 +745,19 @@ _cairo_cogl_context_fill (void *abstract_cr)
 
     if (cr->path_is_rectangle) {
         if (surface) {
+            cairo_matrix_t ctm;
+
+            status =
+                _cairo_surface_begin_modification (cr->base.gstate->target);
+            if (status)
+                return status;
+
+            ctm = cr->base.gstate->ctm;
+            if (_cairo_surface_is_subsurface (cr->base.gstate->target))
+                cairo_matrix_translate (&ctm,
+                                        ((cairo_surface_subsurface_t *)cr->base.gstate->target)->extents.x,
+                                        ((cairo_surface_subsurface_t *)cr->base.gstate->target)->extents.y);
+
             status = _cairo_cogl_surface_fill_rectangle ((cairo_surface_t *)surface,
                                                          cr->base.gstate->op,
                                                          cr->base.gstate->source,
@@ -750,7 +765,7 @@ _cairo_cogl_context_fill (void *abstract_cr)
                                                          cr->y,
                                                          cr->width,
                                                          cr->height,
-                                                         &cr->base.gstate->ctm,
+                                                         &ctm,
                                                          cr->base.gstate->clip);
             if (status == CAIRO_STATUS_SUCCESS)
                 goto DONE;
@@ -786,6 +801,19 @@ _cairo_cogl_context_fill_preserve (void *abstract_cr)
 
     if (cr->path_is_rectangle) {
         if (surface) {
+            cairo_matrix_t ctm;
+
+            status =
+                _cairo_surface_begin_modification (cr->base.gstate->target);
+            if (status)
+                return status;
+
+            ctm = cr->base.gstate->ctm;
+            if (_cairo_surface_is_subsurface (cr->base.gstate->target))
+                cairo_matrix_translate (&ctm,
+                                        ((cairo_surface_subsurface_t *)cr->base.gstate->target)->extents.x,
+                                        ((cairo_surface_subsurface_t *)cr->base.gstate->target)->extents.y);
+
             status = _cairo_cogl_surface_fill_rectangle ((cairo_surface_t *)surface,
                                                          cr->base.gstate->op,
                                                          cr->base.gstate->source,
@@ -793,7 +821,7 @@ _cairo_cogl_context_fill_preserve (void *abstract_cr)
                                                          cr->y,
                                                          cr->width,
                                                          cr->height,
-                                                         &cr->base.gstate->ctm,
+                                                         &ctm,
                                                          cr->base.gstate->clip);
             if (status == CAIRO_STATUS_SUCCESS)
                 goto DONE;

@@ -48,7 +48,7 @@ cairo_public cairo_device_t *
 cairo_cogl_device_create (CoglContext *context);
 
 cairo_public cairo_surface_t *
-cairo_cogl_surface_create (cairo_device_t *device,
+cairo_cogl_surface_create (cairo_device_t  *device,
 			   CoglFramebuffer *framebuffer);
 
 cairo_public CoglFramebuffer *

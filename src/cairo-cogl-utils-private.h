@@ -37,8 +37,8 @@
 
 CoglPath *
 _cairo_cogl_util_path_from_cairo (const cairo_path_fixed_t *path,
-				  cairo_fill_rule_t fill_rule,
-				  float tolerance);
+				  cairo_fill_rule_t         fill_rule,
+				  float                     tolerance);
 
 int
 _cairo_cogl_util_next_p2 (int a);

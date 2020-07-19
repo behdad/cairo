@@ -61,7 +61,7 @@ typedef struct _cairo_cogl_device {
 
     CoglContext *cogl_context;
 
-    CoglTexture *dummy_texture;
+    cairo_bool_t has_npots, has_mirrored_repeat;
 
     CoglAttributeBuffer *buffer_stack;
     size_t buffer_stack_size;
@@ -82,8 +82,6 @@ typedef struct _cairo_cogl_device {
      * actually created on their first use.
      */
     CoglPipeline *template_pipelines[CAIRO_OPERATOR_ADD + 1][CAIRO_COGL_TEMPLATE_TYPE_COUNT];
-
-    CoglMatrix identity;
 
     /* Caches 1d linear gradient textures */
     cairo_cache_t linear_cache;

@@ -80,8 +80,8 @@ _cogl_close_path (void *closure)
 
 CoglPath *
 _cairo_cogl_util_path_from_cairo (const cairo_path_fixed_t *path,
-				  cairo_fill_rule_t fill_rule,
-				  float tolerance)
+				  cairo_fill_rule_t         fill_rule,
+				  float                     tolerance)
 {
     CoglPath *cogl_path = cogl_path_new ();
     cairo_status_t status;

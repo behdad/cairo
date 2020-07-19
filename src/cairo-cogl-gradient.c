@@ -48,7 +48,7 @@ _cairo_cogl_linear_gradient_hash (unsigned int                  n_stops,
 }
 
 static cairo_cogl_linear_gradient_t *
-_cairo_cogl_linear_gradient_lookup (cairo_cogl_device_t         *ctx,
+_cairo_cogl_linear_gradient_lookup (cairo_cogl_device_t          *ctx,
 				    unsigned long                 hash,
 				    unsigned int                  n_stops,
 				    const cairo_gradient_stop_t  *stops)
@@ -116,7 +116,8 @@ _cairo_cogl_util_next_p2 (int a)
 }
 
 static float
-get_max_color_component_range (const cairo_color_stop_t *color0, const cairo_color_stop_t *color1)
+get_max_color_component_range (const cairo_color_stop_t *color0,
+                               const cairo_color_stop_t *color1)
 {
     float range;
     float max = 0;
@@ -198,7 +199,7 @@ _cairo_cogl_linear_gradient_width_for_stops (cairo_extend_t		  extend,
 /* Aim to create gradient textures without an alpha component so we can avoid
  * needing to use blending... */
 static CoglTextureComponents
-_cairo_cogl_linear_gradient_components_for_stops (cairo_extend_t		   extend,
+_cairo_cogl_linear_gradient_components_for_stops (cairo_extend_t               extend,
 					          unsigned int                 n_stops,
 					          const cairo_gradient_stop_t *stops)
 {
@@ -238,7 +239,7 @@ _cairo_cogl_compatibility_from_extend_mode (cairo_extend_t extend_mode)
 
 cairo_cogl_linear_texture_entry_t *
 _cairo_cogl_linear_gradient_texture_for_extend (cairo_cogl_linear_gradient_t *gradient,
-						cairo_extend_t extend_mode)
+						cairo_extend_t                extend_mode)
 {
     GList *l;
     cairo_cogl_gradient_compatibility_t compatibility =
@@ -351,10 +352,10 @@ dump_gradient_to_png (CoglTexture *texture)
 #endif
 
 cairo_int_status_t
-_cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
-				 cairo_extend_t extend_mode,
-				 int n_stops,
-				 const cairo_gradient_stop_t *stops,
+_cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
+				 cairo_extend_t                 extend_mode,
+				 int                            n_stops,
+				 const cairo_gradient_stop_t   *stops,
 				 cairo_cogl_linear_gradient_t **gradient_out)
 {
     unsigned long hash;
@@ -411,8 +412,9 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t *device,
 	gradient->n_stops = n_stops;
 	gradient->stops = gradient->stops_embedded;
 	memcpy (gradient->stops_embedded, stops, sizeof (cairo_gradient_stop_t) * n_stops);
-    } else
+    } else {
 	_cairo_cogl_linear_gradient_reference (gradient);
+    }
 
     entry = _cairo_malloc (sizeof (cairo_cogl_linear_texture_entry_t));
     if (!entry) {

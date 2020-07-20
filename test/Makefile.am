@@ -11,8 +11,9 @@ test_sources += $(pthread_test_sources)
 endif
 
 if CAIRO_HAS_FT_FONT
-if CAIRO_HAS_FC_FONT
 test_sources += $(ft_font_test_sources)
+if CAIRO_HAS_FC_FONT
+test_sources += $(fc_font_test_sources)
 endif
 endif
 

@@ -1046,8 +1046,8 @@ _cairo_surface_finish (cairo_surface_t *surface)
  * external resources.  For example, for the Xlib backend it means
  * that cairo will no longer access the drawable, which can be freed.
  * After calling cairo_surface_finish() the only valid operations on a
- * surface are getting and setting user, referencing and
- * destroying, and flushing and finishing it.
+ * surface are checking status, getting and setting user, referencing
+ * and destroying, and flushing and finishing it.
  * Further drawing to the surface will not affect the
  * surface but will instead trigger a %CAIRO_STATUS_SURFACE_FINISHED
  * error.

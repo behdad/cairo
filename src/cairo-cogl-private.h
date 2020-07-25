@@ -61,7 +61,8 @@ typedef struct _cairo_cogl_device {
 
     CoglContext *cogl_context;
 
-    cairo_bool_t has_npots, has_mirrored_repeat;
+    cairo_bool_t has_npots;
+    cairo_bool_t has_mirrored_repeat;
 
     CoglAttributeBuffer *buffer_stack;
     size_t buffer_stack_size;
@@ -116,6 +117,10 @@ typedef struct _cairo_cogl_surface {
     int width;
     int height;
 
+    /* Is this a snapshot used for mirrored repeating on hardware which
+     * doesn't have it, consisting of four reflected images? */
+    cairo_bool_t is_mirrored_snapshot;
+
     GQueue *journal;
 
     cairo_clip_t *last_clip;
@@ -134,8 +139,8 @@ typedef struct _cairo_cogl_surface {
      * side band data on the surface...
      */
     cairo_path_fixed_t *user_path;
-    cairo_matrix_t *ctm;
-    cairo_matrix_t *ctm_inverse;
+    cairo_matrix_t ctm;
+    cairo_matrix_t ctm_inverse;
     cairo_bool_t path_is_rectangle;
     double path_rectangle_x;
     double path_rectangle_y;

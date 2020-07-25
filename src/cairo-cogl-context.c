@@ -703,11 +703,16 @@ static void
 _cairo_cogl_surface_set_side_band_state (cairo_cogl_surface_t *surface,
 					 cairo_cogl_context_t *cr)
 {
+    cairo_gstate_t *gstate = cr->base.gstate;
 
     if (cr->path_ctm_age == 0) {
 	surface->user_path = &cr->user_path;
-	surface->ctm = &cr->base.gstate->ctm;
-	surface->ctm_inverse = &cr->base.gstate->ctm_inverse;
+        cairo_matrix_multiply (&surface->ctm,
+                               &gstate->ctm,
+                               &gstate->target->device_transform);
+        cairo_matrix_multiply (&surface->ctm_inverse,
+                               &gstate->target->device_transform_inverse,
+                               &gstate->ctm_inverse);
 	surface->path_is_rectangle = cr->path_is_rectangle;
 	if (surface->path_is_rectangle) {
 	    surface->path_rectangle_x = cr->x;
@@ -1002,6 +1007,7 @@ _cairo_cogl_context_create (void *target)
 
     _cairo_path_fixed_init (&cr->user_path);
     cr->path_is_rectangle = FALSE;
+    cr->path_ctm_age = 0;
 
     return &cr->base.base;
 }

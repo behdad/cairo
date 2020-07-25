@@ -64,6 +64,9 @@ cairo_cogl_surface_create_for_fb (cairo_device_t  *device,
 cairo_public CoglFramebuffer *
 cairo_cogl_surface_get_framebuffer (cairo_surface_t *surface);
 
+/* If NPOT textures are not supported, the contents of interests may
+ * only be in the lowest-coordinate corner of the texture obtained from
+ * this function */
 cairo_public CoglTexture *
 cairo_cogl_surface_get_texture (cairo_surface_t *surface);
 

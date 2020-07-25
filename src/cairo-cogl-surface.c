@@ -35,7 +35,6 @@
 #include "cairo-path-fixed-private.h"
 #include "cairo-recording-surface-private.h"
 #include "cairo-recording-surface-inline.h"
-#include "cairo-surface-clipper-private.h"
 #include "cairo-fixed-private.h"
 #include "cairo-device-private.h"
 #include "cairo-composite-rectangles-private.h"
@@ -46,7 +45,6 @@
 #include "cairo-traps-private.h"
 #include "cairo-cogl-context-private.h"
 #include "cairo-cogl-utils-private.h"
-#include "cairo-box-inline.h"
 #include "cairo-surface-subsurface-inline.h"
 #include "cairo-surface-fallback-private.h"
 #include "cairo-surface-offset-private.h"
@@ -54,7 +52,6 @@
 #include "cairo-cogl.h"
 
 #include <cogl/cogl2-experimental.h>
-#include <cogl/deprecated/cogl-texture-deprecated.h>
 #include <glib.h>
 
 #define CAIRO_COGL_DEBUG 0
@@ -245,7 +242,7 @@ _sanitize_trap (cairo_trapezoid_t *t)
 static cairo_status_t
 _cairo_cogl_surface_ensure_framebuffer (cairo_cogl_surface_t *surface)
 {
-    GError *error = NULL;
+    CoglError *error;
 
     if (surface->framebuffer)
 	return CAIRO_STATUS_SUCCESS;
@@ -253,14 +250,17 @@ _cairo_cogl_surface_ensure_framebuffer (cairo_cogl_surface_t *surface)
     surface->framebuffer =
         cogl_offscreen_new_with_texture (surface->texture);
     if (!cogl_framebuffer_allocate (surface->framebuffer, &error)) {
-	g_error_free (error);
+        g_warning ("Could not create framebuffer for surface: %s",
+                   error->message);
+        cogl_error_free (error);
 	cogl_object_unref (surface->framebuffer);
 	surface->framebuffer = NULL;
 	return CAIRO_STATUS_NO_MEMORY;
     }
 
-    cogl_framebuffer_orthographic (surface-> framebuffer, 0, 0,
-                                   surface->width, surface->height,
+    cogl_framebuffer_orthographic (surface->framebuffer, 0, 0,
+                                   cogl_texture_get_width (surface->texture),
+                                   cogl_texture_get_height (surface->texture),
                                    -1, 100);
 
     return CAIRO_STATUS_SUCCESS;
@@ -278,9 +278,18 @@ _cairo_cogl_surface_create_similar (void            *abstract_surface,
     cairo_status_t status;
     cairo_cogl_device_t *dev =
         to_device(reference_surface->base.device);
+    int tex_width = width;
+    int tex_height = height;
+
+    /* In the case of lack of NPOT texture support, we allocate texture
+     * with dimensions of the next power of two */
+    if (!dev->has_npots) {
+        tex_width = pow (2, ceil (log2 (tex_width)));
+        tex_height = pow (2, ceil (log2 (tex_height)));
+    }
 
     texture = cogl_texture_2d_new_with_size (dev->cogl_context,
-                                             width, height);
+                                             tex_width, tex_height);
     if (!texture)
         return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
 
@@ -296,6 +305,14 @@ _cairo_cogl_surface_create_similar (void            *abstract_surface,
 					 texture);
     if (unlikely (surface->base.status))
 	return &surface->base;
+
+    /* The surface will take a reference on the texture */
+    cogl_object_unref (texture);
+
+    /* If we passed a texture with larger dimensions, we need to set
+     * the surface dimensions */
+    surface->width = width;
+    surface->height = height;
 
     status = _cairo_cogl_surface_ensure_framebuffer (surface);
     if (unlikely (status)) {
@@ -1348,6 +1365,7 @@ get_default_cogl_format_from_components (CoglTextureComponents components)
     }
 }
 
+#if 0
 static CoglTextureComponents
 get_components_from_cogl_format (CoglPixelFormat format)
 {
@@ -1378,6 +1396,7 @@ get_components_from_cogl_format (CoglPixelFormat format)
     return CAIRO_FORMAT_INVALID;
     }
 }
+#endif
 
 static CoglPixelFormat
 get_cogl_format_from_cairo_format (cairo_format_t cairo_format);
@@ -1515,8 +1534,14 @@ _cairo_cogl_surface_acquire_source_image (void		         *abstract_surface,
                 get_cogl_format_from_cairo_format (cairo_format);
         }
 
+        /* We use the actual texture dimensions here instead, because
+         * if we have a larger texture than the surface dimensions for
+         * devices not supporting NPOT textures, the surface dimensions
+         * will not be able to fit the data */
         cairo_image_surface_t *image = (cairo_image_surface_t *)
-	        cairo_image_surface_create (cairo_format, surface->width, surface->height);
+	        cairo_image_surface_create (cairo_format,
+	                                    cogl_texture_get_width (surface->texture),
+	                                    cogl_texture_get_height (surface->texture));
         if (image->base.status)
             return image->base.status;
 
@@ -1524,6 +1549,13 @@ _cairo_cogl_surface_acquire_source_image (void		         *abstract_surface,
                                cogl_format,
                                0,
                                image->data);
+
+        /* If the texture dimensions were different than the surface
+         * dimensions, this will set them to the correct values.
+         * Because the stride stays the same, it will still function
+         * correctly */
+        image->width = surface->width;
+        image->height = surface->height;
 
 	image->base.is_clear = FALSE;
 	*image_out = image;
@@ -1614,7 +1646,8 @@ _cairo_cogl_path_fixed_rectangle (cairo_path_fixed_t *path,
 
 
 static CoglPipelineWrapMode
-get_cogl_wrap_mode_for_extend (cairo_extend_t extend_mode)
+get_cogl_wrap_mode_for_extend (cairo_extend_t       extend_mode,
+                               cairo_cogl_device_t *dev)
 {
     switch (extend_mode)
     {
@@ -1625,314 +1658,555 @@ get_cogl_wrap_mode_for_extend (cairo_extend_t extend_mode)
     case CAIRO_EXTEND_REPEAT:
 	return COGL_PIPELINE_WRAP_MODE_REPEAT;
     case CAIRO_EXTEND_REFLECT:
-        /* TODO: Detect hardware where MIRRORED_REPEAT is not available
-         * and implement fallback */
-	return COGL_PIPELINE_WRAP_MODE_MIRRORED_REPEAT;
+        if (!dev->has_mirrored_repeat)
+            /* If the hardware cannot support mirrored repeating, we
+             * emulate it elsewhere */
+            return COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE;
+        else
+	    return COGL_PIPELINE_WRAP_MODE_MIRRORED_REPEAT;
     }
     assert (0); /* not reached */
     return COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE;
 }
 
-#if 0
-/* Given an arbitrary texture, check if it's already a pot texture and simply
- * return it back if so. If not create a new pot texture, scale the old to
- * fill it, unref the old and return a pointer to the new pot texture. */
-static cairo_int_status_t
-_cairo_cogl_get_pot_texture (CoglContext  *context,
-			     CoglTexture  *texture,
-			     CoglTexture **pot_texture)
+static void
+_cairo_cogl_matrix_all_scale (cairo_matrix_t *matrix,
+                              double          xscale,
+                              double          yscale)
 {
-    int width = cogl_texture_get_width (texture);
-    int height = cogl_texture_get_height (texture);
-    int pot_width;
-    int pot_height;
-    CoglOffscreen *offscreen = NULL;
-    CoglTexture2D *pot = NULL;
-    CoglPipeline *pipeline;
-    GError *error;
-
-    pot_width = _cairo_cogl_util_next_p2 (width);
-    pot_height = _cairo_cogl_util_next_p2 (height);
-
-    if (pot_width == width && pot_height == height)
-	return CAIRO_INT_STATUS_SUCCESS;
-
-    for (;;) {
-	pot = cogl_texture_2d_new_with_size (context,
-					     pot_width,
-					     pot_height);
-	if (pot)
-	    break;
-
-	if (pot_width > pot_height)
-	    pot_width >>= 1;
-	else
-	    pot_height >>= 1;
-
-	if (!pot_width || !pot_height)
-	    break;
-    }
-
-    *pot_texture = pot;
-
-    if (!pot)
-	return CAIRO_INT_STATUS_NO_MEMORY;
-
-    cogl_texture_set_components (pot,
-                                 cogl_texture_get_components(texture));
-
-    /* Use the GPU to do a bilinear filtered scale from npot to pot... */
-    offscreen = cogl_offscreen_new_with_texture (pot);
-    error = NULL;
-    if (!cogl_framebuffer_allocate (offscreen, &error)) {
-	/* NB: if we don't pass an error then Cogl is allowed to simply abort
-	 * automatically. */
-	g_error_free (error);
-	cogl_object_unref (pot);
-	*pot_texture = NULL;
-	return CAIRO_INT_STATUS_NO_MEMORY;
-    }
-
-    pipeline = cogl_pipeline_new (context);
-    cogl_pipeline_set_layer_texture (pipeline, 1, texture);
-    cogl_framebuffer_draw_textured_rectangle (offscreen, pipeline,
-                                              -1, 1, 1, -1,
-                                              0, 0, 1, 1);
-
-    cogl_object_unref (offscreen);
+    /* Since cairo_matrix_scale does not scale the x0 and y0 components,
+     * which is required for scaling translations to normalized
+     * coordinates, use a custom solution here. */
+    matrix->xx *= xscale;
+    matrix->yx *= yscale;
+    matrix->xy *= xscale;
+    matrix->yy *= yscale;
+    matrix->x0 *= xscale;
+    matrix->y0 *= yscale;
 }
-#endif
 
-/* NB: a reference for the texture is transferred to the caller which should
- * be unrefed */
 static CoglTexture *
-_cairo_cogl_acquire_surface_texture (cairo_cogl_surface_t        *reference_surface,
-                                     cairo_surface_t             *surface,
-                                     const cairo_rectangle_int_t *extents,
-                                     const cairo_matrix_t        *pattern_matrix,
-                                     cairo_bool_t                *has_pre_transform,
-                                     cairo_bool_t                *vertical_invert)
+_cairo_cogl_scale_texture (CoglContext           *context,
+                           CoglTexture           *texture_in,
+                           unsigned int           new_width,
+                           unsigned int           new_height,
+                           cairo_bool_t           do_mirror_texture,
+                           cairo_bool_t           always_new_texture)
 {
+    CoglTexture *texture_out = NULL;
+    CoglPipeline *copying_pipeline = NULL;
+    CoglFramebuffer *fb = NULL;
+    CoglError *error;
+    unsigned int tex_width = new_width;
+    unsigned int tex_height = new_height;
+
+    /* If the texture is already in the desired dimensions and we are
+     * not mirroring it, copying it, or reading from different extents,
+     * return it unmodified */
+    if (!do_mirror_texture && !always_new_texture &&
+        new_width == cogl_texture_get_width (texture_in) &&
+        new_height == cogl_texture_get_height (texture_in))
+        return texture_in;
+
+    if (do_mirror_texture) {
+        tex_width *= 2;
+        tex_height *= 2;
+    }
+
+    texture_out =
+        cogl_texture_2d_new_with_size (context, tex_width, tex_height);
+    if (!texture_out) {
+        g_warning ("Failed to allocate texture");
+        goto BAIL;
+    }
+
+    fb = cogl_offscreen_new_with_texture (texture_out);
+    if (!cogl_framebuffer_allocate (fb, &error)) {
+        g_warning ("Could not get framebuffer for texture scaling: %s",
+                   error->message);
+        cogl_error_free (error);
+        goto BAIL;
+    }
+
+    cogl_framebuffer_orthographic (fb, 0, 0,
+                                       tex_width, tex_height,
+                                       -1, 100);
+
+    copying_pipeline = cogl_pipeline_new (context);
+    cogl_pipeline_set_layer_texture (copying_pipeline, 0, texture_in);
+
+    if (do_mirror_texture) {
+        /* Draw four rectangles to the new texture with the appropriate
+         * reflection on each one */
+
+        const float rect_coordinates[32] = {
+            /* Rectangle 1 */
+            0, 0, 0.5 * tex_width, 0.5 * tex_height,
+            0, 0, 1, 1,
+
+            /* Rectangle 2 */
+            tex_width, 0, 0.5 * tex_width, 0.5 * tex_height,
+            0, 0, 1, 1,
+
+            /* Rectangle 3 */
+            0, tex_height, 0.5 * tex_width, 0.5 * tex_height,
+            0, 0, 1, 1,
+
+            /* Rectangle 4 */
+            tex_width, tex_height, 0.5 * tex_width, 0.5 * tex_height,
+            0, 0, 1, 1
+        };
+
+        cogl_framebuffer_draw_textured_rectangles (fb,
+                                                   copying_pipeline,
+                                                   rect_coordinates,
+                                                   4);
+    } else {
+        cogl_framebuffer_draw_textured_rectangle (fb,
+                                                  copying_pipeline,
+                                                  0, 0,
+                                                  tex_width,
+                                                  tex_height,
+                                                  0, 0, 1, 1);
+    }
+
+    cogl_object_unref (fb);
+    cogl_object_unref (copying_pipeline);
+    cogl_object_unref (texture_in);
+
+    return texture_out;
+
+BAIL:
+    if (texture_out)
+        cogl_object_unref (texture_out);
+    if (fb)
+        cogl_object_unref (fb);
+    if (copying_pipeline)
+        cogl_object_unref (copying_pipeline);
+
+    return NULL;
+}
+
+/* NB: a reference for the texture is transferred to the caller which
+ * should be unrefed */
+static CoglTexture *
+_cairo_cogl_acquire_cogl_surface_texture (cairo_cogl_surface_t        *reference_surface,
+                                          cairo_surface_t             *surface,
+                                          const cairo_rectangle_int_t *surface_extents,
+                                          const cairo_matrix_t        *pattern_matrix,
+                                          cairo_matrix_t              *out_matrix,
+                                          const cairo_bool_t           need_mirrored_texture,
+                                          cairo_bool_t                *is_mirrored_texture)
+{
+    CoglTexture *texture;
+    cairo_surface_t *clone = NULL;
+    cairo_cogl_surface_t *cogl_surface =
+        (cairo_cogl_surface_t *)surface;
+    cairo_bool_t do_mirror_texture;
+    cairo_cogl_device_t *dev =
+        to_device (reference_surface->base.device);
+    double xscale, yscale;
+    int new_width = surface_extents->width;
+    int new_height = surface_extents->height;
+
+    *out_matrix = *pattern_matrix;
+    *is_mirrored_texture = FALSE;
+
+    if (unlikely (_cairo_surface_flush (surface, 0))) {
+        g_warning ("Error flushing source surface while getting "
+                   "pattern texture");
+        goto BAIL;
+    }
+
+    *is_mirrored_texture =
+        need_mirrored_texture || cogl_surface->is_mirrored_snapshot;
+    do_mirror_texture =
+        need_mirrored_texture && !cogl_surface->is_mirrored_snapshot;
+
+    /* There seems to be a bug in which cogl isn't flushing its own
+     * internal journal when reading from dependent sub-textures.
+     * If this is ever fixed, the following block of code can be
+     * removed. */
+    {
+        _cairo_cogl_surface_ensure_framebuffer (cogl_surface);
+        cogl_framebuffer_finish (cogl_surface->framebuffer);
+    }
+    /* We copy the surface to a new texture, thereby making a
+     * snapshot of it, as its contents may change between the time
+     * we log the pipeline and when we flush the journal. The sub
+     * texture itself cannot be used while drawing primitives, so we do
+     * a copy to a 2d texture. */
+    texture = cogl_sub_texture_new (dev->cogl_context,
+                                    cogl_surface->texture,
+                                    surface_extents->x,
+                                    surface_extents->y,
+                                    surface_extents->width,
+                                    surface_extents->height);
+    if (unlikely (!texture))
+        goto BAIL;
+
+    /* If we do not support NPOT dimensions, scale the new texture to
+     * the next power of two while copying */
+    if (!dev->has_npots) {
+        new_width = (int)pow (2, ceil (log2 (new_width)));
+        new_height = (int)pow (2, ceil (log2 (new_height)));
+    }
+    texture = _cairo_cogl_scale_texture (dev->cogl_context,
+                                         texture,
+                                         new_width,
+                                         new_height,
+                                         do_mirror_texture,
+                                         TRUE);
+    if (unlikely (!texture))
+        goto BAIL;
+
+    clone =
+        _cairo_cogl_surface_create_full (dev,
+                                         reference_surface->ignore_alpha,
+                                         NULL,
+                                         texture);
+    if (unlikely (clone->status)) {
+        g_warning ("Could not get clone surface for texture");
+        goto BAIL;
+    }
+    _cairo_surface_attach_snapshot (surface, clone, NULL);
+
+    /* Convert from un-normalized source coordinates in backend
+     * coordinates to normalized texture coordinates. */
+    if (*is_mirrored_texture) {
+        xscale = 0.5 / surface_extents->width;
+        yscale = 0.5 / surface_extents->height;
+    } else {
+        xscale = 1.0 / surface_extents->width;
+        yscale = 1.0 / surface_extents->height;
+    }
+    _cairo_cogl_matrix_all_scale (out_matrix, xscale, yscale);
+
+    return texture;
+
+BAIL:
+    if (texture)
+        cogl_object_unref (texture);
+    if (clone)
+        cairo_surface_destroy (clone);
+
+    return NULL;
+}
+
+/* NB: a reference for the texture is transferred to the caller which
+ * should be unrefed */
+static CoglTexture *
+_cairo_cogl_acquire_recording_surface_texture (cairo_cogl_surface_t        *reference_surface,
+                                               cairo_surface_t             *surface,
+                                               const cairo_rectangle_int_t *extents,
+                                               const cairo_matrix_t        *pattern_matrix,
+                                               cairo_matrix_t              *out_matrix,
+                                               const cairo_bool_t           need_mirrored_texture,
+                                               cairo_bool_t                *is_mirrored_texture)
+{
+    CoglTexture *texture = NULL;
+    cairo_surface_t *clone = NULL;
+    cairo_cogl_device_t *dev =
+        to_device (reference_surface->base.device);
+    cairo_matrix_t transform;
+    int tex_height, tex_width;
+    double xscale, yscale;
+
+    *is_mirrored_texture = FALSE;
+
+    /* We will pre-transform all of the drawing by the pattern matrix
+     * and confine it to the required extents, so no later transform
+     * will be required */
+    cairo_matrix_init_translate (out_matrix, -extents->x, -extents->y);
+
+    cairo_matrix_init_translate (&transform, extents->x, extents->y);
+    cairo_matrix_multiply (&transform, &transform, pattern_matrix);
+
+    if (!dev->has_npots) {
+        /* Record to a texture sized to the next power of two */
+        tex_width = (int)pow (2, ceil (log2 (extents->width)));
+        tex_height = (int)pow (2, ceil (log2 (extents->height)));
+
+        /* And scale accordingly */
+        cairo_matrix_scale (&transform,
+                            (double)extents->width / (double)tex_width,
+                            (double)extents->height / (double)tex_height);
+    } else {
+        tex_width = extents->width;
+        tex_height = extents->height;
+    }
+
+    texture = cogl_texture_2d_new_with_size (dev->cogl_context,
+                                             tex_width,
+                                             tex_height);
+    if (unlikely (!texture)) {
+        g_warning ("Failed to allocate texture");
+        goto BAIL;
+    }
+
+    /* Do not attach this as a snapshot, as it only represents part of
+     * the surface */
+    clone =
+        _cairo_cogl_surface_create_full (dev,
+                                         reference_surface->ignore_alpha,
+                                         NULL,
+                                         texture);
+    if (_cairo_cogl_surface_ensure_framebuffer ((cairo_cogl_surface_t *)clone))
+    {
+        g_warning ("Could not get framebuffer for replaying recording "
+                   "surface");
+        goto BAIL;
+    }
+
+    if (_cairo_recording_surface_replay_with_clip (surface,
+                                                   &transform,
+                                                   clone,
+                                                   NULL))
+    {
+        g_warning ("Could not replay recording surface");
+        goto BAIL;
+    }
+    _cairo_cogl_journal_flush ((cairo_cogl_surface_t *)clone);
+    cairo_surface_destroy (clone);
+
+    if (need_mirrored_texture) {
+        /* Scale to the same image extents, but mirror the texture,
+         * thereby making it larger */
+        texture = _cairo_cogl_scale_texture (dev->cogl_context,
+                                             texture,
+                                             tex_width,
+                                             tex_height,
+                                             TRUE,
+                                             FALSE);
+        if (unlikely (!texture))
+            goto BAIL;
+
+        *is_mirrored_texture = TRUE;
+    }
+
+    /* Convert from un-normalized source coordinates in backend
+     * coordinates to normalized texture coordinates. */
+    if (*is_mirrored_texture) {
+        xscale = 0.5 / extents->width;
+        yscale = 0.5 / extents->height;
+    } else {
+        xscale = 1.0 / extents->width;
+        yscale = 1.0 / extents->height;
+    }
+    _cairo_cogl_matrix_all_scale (out_matrix, xscale, yscale);
+
+    return texture;
+
+BAIL:
+    if (clone)
+        cairo_surface_destroy (clone);
+    if (texture)
+        cogl_object_unref (texture);
+
+    return NULL;
+}
+
+/* NB: a reference for the texture is transferred to the caller which
+ * should be unrefed */
+static CoglTexture *
+_cairo_cogl_acquire_generic_surface_texture (cairo_cogl_surface_t *reference_surface,
+                                             cairo_surface_t      *surface,
+                                             const cairo_matrix_t *pattern_matrix,
+                                             cairo_matrix_t       *out_matrix,
+                                             const cairo_bool_t    need_mirrored_texture,
+                                             cairo_bool_t         *is_mirrored_texture)
+{
+    CoglTexture *texture = NULL;
     cairo_image_surface_t *image;
     cairo_image_surface_t *acquired_image = NULL;
     void *image_extra;
-    CoglPixelFormat format;
     cairo_image_surface_t *image_clone = NULL;
-    CoglTexture2D *texture;
-    GError *error = NULL;
-    cairo_surface_t *clone, *unwrapped;
-    cairo_rectangle_int_t surface_extents;
-    cairo_matrix_t transform;
-    CoglPipeline *copying_pipeline = NULL;
+    cairo_surface_t *clone = NULL;
+    CoglPixelFormat format;
     cairo_cogl_device_t *dev =
-        to_device(reference_surface->base.device);
+        to_device (reference_surface->base.device);
+    ptrdiff_t stride;
+    unsigned char *data;
+    double xscale, yscale;
 
-    *has_pre_transform = FALSE;
-    *vertical_invert = FALSE;
+    *out_matrix = *pattern_matrix;
+    *is_mirrored_texture = FALSE;
 
-    clone = _cairo_surface_has_snapshot (surface, &_cairo_cogl_surface_backend);
-    if (clone)
-        if (((cairo_cogl_surface_t *)clone)->texture)
-            return cogl_object_ref (((cairo_cogl_surface_t *)clone)->texture);
-
-    /* Unwrap things like subsurfaces, but get the original extents */
-    unwrapped = _cairo_surface_get_source (surface, &surface_extents);
-
-    if (_cairo_surface_is_recording (unwrapped)) {
-        /* We pre-transform the recording surface here and make the
-         * target surface the size of the extents in order to reduce
-         * texture size. When we return to the acquire_pattern_texture
-         * function, it will know to adjust the texture matrix
-         * accordingly. */
-        *has_pre_transform = TRUE;
-
-        texture = cogl_texture_2d_new_with_size (dev->cogl_context,
-                                                 extents->width,
-                                                 extents->height);
-        if (!texture) {
-	    g_warning ("Failed to allocate texture: %s", error->message);
-	    g_error_free (error);
-	    goto BAIL;
+    if (_cairo_surface_is_image (surface)) {
+        image = (cairo_image_surface_t *)surface;
+    } else {
+        cairo_status_t status =
+            _cairo_surface_acquire_source_image (surface,
+                                                 &acquired_image,
+                                                 &image_extra);
+        if (unlikely (status)) {
+            g_warning ("acquire_source_image failed: %s [%d]",
+                        cairo_status_to_string (status), status);
+            return NULL;
         }
+        image = acquired_image;
+    }
 
-        clone =
-            _cairo_cogl_surface_create_full (dev,
-                                             reference_surface->ignore_alpha,
-                                             NULL,
-                                             texture);
-
-        cairo_matrix_init_translate (&transform,
-                                     extents->x,
-                                     extents->y);
-        cairo_matrix_multiply (&transform, &transform, pattern_matrix);
-
-        if (_cairo_recording_surface_replay_with_clip (unwrapped,
-                                                       &transform,
-                                                       clone,
-                                                       NULL))
-        {
-            g_warning ("could not replay recording surface");
+    format = get_cogl_format_from_cairo_format (image->format);
+    if (!format) {
+        image_clone = _cairo_image_surface_coerce (image);
+        if (unlikely (image_clone->base.status)) {
+            g_warning ("image_surface_coerce failed");
             texture = NULL;
             goto BAIL;
         }
 
-        cairo_surface_destroy (clone);
-        return texture;
+        format =
+            get_cogl_format_from_cairo_format (image_clone->format);
+        assert (format);
+
+        image = image_clone;
     }
 
-    if (to_device(unwrapped->device) == dev &&
-        ((cairo_cogl_surface_t *)unwrapped)->texture)
-    {
-        cairo_cogl_surface_t *cogl_surface =
-            (cairo_cogl_surface_t *)unwrapped;
+    if (image->stride < 0) {
+        /* If the stride is negative, this modifies the data pointer so
+         * that all of the pixels are read into the texture, but
+         * upside-down. We then invert the matrix so the texture is
+         * read from the bottom up instead of from the top down. */
+         stride = -image->stride;
+         data = image->data - stride * (image->height - 1);
 
-        if (unlikely (_cairo_surface_flush (unwrapped, 0))) {
-            g_warning ("Error flushing source surface while getting "
-                       "pattern texture");
-            goto BAIL;
-        }
-
-        /* We copy the surface to a new texture, thereby making a
-         * snapshot of it, as its contents may change between the time
-         * we log the pipeline and when we flush the journal */
-        texture =
-            cogl_texture_2d_new_with_size (dev->cogl_context,
-                                           surface_extents.width,
-                                           surface_extents.height);
-        if (!texture) {
-            g_warning ("Failed to allocate texture: %s",
-                           error->message);
-            g_error_free (error);
-            goto BAIL;
-        }
-
-        clone =
-            _cairo_cogl_surface_create_full (dev,
-                                             reference_surface->ignore_alpha,
-                                             NULL,
-                                             texture);
-
-        if (_cairo_cogl_surface_ensure_framebuffer ((cairo_cogl_surface_t *)clone)) {
-            g_warning ("Could not get framebuffer for surface clone");
-            goto BAIL;
-        }
-
-        /* If cogl ever makes its internal _cogl_blit API public
-         * we could use that and make this much simpler */
-        copying_pipeline = cogl_pipeline_new (dev->cogl_context);
-        cogl_pipeline_set_layer_texture (copying_pipeline,
-                                         0,
-                                         cogl_surface->texture);
-
-        /* Factors for normalizing the texture coordinates */
-        double xscale = 1.0 / cogl_texture_get_width (cogl_surface->texture);
-        double yscale = 1.0 / cogl_texture_get_height (cogl_surface->texture);
-
-        cogl_framebuffer_draw_textured_rectangle (((cairo_cogl_surface_t *)clone)->framebuffer,
-                                                  copying_pipeline,
-                                                  0,
-                                                  0,
-                                                  surface_extents.width,
-                                                  surface_extents.height,
-                                                  xscale * surface_extents.x,
-                                                  yscale * surface_extents.y,
-                                                  xscale * (surface_extents.x + surface_extents.width),
-                                                  yscale * (surface_extents.y + surface_extents.height));
+         out_matrix->yx *= -1.0;
+         out_matrix->yy *= -1.0;
+         out_matrix->y0 += image->height;
     } else {
-        ptrdiff_t stride;
-        unsigned char *data;
+        stride = image->stride;
+        data = image->data;
+    }
 
-        // g_warning ("Uploading image surface to texture");
-
-        if (_cairo_surface_is_image (surface)) {
-            image = (cairo_image_surface_t *)surface;
-        } else {
-            cairo_status_t status =
-                _cairo_surface_acquire_source_image (surface,
-                                                     &acquired_image,
-                                                     &image_extra);
-            if (unlikely (status)) {
-                g_warning ("acquire_source_image failed: %s [%d]",
-                           cairo_status_to_string (status), status);
-                return NULL;
-            }
-            image = acquired_image;
-        }
-
-        format = get_cogl_format_from_cairo_format (image->format);
-        if (!format)
-        {
-            image_clone = _cairo_image_surface_coerce (image);
-            if (unlikely (image_clone->base.status)) {
-                g_warning ("image_surface_coerce failed");
-                texture = NULL;
-                goto BAIL;
-            }
-
-            format =
-                get_cogl_format_from_cairo_format (image_clone->format);
-            assert (format);
-
-            image = image_clone;
-        }
-
-        if (image->stride < 0) {
-            /* If the stride is negative, this modifies the data pointer so
-             * that all of the pixels are read into the texture, but
-             * upside-down. We then set vertical_invert so that
-             * acquire_pattern_texture will adjust the texture sampling
-             * matrix to correct this. */
-            stride = image->stride * -1;
-            data = image->data - stride * (image->height - 1);
-            *vertical_invert = TRUE;
-        } else {
-            stride = image->stride;
-            data = image->data;
-        }
-
+    if (!dev->has_npots)
+        texture =
+            cogl_texture_2d_sliced_new_from_data (dev->cogl_context,
+                                                  image->width,
+                                                  image->height,
+                                                  COGL_TEXTURE_MAX_WASTE,
+                                                  format, /* incoming */
+                                                  stride,
+                                                  data,
+                                                  NULL);
+    else
         texture = cogl_texture_2d_new_from_data (dev->cogl_context,
                                                  image->width,
                                                  image->height,
                                                  format, /* incoming */
                                                  stride,
                                                  data,
-                                                 &error);
-        if (!texture) {
-            g_warning ("Failed to allocate texture: %s",
-                       error->message);
-            g_error_free (error);
-            goto BAIL;
+                                                 NULL);
+    if (!texture) {
+        g_warning ("Failed to allocate texture");
+        goto BAIL;
+    }
+
+    if (need_mirrored_texture) {
+        int new_width = image->width * 2;
+        int new_height = image->height * 2;
+
+        /* If the device does not support npot textures, scale to the
+         * next power of two as well */
+        if (!dev->has_npots) {
+            new_width = (int)pow (2, ceil (log2 (new_width)));
+            new_height = (int)pow (2, ceil (log2 (new_height)));
         }
 
-        clone =
-            _cairo_cogl_surface_create_full (dev,
-                                             reference_surface->ignore_alpha,
-                                             NULL,
-                                             texture);
+        texture = _cairo_cogl_scale_texture (dev->cogl_context,
+                                             texture,
+                                             new_width,
+                                             new_height,
+                                             TRUE,
+                                             FALSE);
+        if (unlikely (!texture))
+            goto BAIL;
+
+        *is_mirrored_texture = TRUE;
+    } else if (!dev->has_npots) {
+        /* We need to scale the texture up if the hardware does not
+         * support npots */
+
+        /* Get dimensions for the next power of two */
+        int new_width = (int)pow (2, ceil (log2 (image->width)));
+        int new_height = (int)pow (2, ceil (log2 (image->height)));
+
+        texture = _cairo_cogl_scale_texture (dev->cogl_context,
+                                             texture,
+                                             new_width,
+                                             new_height,
+                                             FALSE,
+                                             FALSE);
+        if (unlikely (!texture))
+            goto BAIL;
     }
+
+    clone =
+        _cairo_cogl_surface_create_full (dev,
+                                         reference_surface->ignore_alpha,
+                                         NULL,
+                                         texture);
+    if (unlikely (clone->status)) {
+        g_warning ("Unable to create clone surface for texture");
+        goto BAIL;
+    }
+
+    if (*is_mirrored_texture)
+        ((cairo_cogl_surface_t *)clone)->is_mirrored_snapshot = TRUE;
 
     if (_cairo_surface_is_subsurface (surface))
         _cairo_surface_subsurface_set_snapshot (surface, clone);
     else
         _cairo_surface_attach_snapshot (surface, clone, NULL);
 
+    /* Attaching the snapshot will take a reference on the clone surface... */
+    cairo_surface_destroy (clone);
+    clone = NULL;
+
+    /* Convert from un-normalized source coordinates in backend
+     * coordinates to normalized texture coordinates. */
+    if (*is_mirrored_texture) {
+        xscale = 0.5 / image->width;
+        yscale = 0.5 / image->height;
+    } else {
+        xscale = 1.0 / image->width;
+        yscale = 1.0 / image->height;
+    }
+    _cairo_cogl_matrix_all_scale (out_matrix, xscale, yscale);
+
+    /* Release intermediate surface representations */
+    if (image_clone) {
+	cairo_surface_destroy (&image_clone->base);
+        image_clone = NULL;
+    }
+    if (acquired_image) {
+	_cairo_surface_release_source_image (surface,
+                                             acquired_image,
+                                             image_extra);
+        acquired_image = NULL;
+    }
+
+    return texture;
+
 BAIL:
     if (clone)
-        /* Attaching the snapshot will take a reference on the clone surface... */
         cairo_surface_destroy (clone);
-    if (copying_pipeline)
-        cogl_object_unref (copying_pipeline);
     if (image_clone)
 	cairo_surface_destroy (&image_clone->base);
     if (acquired_image)
-	_cairo_surface_release_source_image (surface, acquired_image, image_extra);
+	_cairo_surface_release_source_image (surface,
+                                             acquired_image,
+                                             image_extra);
+    if (texture)
+        cogl_object_unref (texture);
 
-    return texture;
+    return NULL;
 }
 
 static cairo_status_t
 _cairo_cogl_create_tex_clip (cairo_path_fixed_t *tex_clip,
-                             cairo_matrix_t      inverse)
+                             cairo_matrix_t      inverse,
+                             cairo_bool_t        is_mirrored_texture)
 {
     cairo_status_t status;
 
@@ -1940,9 +2214,15 @@ _cairo_cogl_create_tex_clip (cairo_path_fixed_t *tex_clip,
     if (unlikely (status))
         return status;
 
-    status = _cairo_cogl_path_fixed_rectangle (tex_clip, 0, 0,
-                                               CAIRO_FIXED_ONE,
-                                               CAIRO_FIXED_ONE);
+    if (is_mirrored_texture)
+        status =
+            _cairo_cogl_path_fixed_rectangle (tex_clip, 0, 0,
+                                              _cairo_fixed_from_double (0.5),
+                                              _cairo_fixed_from_double (0.5));
+    else
+        status = _cairo_cogl_path_fixed_rectangle (tex_clip, 0, 0,
+                                                   CAIRO_FIXED_ONE,
+                                                   CAIRO_FIXED_ONE);
     if (unlikely (status))
 	return status;
 
@@ -1961,66 +2241,88 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
                                      cairo_path_fixed_t              *tex_clip)
 {
     CoglTexture *texture = NULL;
-    cairo_bool_t has_pre_transform;
-    cairo_bool_t vertical_invert;
+    cairo_cogl_device_t *dev = to_device (destination->base.device);
 
     switch ((int)pattern->type)
     {
     case CAIRO_PATTERN_TYPE_SURFACE: {
-	cairo_surface_t *surface = ((cairo_surface_pattern_t *)pattern)->surface;
-	texture =
-            _cairo_cogl_acquire_surface_texture (destination,
-                                                 surface,
-                                                 extents,
-                                                 &pattern->matrix,
-                                                 &has_pre_transform,
-                                                 &vertical_invert);
-	if (!texture)
-	    return NULL;
+        cairo_cogl_surface_t *clone;
+        cairo_surface_t *surface = ((cairo_surface_pattern_t *)pattern)->surface;
+        cairo_bool_t is_mirrored_texture;
+        cairo_bool_t need_mirrored_texture =
+            (pattern->extend == CAIRO_EXTEND_REFLECT &&
+             !dev->has_mirrored_repeat);
 
-#if 0
-	/* TODO: We still need to consider HW such as SGX which doesn't have
-	 * full support for NPOT textures. */
-	if (pattern->extend == CAIRO_EXTEND_REPEAT || pattern->extend == CAIRO_EXTEND_REFLECT) {
-	    _cairo_cogl_get_pot_texture ();
-	}
-#endif
+        clone = (cairo_cogl_surface_t *)
+            _cairo_surface_has_snapshot (surface,
+                                         &_cairo_cogl_surface_backend);
+        if (clone && clone->texture)
+            if ((!need_mirrored_texture) || clone->is_mirrored_snapshot)
+            {
+                double xscale, yscale;
 
-        if (has_pre_transform)
-            cairo_matrix_init_translate (&attributes->matrix,
-                                         -extents->x,
-                                         -extents->y);
-        else
-	    attributes->matrix = pattern->matrix;
+                texture = cogl_object_ref (clone->texture);
+                attributes->matrix = pattern->matrix;
 
-	/* Convert from un-normalized source coordinates in backend
-	 * coordinates to normalized texture coordinates. Since
-         * cairo_matrix_scale does not scale the x0 and y0 components,
-         * which is required for translations in normalized
-         * coordinates, use a custom solution here. */
-        double xscale = 1.0 / cogl_texture_get_width (texture);
-        double yscale = 1.0 / cogl_texture_get_height (texture);
-        attributes->matrix.xx *= xscale;
-        attributes->matrix.yx *= yscale;
-        attributes->matrix.xy *= xscale;
-        attributes->matrix.yy *= yscale;
-        attributes->matrix.x0 *= xscale;
-        attributes->matrix.y0 *= yscale;
+                /* Get matrix for normalizing the texture coordinates */
+                if (clone->is_mirrored_snapshot) {
+                    xscale = 0.5 / clone->width;
+                    yscale = 0.5 / clone->height;
+                    is_mirrored_texture = TRUE;
+                } else {
+                    xscale = 1.0 / clone->width;
+                    yscale = 1.0 / clone->height;
+                    is_mirrored_texture = FALSE;
+                }
+                _cairo_cogl_matrix_all_scale (&attributes->matrix,
+                                              xscale,
+                                              yscale);
+            };
 
-        if (vertical_invert) {
-            /* Convert the normalized texture matrix so that we read
-             * the texture from the bottom up instead of from the top
-             * down */
-            attributes->matrix.yx *= -1.0;
-            attributes->matrix.yy *= -1.0;
-            attributes->matrix.y0 += 1.0;
+        if (!texture) {
+            cairo_rectangle_int_t surface_extents;
+            cairo_surface_t *unwrapped =
+                _cairo_surface_get_source (surface, &surface_extents);
+
+            if (_cairo_surface_is_recording (surface)) {
+                texture =
+                    _cairo_cogl_acquire_recording_surface_texture (destination,
+                                                                   surface,
+                                                                   extents,
+                                                                   &pattern->matrix,
+                                                                   &attributes->matrix,
+                                                                   need_mirrored_texture,
+                                                                   &is_mirrored_texture);
+            } else if (surface->type == CAIRO_SURFACE_TYPE_COGL &&
+                       ((cairo_cogl_surface_t *)unwrapped)->texture) {
+                texture =
+                    _cairo_cogl_acquire_cogl_surface_texture (destination,
+                                                              unwrapped,
+                                                              &surface_extents,
+                                                              &pattern->matrix,
+                                                              &attributes->matrix,
+                                                              need_mirrored_texture,
+                                                              &is_mirrored_texture);
+            } else {
+                texture =
+                    _cairo_cogl_acquire_generic_surface_texture (destination,
+                                                                 surface,
+                                                                 &pattern->matrix,
+                                                                 &attributes->matrix,
+                                                                 need_mirrored_texture,
+                                                                 &is_mirrored_texture);
+            }
         }
+
+        if (!texture)
+            return NULL;
 
 	attributes->extend = pattern->extend;
 	attributes->filter = CAIRO_FILTER_BILINEAR;
 	attributes->has_component_alpha = pattern->has_component_alpha;
 
-	attributes->s_wrap = get_cogl_wrap_mode_for_extend (pattern->extend);
+	attributes->s_wrap =
+            get_cogl_wrap_mode_for_extend (pattern->extend, dev);
 	attributes->t_wrap = attributes->s_wrap;
 
         /* In order to support CAIRO_EXTEND_NONE, we use the same wrap
@@ -2029,7 +2331,9 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
          * the texture boundaries. */
         if (pattern->extend == CAIRO_EXTEND_NONE && tex_clip)
             if (_cairo_cogl_create_tex_clip (tex_clip,
-                                             attributes->matrix)) {
+                                             attributes->matrix,
+                                             is_mirrored_texture))
+            {
                 cogl_object_unref (texture);
                 return NULL;
             }
@@ -2040,6 +2344,11 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
     case CAIRO_PATTERN_TYPE_MESH:
     case CAIRO_PATTERN_TYPE_RASTER_SOURCE: {
 	cairo_surface_t *surface;
+        cairo_matrix_t new_pattern_matrix;
+        cairo_bool_t is_mirrored_texture;
+        cairo_bool_t need_mirrored_texture =
+            (pattern->extend == CAIRO_EXTEND_REFLECT &&
+             !dev->has_mirrored_repeat);
 
 	surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
 					      extents->width, extents->height);
@@ -2051,42 +2360,18 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
 	    return NULL;
 	}
 
+        cairo_matrix_init_translate (&new_pattern_matrix,
+                                     -extents->x, -extents->y);
+
 	texture =
-            _cairo_cogl_acquire_surface_texture (destination,
-                                                 surface,
-                                                 NULL, // As long as the surface is an image,
-                                                 NULL, // acquire_surface_texture shouldn't access these values
-                                                 &has_pre_transform,
-                                                 &vertical_invert);
+            _cairo_cogl_acquire_generic_surface_texture (destination,
+                                                         surface,
+                                                         &new_pattern_matrix,
+                                                         &attributes->matrix,
+                                                         need_mirrored_texture,
+                                                         &is_mirrored_texture);
 	if (!texture)
 	    goto BAIL;
-
-        cairo_matrix_init_translate (&attributes->matrix,
-                                     -extents->x,
-                                     -extents->y);
-
-	/* Convert from un-normalized source coordinates in backend
-	 * coordinates to normalized texture coordinates. Since
-         * cairo_matrix_scale does not scale the x0 and y0 components,
-         * which is required for translations in normalized
-         * coordinates, use a custom solution here. */
-        double xscale = 1.0 / cogl_texture_get_width (texture);
-        double yscale = 1.0 / cogl_texture_get_height (texture);
-        attributes->matrix.xx *= xscale;
-        attributes->matrix.yx *= yscale;
-        attributes->matrix.xy *= xscale;
-        attributes->matrix.yy *= yscale;
-        attributes->matrix.x0 *= xscale;
-        attributes->matrix.y0 *= yscale;
-
-        if (vertical_invert) {
-            /* Convert the normalized texture matrix so that we read
-             * the texture from the bottom up instead of from the top
-             * down */
-            attributes->matrix.yx *= -1.0;
-            attributes->matrix.yy *= -1.0;
-            attributes->matrix.y0 += 1.0;
-        }
 
 	attributes->extend = pattern->extend;
 	attributes->filter = CAIRO_FILTER_NEAREST;
@@ -2102,7 +2387,9 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
          * the texture boundaries. */
         if (pattern->extend == CAIRO_EXTEND_NONE && tex_clip)
             if (_cairo_cogl_create_tex_clip (tex_clip,
-                                             attributes->matrix)) {
+                                             attributes->matrix,
+                                             is_mirrored_texture))
+            {
                 cogl_object_unref (texture);
                 cairo_surface_destroy (surface);
                 return NULL;
@@ -2132,8 +2419,9 @@ BAIL:
 	attributes->extend = pattern->extend;
 	attributes->filter = CAIRO_FILTER_BILINEAR;
 	attributes->has_component_alpha = pattern->has_component_alpha;
-	attributes->s_wrap = get_cogl_wrap_mode_for_extend (pattern->extend);
-	attributes->t_wrap = COGL_PIPELINE_WRAP_MODE_REPEAT;
+	attributes->s_wrap =
+            get_cogl_wrap_mode_for_extend (pattern->extend, dev);
+	attributes->t_wrap = attributes->s_wrap;
 
         attributes->matrix = pattern->matrix;
 
@@ -2977,7 +3265,7 @@ _cairo_cogl_get_path_stroke_meta (cairo_cogl_surface_t       *surface,
     if (unlikely (status))
 	goto BAIL;
     meta->user_path = meta_path;
-    meta->ctm_inverse = *surface->ctm_inverse;
+    meta->ctm_inverse = surface->ctm_inverse;
 
     status = _cairo_stroke_style_init_copy (&meta->style, style);
     if (unlikely (status)) {
@@ -3080,7 +3368,9 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
     if (meta) {
 	prim = meta->prim;
 	if (prim) {
-	    cairo_matrix_multiply (&transform_matrix, &meta->ctm_inverse, surface->ctm);
+	    cairo_matrix_multiply (&transform_matrix,
+                                   &meta->ctm_inverse,
+                                   &surface->ctm);
 	    transform = &transform_matrix;
 	} else if (meta->counter++ > 10) {
 	    one_shot = FALSE;
@@ -3238,7 +3528,7 @@ _cairo_cogl_get_path_fill_meta (cairo_cogl_surface_t *surface)
     if (unlikely (status))
 	goto BAIL;
     meta->user_path = meta_path;
-    meta->ctm_inverse = *surface->ctm_inverse;
+    meta->ctm_inverse = surface->ctm_inverse;
 
     /* To start with - until we associate a CoglPrimitive with the meta
      * structure - we keep the meta in a staging structure until we
@@ -3295,7 +3585,9 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
     if (meta) {
 	prim = meta->prim;
 	if (prim) {
-	    cairo_matrix_multiply (&transform_matrix, &meta->ctm_inverse, surface->ctm);
+	    cairo_matrix_multiply (&transform_matrix,
+                                   &meta->ctm_inverse,
+                                   &surface->ctm);
 	    transform = &transform_matrix;
 	} else if (meta->counter++ > 10) {
 	    one_shot = FALSE;
@@ -3490,10 +3782,12 @@ _cairo_cogl_surface_create_full (cairo_cogl_device_t *dev,
 
     surface->ignore_alpha = ignore_alpha;
 
+    surface->is_mirrored_snapshot = FALSE;
+
     surface->framebuffer = framebuffer;
     if (framebuffer) {
-	surface->width = cogl_framebuffer_get_width (framebuffer);
-	surface->height = cogl_framebuffer_get_height (framebuffer);
+        surface->width = cogl_framebuffer_get_width (framebuffer);
+        surface->height = cogl_framebuffer_get_height (framebuffer);
 	cogl_object_ref (framebuffer);
     }
 
@@ -3502,9 +3796,9 @@ _cairo_cogl_surface_create_full (cairo_cogl_device_t *dev,
     surface->texture = texture;
     if (texture) {
 	if (!framebuffer) {
-	    surface->width = cogl_texture_get_width (texture);
-	    surface->height = cogl_texture_get_height (texture);
-	}
+            surface->width = cogl_texture_get_width (texture);
+            surface->height = cogl_texture_get_height (texture);
+        }
 	cogl_object_ref (texture);
     }
 
@@ -3541,7 +3835,10 @@ cairo_cogl_surface_create_for_fb (cairo_device_t  *abstract_device,
     if (abstract_device->backend->type != CAIRO_DEVICE_TYPE_COGL)
 	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
 
-    return _cairo_cogl_surface_create_full (dev, FALSE, framebuffer, NULL);
+    return _cairo_cogl_surface_create_full (dev,
+                                            FALSE,
+                                            framebuffer,
+                                            NULL);
 }
 slim_hidden_def (cairo_cogl_surface_create_for_fb);
 
@@ -3552,6 +3849,7 @@ cairo_cogl_onscreen_surface_create (cairo_device_t *abstract_device,
 {
     CoglFramebuffer *fb;
     CoglTextureComponents components;
+    CoglError *error;
     cairo_cogl_device_t *dev = (cairo_cogl_device_t *)abstract_device;
 
     if (abstract_device->backend->type != CAIRO_DEVICE_TYPE_COGL)
@@ -3562,12 +3860,13 @@ cairo_cogl_onscreen_surface_create (cairo_device_t *abstract_device,
 
     fb = cogl_onscreen_new (dev->cogl_context, width, height);
 
-    if (!cogl_framebuffer_allocate (fb, NULL))
+    if (!cogl_framebuffer_allocate (fb, &error)) {
+        g_warning ("Could not allocate framebuffer for onscreen "
+                   "surface: %s", error->message);
+        cogl_error_free (error);
         return _cairo_surface_create_in_error (CAIRO_STATUS_DEVICE_ERROR);
-    cogl_framebuffer_orthographic (fb, 0, 0,
-                                   cogl_framebuffer_get_width (fb),
-                                   cogl_framebuffer_get_height (fb),
-                                   -1, 100);
+    }
+    cogl_framebuffer_orthographic (fb, 0, 0, width, height, -1, 100);
 
     return cairo_cogl_surface_create_for_fb (abstract_device, fb);
 }
@@ -3581,25 +3880,47 @@ cairo_cogl_offscreen_surface_create (cairo_device_t *abstract_device,
     CoglFramebuffer *fb;
     CoglTexture *tex;
     CoglTextureComponents components;
+    CoglError *error;
+    cairo_surface_t *surface;
     cairo_cogl_device_t *dev = (cairo_cogl_device_t *)abstract_device;
+    int tex_width = width;
+    int tex_height = height;
 
     if (abstract_device->backend->type != CAIRO_DEVICE_TYPE_COGL)
 	return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
 
+    /* If we cannot use an NPOT texture, allocate the texture in power
+     * of two dimensions instead */
+    if (!dev->has_npots) {
+        tex_width = (int)pow (2, ceil (log2 (tex_width)));
+        tex_height = (int)pow (2, ceil (log2 (tex_height)));
+    }
+
     components = get_components_from_cairo_content (content);
     tex = cogl_texture_2d_new_with_size (dev->cogl_context,
-                                         width, height);
+                                         tex_width, tex_height);
     cogl_texture_set_components (tex, components);
     fb = cogl_offscreen_new_with_texture (tex);
 
-    if (!cogl_framebuffer_allocate (fb, NULL))
+    if (!cogl_framebuffer_allocate (fb, &error)) {
+        g_warning ("Could not allocate framebuffer for offscreen "
+                   "surface: %s", error->message);
+        cogl_error_free (error);
         return _cairo_surface_create_in_error (CAIRO_STATUS_DEVICE_ERROR);
+    }
     cogl_framebuffer_orthographic (fb, 0, 0,
-                                   cogl_framebuffer_get_width (fb),
-                                   cogl_framebuffer_get_height (fb),
+                                   tex_width, tex_height,
                                    -1, 100);
 
-    return cairo_cogl_surface_create_for_fb (abstract_device, fb);
+    /* The framebuffer will take a reference on the texture */
+    cogl_object_unref (tex);
+
+    surface = cairo_cogl_surface_create_for_fb (abstract_device, fb);
+
+    ((cairo_cogl_surface_t *)surface)->width = width;
+    ((cairo_cogl_surface_t *)surface)->height = height;
+
+    return surface;
 }
 slim_hidden_def (cairo_cogl_offscreen_surface_create);
 

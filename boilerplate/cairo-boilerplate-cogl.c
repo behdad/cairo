@@ -115,7 +115,25 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
     if (height < 1)
         height = 1;
 
-    context = cogl_context_new (NULL, NULL);
+    if (content & CAIRO_CONTENT_ALPHA) {
+		/* A hackish way to ensure that we get a framebuffer with
+		 * an alpha component */
+		CoglSwapChain *swap_chain;
+		CoglOnscreenTemplate *onscreen_template;
+		CoglRenderer *renderer;
+		CoglDisplay *display;
+
+        swap_chain = cogl_swap_chain_new ();
+		cogl_swap_chain_set_has_alpha (swap_chain, TRUE);
+
+        onscreen_template = cogl_onscreen_template_new (swap_chain);
+        renderer = cogl_renderer_new ();
+        display = cogl_display_new (renderer, onscreen_template);
+
+        context = cogl_context_new (display, NULL);
+	} else {
+        context = cogl_context_new (NULL, NULL);
+    }
 
     device = cairo_cogl_device_create (context);
 

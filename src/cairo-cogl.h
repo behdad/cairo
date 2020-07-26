@@ -59,7 +59,8 @@ cairo_cogl_offscreen_surface_create (cairo_device_t *device,
 
 cairo_public cairo_surface_t *
 cairo_cogl_surface_create_for_fb (cairo_device_t  *device,
-                                  CoglFramebuffer *framebuffer);
+                                  CoglFramebuffer *framebuffer,
+                                  cairo_content_t  content);
 
 cairo_public CoglFramebuffer *
 cairo_cogl_surface_get_framebuffer (cairo_surface_t *surface);

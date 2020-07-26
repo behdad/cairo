@@ -43,16 +43,22 @@
 typedef enum _cairo_cogl_template_type {
 	/* solid source */
     CAIRO_COGL_TEMPLATE_TYPE_SOLID,
-    /* texture source */
-    CAIRO_COGL_TEMPLATE_TYPE_TEXTURE,
     /* solid source with solid mask */
     CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_SOLID,
     /* solid source with texture mask */
     CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_SOLID,
+    /* texture source */
+    CAIRO_COGL_TEMPLATE_TYPE_TEXTURE,
     /* texture source with solid mask */
     CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_TEXTURE,
     /* texture source with texture mask */
     CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_TEXTURE,
+    /* texture source with source alpha ignored */
+    CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_IGNORE_ALPHA,
+    /* texture source with solid mask with source alpha ignored */
+    CAIRO_COGL_TEMPLATE_TYPE_SOLID_MASK_TEXTURE_IGNORE_ALPHA,
+    /* texture source with texture mask with source alpha ignored */
+    CAIRO_COGL_TEMPLATE_TYPE_TEXTURE_MASK_TEXTURE_IGNORE_ALPHA,
     CAIRO_COGL_TEMPLATE_TYPE_COUNT
 } cairo_cogl_template_type;
 
@@ -100,8 +106,6 @@ typedef struct _cairo_cogl_clip_primitives {
 
 typedef struct _cairo_cogl_surface {
     cairo_surface_t base;
-
-    cairo_bool_t ignore_alpha;
 
     /* We currently have 3 basic kinds of Cogl surfaces:
      * 1) A light surface simply wrapping a CoglTexture

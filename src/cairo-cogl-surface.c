@@ -59,11 +59,11 @@
 //#define USE_CAIRO_PATH_FLATTENER
 #define ENABLE_PATH_CACHE
 //#define DISABLE_BATCHING
-#define USE_COGL_RECTANGLE_API
+#define MAX_JOURNAL_SIZE 100
 #define ENABLE_RECTANGLES_FASTPATH
 //#define ENABLE_CLIP_CACHE // This hasn't been implemented yet
 
-#if defined (USE_COGL_RECTANGLE_API) || defined (ENABLE_PATH_CACHE)
+#if defined (ENABLE_RECTANGLES_FASTPATH) || defined (ENABLE_PATH_CACHE)
 #define NEED_COGL_CONTEXT
 #endif
 
@@ -469,7 +469,12 @@ _cairo_cogl_journal_log_path (cairo_cogl_surface_t  *surface,
 
 #ifdef DISABLE_BATCHING
     _cairo_cogl_journal_flush (surface);
-#endif
+#else
+    /* To avoid consuming too much memory, flush the journal if it gets
+     * to a certain size */
+    if (g_queue_get_length (surface->journal) > MAX_JOURNAL_SIZE)
+        _cairo_cogl_journal_flush (surface);
+#endif /* DISABLE_BATCHING */
 }
 #endif /* FILL_WITH_COGL_PATH */
 
@@ -507,6 +512,11 @@ _cairo_cogl_journal_log_primitive (cairo_cogl_surface_t  *surface,
 
 #ifdef DISABLE_BATCHING
     _cairo_cogl_journal_flush (surface);
+#else
+    /* To avoid consuming too much memory, flush the journal if it gets
+     * to a certain size */
+    if (g_queue_get_length (surface->journal) > MAX_JOURNAL_SIZE)
+        _cairo_cogl_journal_flush (surface);
 #endif
 }
 
@@ -542,6 +552,11 @@ _cairo_cogl_journal_log_rectangle (cairo_cogl_surface_t  *surface,
 
 #ifdef DISABLE_BATCHING
     _cairo_cogl_journal_flush (surface);
+#else
+    /* To avoid consuming too much memory, flush the journal if it gets
+     * to a certain size */
+    if (g_queue_get_length (surface->journal) > MAX_JOURNAL_SIZE)
+        _cairo_cogl_journal_flush (surface);
 #endif
 }
 
@@ -1870,6 +1885,10 @@ _cairo_cogl_acquire_cogl_surface_texture (cairo_cogl_surface_t        *reference
     }
     _cairo_surface_attach_snapshot (surface, clone, NULL);
 
+    /* Attaching the snapshot will take a reference on the clone surface... */
+    cairo_surface_destroy (clone);
+    clone = NULL;
+
     /* Convert from un-normalized source coordinates in backend
      * coordinates to normalized texture coordinates. */
     if (*is_mirrored_texture) {
@@ -2791,7 +2810,8 @@ get_source_mask_operator_destination_pipelines (cairo_cogl_pipeline_t       **pi
      * that it cannot be represented by the source color alpha value.
      * For more details, go to the description in
      * _cairo_cogl_setup_op_state */
-    if (op == CAIRO_OPERATOR_CLEAR || op == CAIRO_OPERATOR_SOURCE) {
+    if (op == CAIRO_OPERATOR_CLEAR ||
+        (op == CAIRO_OPERATOR_SOURCE && mask)) {
         cairo_cogl_template_type prerender_type;
 
         pipelines[0] = g_new (cairo_cogl_pipeline_t, 1);
@@ -3949,6 +3969,7 @@ cairo_cogl_onscreen_surface_create (cairo_device_t *abstract_device,
     CoglFramebuffer *fb;
     CoglTextureComponents components;
     CoglError *error = NULL;
+    cairo_surface_t *surface;
     cairo_cogl_device_t *dev = (cairo_cogl_device_t *)abstract_device;
 
     if (abstract_device->backend->type != CAIRO_DEVICE_TYPE_COGL)
@@ -3967,9 +3988,14 @@ cairo_cogl_onscreen_surface_create (cairo_device_t *abstract_device,
     }
     cogl_framebuffer_orthographic (fb, 0, 0, width, height, -1, 100);
 
-    return cairo_cogl_surface_create_for_fb (abstract_device,
-                                             fb,
-                                             content);
+    surface = cairo_cogl_surface_create_for_fb (abstract_device,
+                                                fb,
+                                                content);
+
+    /* The surface will take a reference on the framebuffer */
+    cogl_object_unref (fb);
+
+    return surface;
 }
 slim_hidden_def (cairo_cogl_onscreen_surface_create);
 
@@ -4019,6 +4045,9 @@ cairo_cogl_offscreen_surface_create (cairo_device_t *abstract_device,
     surface = cairo_cogl_surface_create_for_fb (abstract_device,
                                                 fb,
                                                 content);
+
+    /* The surface will take a reference on the framebuffer */
+    cogl_object_unref (fb);
 
     ((cairo_cogl_surface_t *)surface)->width = width;
     ((cairo_cogl_surface_t *)surface)->height = height;

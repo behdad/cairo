@@ -82,9 +82,9 @@ typedef struct _cairo_cogl_texture_attributes {
     /* nabbed from cairo_surface_attributes_t... */
     cairo_matrix_t	    matrix;
     cairo_extend_t	    extend;
-    cairo_filter_t	    filter;
     cairo_bool_t	    has_component_alpha;
 
+    CoglPipelineFilter      filter;
     CoglPipelineWrapMode    s_wrap;
     CoglPipelineWrapMode    t_wrap;
 } cairo_cogl_texture_attributes_t;
@@ -249,7 +249,9 @@ _cairo_cogl_surface_ensure_framebuffer (cairo_cogl_surface_t *surface)
 
     surface->framebuffer =
         cogl_offscreen_new_with_texture (surface->texture);
-    if (!cogl_framebuffer_allocate (surface->framebuffer, &error)) {
+    if (unlikely (!cogl_framebuffer_allocate (surface->framebuffer,
+                                              &error)))
+    {
         g_warning ("Could not create framebuffer for surface: %s",
                    error->message);
         cogl_error_free (error);
@@ -264,60 +266,6 @@ _cairo_cogl_surface_ensure_framebuffer (cairo_cogl_surface_t *surface)
                                    -1, 100);
 
     return CAIRO_STATUS_SUCCESS;
-}
-
-static cairo_surface_t *
-_cairo_cogl_surface_create_similar (void            *abstract_surface,
-				    cairo_content_t  content,
-				    int              width,
-				    int              height)
-{
-    cairo_cogl_surface_t *reference_surface = abstract_surface;
-    cairo_cogl_surface_t *surface;
-    CoglTexture *texture;
-    cairo_status_t status;
-    cairo_cogl_device_t *dev =
-        to_device(reference_surface->base.device);
-    int tex_width = width;
-    int tex_height = height;
-
-    /* In the case of lack of NPOT texture support, we allocate texture
-     * with dimensions of the next power of two */
-    if (!dev->has_npots) {
-        tex_width = pow (2, ceil (log2 (tex_width)));
-        tex_height = pow (2, ceil (log2 (tex_height)));
-    }
-
-    texture = cogl_texture_2d_new_with_size (dev->cogl_context,
-                                             tex_width, tex_height);
-    if (!texture)
-        return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
-
-    cogl_texture_set_components (texture,
-                                 (content & CAIRO_CONTENT_COLOR) ?
-                                 COGL_TEXTURE_COMPONENTS_RGBA :
-                                 COGL_TEXTURE_COMPONENTS_A);
-
-    surface = (cairo_cogl_surface_t *)
-	_cairo_cogl_surface_create_full (dev, content, NULL, texture);
-    if (unlikely (surface->base.status))
-	return &surface->base;
-
-    /* The surface will take a reference on the texture */
-    cogl_object_unref (texture);
-
-    /* If we passed a texture with larger dimensions, we need to set
-     * the surface dimensions */
-    surface->width = width;
-    surface->height = height;
-
-    status = _cairo_cogl_surface_ensure_framebuffer (surface);
-    if (unlikely (status)) {
-	cairo_surface_destroy (&surface->base);
-	return _cairo_surface_create_in_error (status);
-    }
-
-    return &surface->base;
 }
 
 static cairo_bool_t
@@ -776,7 +724,7 @@ _cairo_cogl_fill_to_primitive (cairo_cogl_surface_t	*surface,
     *size = traps.num_traps * sizeof (CoglVertexP2) * 6;
 
     *primitive = _cairo_cogl_traps_to_composite_prim (surface, &traps, one_shot);
-    if (!*primitive) {
+    if (unlikely (!*primitive)) {
 	status = CAIRO_INT_STATUS_NO_MEMORY;
 	goto BAIL;
     }
@@ -879,7 +827,7 @@ _cairo_cogl_apply_tex_clips (cairo_cogl_surface_t  *surface,
         cogl_status = cogl_pipeline_set_depth_state (pipeline->pipeline,
                                                      &depth_state,
                                                      NULL);
-        if (cogl_status != TRUE)
+        if (unlikely (cogl_status != TRUE))
             g_warning ("Error setting depth state for unbounded render");
 
         /* Clear the depth buffer to 1.0. The color values are unused
@@ -942,7 +890,7 @@ _cairo_cogl_setup_unbounded_area_pipeline (cairo_cogl_surface_t *surface,
     cogl_status = cogl_pipeline_set_depth_state (unbounded_pipeline,
                                                  &depth_state,
                                                  NULL);
-    if (cogl_status != TRUE)
+    if (unlikely (cogl_status != TRUE))
         g_warning ("Error setting depth state for unbounded render");
 
     return unbounded_pipeline;
@@ -1022,7 +970,7 @@ _cairo_cogl_post_unbounded_render (cairo_cogl_surface_t  *surface,
         cogl_status = cogl_pipeline_set_depth_state (pipeline->pipeline,
                                                      &depth_state,
                                                      NULL);
-        if (cogl_status != TRUE)
+        if (unlikely (cogl_status != TRUE))
             g_warning ("Error setting depth state after unbounded render");
     }
 
@@ -1070,7 +1018,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
 	dev->buffer_stack = NULL;
     }
 
-    if (_cairo_cogl_surface_ensure_framebuffer (surface)) {
+    if (unlikely (_cairo_cogl_surface_ensure_framebuffer (surface))) {
         g_warning ("Could not get framebuffer for flushing journal");
         assert (0);
     }
@@ -1184,7 +1132,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
                     _cairo_cogl_setup_unbounded_area_pipeline (surface,
                                                                rect_entry->pipeline->op);
                 cogl_framebuffer_draw_multitextured_rectangle (surface->framebuffer,
-                                                               rect_entry->pipeline->pipeline,
+                                                               unbounded_pipeline,
                                                                x1, y1,
                                                                x2, y2,
 						               tex_coords,
@@ -1236,7 +1184,7 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
                                           &clip_stack_depth,
                                           prim_entry->pipeline,
                                           &needs_vertex_render);
-            if (needs_vertex_render) {
+            if (needs_vertex_render && prim_entry->primitive) {
                 unbounded_pipeline =
                     _cairo_cogl_setup_unbounded_area_pipeline (surface,
                                                                prim_entry->pipeline->op);
@@ -1363,7 +1311,6 @@ get_default_cogl_format_from_components (CoglTextureComponents components)
     case COGL_TEXTURE_COMPONENTS_RG:
         return COGL_PIXEL_FORMAT_RG_88;
     case COGL_TEXTURE_COMPONENTS_RGB:
-        return COGL_PIXEL_FORMAT_RGB_888;
     case COGL_TEXTURE_COMPONENTS_RGBA:
 #if G_BYTE_ORDER == G_LITTLE_ENDIAN
 	return COGL_PIXEL_FORMAT_BGRA_8888_PRE;
@@ -1468,6 +1415,59 @@ get_cogl_format_from_cairo_format (cairo_format_t cairo_format)
 
     g_warn_if_reached ();
     return 0;
+}
+
+static cairo_surface_t *
+_cairo_cogl_surface_create_similar (void            *abstract_surface,
+				    cairo_content_t  content,
+				    int              width,
+				    int              height)
+{
+    cairo_cogl_surface_t *reference_surface = abstract_surface;
+    cairo_cogl_surface_t *surface;
+    CoglTexture *texture;
+    CoglTextureComponents components;
+    cairo_status_t status;
+    cairo_cogl_device_t *dev =
+        to_device(reference_surface->base.device);
+    int tex_width = width;
+    int tex_height = height;
+
+    /* In the case of lack of NPOT texture support, we allocate texture
+     * with dimensions of the next power of two */
+    if (!dev->has_npots) {
+        tex_width = pow (2, ceil (log2 (tex_width)));
+        tex_height = pow (2, ceil (log2 (tex_height)));
+    }
+
+    texture = cogl_texture_2d_new_with_size (dev->cogl_context,
+                                             tex_width, tex_height);
+    if (!texture)
+        return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
+
+    components = get_components_from_cairo_content (content);
+    cogl_texture_set_components (texture, components);
+
+    surface = (cairo_cogl_surface_t *)
+	_cairo_cogl_surface_create_full (dev, content, NULL, texture);
+    if (unlikely (surface->base.status))
+	return &surface->base;
+
+    /* The surface will take a reference on the texture */
+    cogl_object_unref (texture);
+
+    /* If we passed a texture with larger dimensions, we need to set
+     * the surface dimensions */
+    surface->width = width;
+    surface->height = height;
+
+    status = _cairo_cogl_surface_ensure_framebuffer (surface);
+    if (unlikely (status)) {
+	cairo_surface_destroy (&surface->base);
+	return _cairo_surface_create_in_error (status);
+    }
+
+    return &surface->base;
 }
 
 static cairo_status_t
@@ -1671,6 +1671,27 @@ get_cogl_wrap_mode_for_extend (cairo_extend_t       extend_mode,
     return COGL_PIPELINE_WRAP_MODE_CLAMP_TO_EDGE;
 }
 
+static CoglPipelineFilter
+get_cogl_filter_for_filter (cairo_filter_t filter)
+{
+    switch (filter)
+    {
+    case CAIRO_FILTER_FAST:
+    case CAIRO_FILTER_NEAREST:
+        return COGL_PIPELINE_FILTER_NEAREST;
+
+    case CAIRO_FILTER_GOOD:
+    case CAIRO_FILTER_BEST:
+    case CAIRO_FILTER_BILINEAR:
+        return COGL_PIPELINE_FILTER_LINEAR;
+
+    case CAIRO_FILTER_GAUSSIAN:
+    default:
+        g_warning("Invalid pattern filter");
+        return COGL_PIPELINE_FILTER_NEAREST;
+    }
+}
+
 static void
 _cairo_cogl_matrix_all_scale (cairo_matrix_t *matrix,
                               double          xscale,
@@ -1720,7 +1741,7 @@ _cairo_cogl_scale_texture (CoglContext           *context,
 
     texture_out =
         cogl_texture_2d_new_with_size (context, tex_width, tex_height);
-    if (!texture_out) {
+    if (unlikely (!texture_out)) {
         g_warning ("Failed to get texture for scaling");
         goto BAIL;
     }
@@ -1728,7 +1749,7 @@ _cairo_cogl_scale_texture (CoglContext           *context,
     cogl_texture_set_components (texture_out, components);
 
     fb = cogl_offscreen_new_with_texture (texture_out);
-    if (!cogl_framebuffer_allocate (fb, &error)) {
+    if (unlikely (!cogl_framebuffer_allocate (fb, &error))) {
         g_warning ("Could not get framebuffer for texture scaling: %s",
                    error->message);
         cogl_error_free (error);
@@ -1741,6 +1762,9 @@ _cairo_cogl_scale_texture (CoglContext           *context,
 
     copying_pipeline = cogl_pipeline_new (context);
     cogl_pipeline_set_layer_texture (copying_pipeline, 0, texture_in);
+    cogl_pipeline_set_layer_filters (copying_pipeline, 0,
+                                     COGL_PIPELINE_FILTER_NEAREST,
+                                     COGL_PIPELINE_FILTER_NEAREST);
 
     if (do_mirror_texture) {
         /* Draw four rectangles to the new texture with the appropriate
@@ -1973,17 +1997,17 @@ _cairo_cogl_acquire_recording_surface_texture (cairo_cogl_surface_t        *refe
                                          reference_surface->base.content,
                                          NULL,
                                          texture);
-    if (_cairo_cogl_surface_ensure_framebuffer ((cairo_cogl_surface_t *)clone))
+    if (unlikely (_cairo_cogl_surface_ensure_framebuffer ((cairo_cogl_surface_t *)clone)))
     {
         g_warning ("Could not get framebuffer for replaying recording "
                    "surface");
         goto BAIL;
     }
 
-    if (_cairo_recording_surface_replay_with_clip (surface,
-                                                   &transform,
-                                                   clone,
-                                                   NULL))
+    if (unlikely (_cairo_recording_surface_replay_with_clip (surface,
+                                                             &transform,
+                                                             clone,
+                                                             NULL)))
     {
         g_warning ("Could not replay recording surface");
         goto BAIL;
@@ -2092,12 +2116,12 @@ _cairo_cogl_acquire_generic_surface_texture (cairo_cogl_surface_t *reference_sur
          * that all of the pixels are read into the texture, but
          * upside-down. We then invert the matrix so the texture is
          * read from the bottom up instead of from the top down. */
-         stride = -image->stride;
-         data = image->data - stride * (image->height - 1);
+        stride = -image->stride;
+        data = image->data - stride * (image->height - 1);
 
-         out_matrix->yx *= -1.0;
-         out_matrix->yy *= -1.0;
-         out_matrix->y0 += image->height;
+        out_matrix->yx *= -1.0;
+        out_matrix->yy *= -1.0;
+        out_matrix->y0 += image->height;
     } else {
         stride = image->stride;
         data = image->data;
@@ -2123,15 +2147,15 @@ _cairo_cogl_acquire_generic_surface_texture (cairo_cogl_surface_t *reference_sur
     cogl_texture_set_components (texture,
         get_components_from_cairo_format (image->format));
 
-    if (!cogl_texture_allocate (texture, &error)) {
+    if (unlikely (!cogl_texture_allocate (texture, &error))) {
         g_warning ("Failed to allocate texture: %s", error->message);
         cogl_error_free (error);
         goto BAIL;
     }
 
     if (need_mirrored_texture) {
-        int new_width = image->width * 2;
-        int new_height = image->height * 2;
+        int new_width = image->width;
+        int new_height = image->height;
 
         /* If the device does not support npot textures, scale to the
          * next power of two as well */
@@ -2269,16 +2293,16 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
 {
     CoglTexture *texture = NULL;
     cairo_cogl_device_t *dev = to_device (destination->base.device);
+    cairo_bool_t is_mirrored_texture;
+    cairo_bool_t need_mirrored_texture =
+        (pattern->extend == CAIRO_EXTEND_REFLECT &&
+         !dev->has_mirrored_repeat);
 
     switch ((int)pattern->type)
     {
     case CAIRO_PATTERN_TYPE_SURFACE: {
         cairo_cogl_surface_t *clone;
         cairo_surface_t *surface = ((cairo_surface_pattern_t *)pattern)->surface;
-        cairo_bool_t is_mirrored_texture;
-        cairo_bool_t need_mirrored_texture =
-            (pattern->extend == CAIRO_EXTEND_REFLECT &&
-             !dev->has_mirrored_repeat);
 
         clone = (cairo_cogl_surface_t *)
             _cairo_surface_has_snapshot (surface,
@@ -2286,24 +2310,16 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
         if (clone && clone->texture)
             if ((!need_mirrored_texture) || clone->is_mirrored_snapshot)
             {
-                double xscale, yscale;
-
                 texture = cogl_object_ref (clone->texture);
                 attributes->matrix = pattern->matrix;
+                is_mirrored_texture = clone->is_mirrored_snapshot;
 
-                /* Get matrix for normalizing the texture coordinates */
-                if (clone->is_mirrored_snapshot) {
-                    xscale = 0.5 / clone->width;
-                    yscale = 0.5 / clone->height;
-                    is_mirrored_texture = TRUE;
-                } else {
-                    xscale = 1.0 / clone->width;
-                    yscale = 1.0 / clone->height;
-                    is_mirrored_texture = FALSE;
-                }
+                /* Convert from un-normalized source coordinates in
+                 * backend coordinates to normalized texture
+                 * coordinates. */
                 _cairo_cogl_matrix_all_scale (&attributes->matrix,
-                                              xscale,
-                                              yscale);
+                                              1.0 / clone->width,
+                                              1.0 / clone->height);
             };
 
         if (!texture) {
@@ -2342,11 +2358,12 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
                                                              need_mirrored_texture,
                                                              &is_mirrored_texture);
 
-        if (!texture)
+        if (unlikely (!texture))
             return NULL;
 
 	attributes->extend = pattern->extend;
-	attributes->filter = CAIRO_FILTER_BILINEAR;
+	attributes->filter =
+            get_cogl_filter_for_filter (pattern->filter);
 	attributes->has_component_alpha = pattern->has_component_alpha;
 
 	attributes->s_wrap =
@@ -2373,10 +2390,6 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
     case CAIRO_PATTERN_TYPE_RASTER_SOURCE: {
 	cairo_surface_t *surface;
         cairo_matrix_t new_pattern_matrix;
-        cairo_bool_t is_mirrored_texture;
-        cairo_bool_t need_mirrored_texture =
-            (pattern->extend == CAIRO_EXTEND_REFLECT &&
-             !dev->has_mirrored_repeat);
 
 	surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
 					      extents->width, extents->height);
@@ -2398,11 +2411,11 @@ _cairo_cogl_acquire_pattern_texture (const cairo_pattern_t           *pattern,
                                                          &attributes->matrix,
                                                          need_mirrored_texture,
                                                          &is_mirrored_texture);
-	if (!texture)
+	if (unlikely (!texture))
 	    goto BAIL;
 
 	attributes->extend = pattern->extend;
-	attributes->filter = CAIRO_FILTER_NEAREST;
+	attributes->filter = COGL_PIPELINE_FILTER_NEAREST;
 	attributes->has_component_alpha = pattern->has_component_alpha;
 
 	/* any pattern extend modes have already been dealt with... */
@@ -2433,11 +2446,13 @@ BAIL:
 	cairo_cogl_linear_gradient_t *gradient;
 	cairo_cogl_linear_texture_entry_t *linear_texture;
 	cairo_int_status_t status;
+        double dist, scale;
 
 	status = _cairo_cogl_get_linear_gradient (to_device(destination->base.device),
 						  pattern->extend,
 						  linear_pattern->base.n_stops,
 						  linear_pattern->base.stops,
+                                                  need_mirrored_texture,
 						  &gradient);
 	if (unlikely (status))
 	    return NULL;
@@ -2445,7 +2460,8 @@ BAIL:
 	linear_texture = _cairo_cogl_linear_gradient_texture_for_extend (gradient, pattern->extend);
 
 	attributes->extend = pattern->extend;
-	attributes->filter = CAIRO_FILTER_BILINEAR;
+	attributes->filter =
+            get_cogl_filter_for_filter (pattern->filter);
 	attributes->has_component_alpha = pattern->has_component_alpha;
 	attributes->s_wrap =
             get_cogl_wrap_mode_for_extend (pattern->extend, dev);
@@ -2464,18 +2480,14 @@ BAIL:
 				-linear_pattern->pd1.y);
 
 	/* Convert from un-normalized source coordinates in backend
-	 * coordinates to normalized texture coordinates. Since
-         * cairo_matrix_scale does not scale the x0 and y0 components,
-         * which is required for translations in normalized
-         * coordinates, use a custom solution here. */
-	double dist = sqrtf (a*a + b*b);
-	double scale = 1.0 / dist;
-        attributes->matrix.xx *= scale;
-        attributes->matrix.yx *= scale;
-        attributes->matrix.xy *= scale;
-        attributes->matrix.yy *= scale;
-        attributes->matrix.x0 *= scale;
-        attributes->matrix.y0 *= scale;
+	 * coordinates to normalized texture coordinates. */
+	dist = sqrtf (a*a + b*b);
+        if (need_mirrored_texture)
+            scale = 0.5 / dist;
+        else
+	    scale = 1.0 / dist;
+        _cairo_cogl_matrix_all_scale (&attributes->matrix,
+                                      scale, scale);
 
 	return cogl_object_ref (linear_texture->texture);
     }
@@ -2489,7 +2501,10 @@ static cairo_bool_t
 set_blend (CoglPipeline *pipeline, const char *blend_string)
 {
     CoglError *error = NULL;
-    if (!cogl_pipeline_set_blend (pipeline, blend_string, &error)) {
+    if (unlikely (!cogl_pipeline_set_blend (pipeline,
+                                            blend_string,
+                                            &error)))
+    {
 	g_warning ("Unsupported blend string with current gpu/driver: %s", blend_string);
 	cogl_error_free (error);
 	return FALSE;
@@ -2698,6 +2713,11 @@ set_layer_texture_with_attributes (CoglPipeline                    *pipeline,
 {
     cogl_pipeline_set_layer_texture (pipeline, layer_index, texture);
 
+    cogl_pipeline_set_layer_filters (pipeline,
+                                     layer_index,
+                                     attributes->filter,
+                                     attributes->filter);
+
     if (!_cairo_matrix_is_identity (&attributes->matrix)) {
 	cairo_matrix_t *m = &attributes->matrix;
 	float texture_matrixfv[16] = {
@@ -2807,11 +2827,10 @@ get_source_mask_operator_destination_pipelines (cairo_cogl_pipeline_t       **pi
     }
 
     /* pipelines[0] is for pre-rendering the mask alpha in the case
-     * that it cannot be represented by the source color alpha value.
-     * For more details, go to the description in
+     * that it cannot be represented through the source color alpha
+     * value. For more details, go to the description in
      * _cairo_cogl_setup_op_state */
-    if (op == CAIRO_OPERATOR_CLEAR ||
-        (op == CAIRO_OPERATOR_SOURCE && mask)) {
+    if (op == CAIRO_OPERATOR_CLEAR || op == CAIRO_OPERATOR_SOURCE) {
         cairo_cogl_template_type prerender_type;
 
         pipelines[0] = g_new (cairo_cogl_pipeline_t, 1);
@@ -2934,8 +2953,8 @@ get_source_mask_operator_destination_pipelines (cairo_cogl_pipeline_t       **pi
             if (pipelines[1]) {
                 if (mask_tex_clip.buf.base.num_ops > 0) {
                     pipelines[1]->has_mask_tex_clip = TRUE;
-                    if (_cairo_path_fixed_init_copy (&pipelines[1]->mask_tex_clip,
-                                                     &mask_tex_clip))
+                    if (unlikely (_cairo_path_fixed_init_copy (&pipelines[1]->mask_tex_clip,
+                                                               &mask_tex_clip)))
                         goto BAIL;
                 }
 	        set_layer_texture_with_attributes (pipelines[1]->pipeline,
@@ -2946,8 +2965,8 @@ get_source_mask_operator_destination_pipelines (cairo_cogl_pipeline_t       **pi
             if (pipelines[0]) {
                 if (mask_tex_clip.buf.base.num_ops > 0) {
                     pipelines[0]->has_mask_tex_clip = TRUE;
-                    if (_cairo_path_fixed_init_copy (&pipelines[0]->mask_tex_clip,
-                                                     &mask_tex_clip))
+                    if (unlikely (_cairo_path_fixed_init_copy (&pipelines[0]->mask_tex_clip,
+                                                               &mask_tex_clip)))
                         goto BAIL;
                 }
                 set_layer_texture_with_attributes (pipelines[0]->pipeline,
@@ -3371,13 +3390,13 @@ _cairo_cogl_get_path_stroke_meta (cairo_cogl_surface_t       *surface,
 	return meta;
 
     meta = calloc (1, sizeof (cairo_cogl_path_stroke_meta_t));
-    if (!meta)
+    if (unlikely (!meta))
 	goto BAIL;
     CAIRO_REFERENCE_COUNT_INIT (&meta->ref_count, 1);
     meta->cache_entry.hash = hash;
     meta->counter = 0;
     meta_path = _cairo_malloc (sizeof (cairo_path_fixed_t));
-    if (!meta_path)
+    if (unlikely (!meta_path))
 	goto BAIL;
     /* FIXME: we should add a ref-counted wrapper for our user_paths
      * so we don't have to keep copying them here! */
@@ -3434,7 +3453,7 @@ _cairo_cogl_stroke_to_primitive (cairo_cogl_surface_t	    *surface,
 
     //g_print ("new stroke prim\n");
     *primitive = _cairo_cogl_traps_to_composite_prim (surface, &traps, one_shot);
-    if (!*primitive) {
+    if (unlikely (!*primitive)) {
 	status = CAIRO_INT_STATUS_NO_MEMORY;
 	goto BAIL;
     }
@@ -3634,13 +3653,13 @@ _cairo_cogl_get_path_fill_meta (cairo_cogl_surface_t *surface)
 	return meta;
 
     meta = calloc (1, sizeof (cairo_cogl_path_fill_meta_t));
-    if (!meta)
+    if (unlikely (!meta))
 	goto BAIL;
     meta->cache_entry.hash = hash;
     meta->counter = 0;
     CAIRO_REFERENCE_COUNT_INIT (&meta->ref_count, 1);
     meta_path = _cairo_malloc (sizeof (cairo_path_fixed_t));
-    if (!meta_path)
+    if (unlikely (!meta_path))
 	goto BAIL;
     /* FIXME: we should add a ref-counted wrapper for our user_paths
      * so we don't have to keep copying them here! */
@@ -3980,7 +3999,7 @@ cairo_cogl_onscreen_surface_create (cairo_device_t *abstract_device,
 
     fb = cogl_onscreen_new (dev->cogl_context, width, height);
 
-    if (!cogl_framebuffer_allocate (fb, &error)) {
+    if (unlikely (!cogl_framebuffer_allocate (fb, &error))) {
         g_warning ("Could not allocate framebuffer for onscreen "
                    "surface: %s", error->message);
         cogl_error_free (error);
@@ -4029,7 +4048,7 @@ cairo_cogl_offscreen_surface_create (cairo_device_t *abstract_device,
     cogl_texture_set_components (tex, components);
     fb = cogl_offscreen_new_with_texture (tex);
 
-    if (!cogl_framebuffer_allocate (fb, &error)) {
+    if (unlikely (!cogl_framebuffer_allocate (fb, &error))) {
         g_warning ("Could not allocate framebuffer for offscreen "
                    "surface: %s", error->message);
         cogl_error_free (error);

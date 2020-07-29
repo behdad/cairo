@@ -356,6 +356,7 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
 				 cairo_extend_t                 extend_mode,
 				 int                            n_stops,
 				 const cairo_gradient_stop_t   *stops,
+				 const cairo_bool_t             need_mirrored_gradient,
 				 cairo_cogl_linear_gradient_t **gradient_out)
 {
     unsigned long hash;
@@ -367,15 +368,15 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
     int n;
     cairo_cogl_gradient_compatibility_t compatibilities;
     int width;
+    int tex_width;
     int left_padding = 0;
     cairo_color_stop_t left_padding_color;
     int right_padding = 0;
     cairo_color_stop_t right_padding_color;
     CoglTextureComponents components;
     CoglTexture2D *tex;
-    GError *error = NULL;
     int un_padded_width;
-    CoglHandle offscreen;
+    CoglFramebuffer *offscreen = NULL;
     cairo_int_status_t status;
     int n_quads;
     int n_vertices;
@@ -417,7 +418,7 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
     }
 
     entry = _cairo_malloc (sizeof (cairo_cogl_linear_texture_entry_t));
-    if (!entry) {
+    if (unlikely (!entry)) {
 	status = CAIRO_INT_STATUS_NO_MEMORY;
 	goto BAIL;
     }
@@ -453,7 +454,7 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
      * interpolate premultiplied colors so we premultiply all the double
      * components now. (skipping any extra stops added for repeat/reflect)
      *
-     * Anothing thing to note is that by premultiplying the colors
+     * Another thing to note is that by premultiplying the colors
      * early we'll also reduce the range of colors to interpolate
      * which can result in smaller gradient textures.
      */
@@ -556,16 +557,23 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
 
     width = _cairo_cogl_util_next_p2 (width);
     width = MIN (4096, width); /* lets not go too stupidly big! */
+
+    if (!device->has_npots)
+        width = pow (2, ceil (log2 (width)));
+
+    if (need_mirrored_gradient)
+        tex_width = width * 2;
+    else
+        tex_width = width;
+
     components = _cairo_cogl_linear_gradient_components_for_stops (extend_mode, n_stops, stops);
 
     do {
-	tex = cogl_texture_2d_new_with_size (device->cogl_context, width, 1);
+	tex = cogl_texture_2d_new_with_size (device->cogl_context,
+	                                     tex_width, 1);
+    } while (tex == NULL && width >> 1 && tex_width >> 1);
 
-	if (!tex)
-	    g_error_free (error);
-    } while (tex == NULL && width >> 1);
-
-    if (!tex) {
+    if (unlikely (!tex)) {
 	status = CAIRO_INT_STATUS_NO_MEMORY;
 	goto BAIL;
     }
@@ -585,14 +593,21 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
 	entry->translate_x += (entry->scale_x / (float)un_padded_width) * (float)left_padding;
 
     offscreen = cogl_offscreen_new_with_texture (tex);
-    cogl_framebuffer_orthographic (offscreen, 0, 0, width, 1, -1, 100);
+    cogl_framebuffer_orthographic (offscreen, 0, 0,
+                                              tex_width, 1,
+                                              -1, 100);
     cogl_framebuffer_clear4f (offscreen,
                               COGL_BUFFER_BIT_COLOR,
-			                  0, 0, 0, 0);
+                              0, 0, 0, 0);
 
     n_quads = n_stops - 1 + !!left_padding + !!right_padding;
     n_vertices = 6 * n_quads;
-    vertices = alloca (sizeof (CoglVertexP2C4) * n_vertices);
+    vertices = _cairo_malloc_ab (n_vertices, sizeof (CoglVertexP2C4));
+    if (unlikely (!vertices)) {
+        status = CAIRO_INT_STATUS_NO_MEMORY;
+        goto BAIL;
+    }
+
     p = vertices;
     if (left_padding)
 	emit_stop (&p, 0, left_padding, &left_padding_color, &left_padding_color);
@@ -609,11 +624,29 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
                                     COGL_VERTICES_MODE_TRIANGLES,
                                     n_vertices,
                                     vertices);
+    free (vertices);
     pipeline = cogl_pipeline_new (device->cogl_context);
     cogl_primitive_draw (prim, offscreen, pipeline);
+
+    if (need_mirrored_gradient) {
+        /* In order to use a reflected gradient on hardware that
+         * doesn't have a mirrored repeating texture wrap mode, we
+         * render two reflected images to a double-length linear
+         * texture and reflect that */
+        CoglMatrix transform;
+
+        cogl_matrix_init_identity (&transform);
+        cogl_matrix_translate (&transform, tex_width, 0.0f, 0.0f);
+        cogl_matrix_scale (&transform, -1.0f, 1.0f, 1.0f);
+
+        cogl_framebuffer_transform (offscreen, &transform);
+        cogl_primitive_draw (prim, offscreen, pipeline);
+    }
+
     cogl_object_unref (prim);
 
     cogl_object_unref (offscreen);
+    offscreen = NULL;
 
     gradient->textures = g_list_prepend (gradient->textures, entry);
     gradient->cache_entry.size = _cairo_cogl_linear_gradient_size (gradient);
@@ -638,5 +671,7 @@ BAIL:
     free (entry);
     if (gradient)
 	_cairo_cogl_linear_gradient_destroy (gradient);
+    if (offscreen)
+        cogl_object_unref (offscreen);
     return status;
 }

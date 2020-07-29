@@ -1287,18 +1287,14 @@ _cairo_cogl_surface_finish (void *abstract_surface)
 static CoglTextureComponents
 get_components_from_cairo_content (cairo_content_t content)
 {
-    switch (content)
-    {
-    case CAIRO_CONTENT_ALPHA:
-       return COGL_TEXTURE_COMPONENTS_A;
-    case CAIRO_CONTENT_COLOR:
-       return COGL_TEXTURE_COMPONENTS_RGB;
-    case CAIRO_CONTENT_COLOR_ALPHA:
-       return COGL_TEXTURE_COMPONENTS_RGBA;
-    default:
-        g_warning ("Unrecognized content type");
-        assert (0);
-    }
+    /* We use RGBA for color-only surfaces due to the fact that cogl
+     * does not provide a padded XRGB format, thereby making us use
+     * RGBA formats to represent e.g. CAIRO_FORMAT_RGB24 and doing very
+     * expensive format conversions on the cpu when images are read
+     * back */
+    return (content & CAIRO_CONTENT_COLOR) ?
+           COGL_TEXTURE_COMPONENTS_RGBA :
+           COGL_TEXTURE_COMPONENTS_A;
 }
 
 static CoglPixelFormat
@@ -1426,7 +1422,6 @@ _cairo_cogl_surface_create_similar (void            *abstract_surface,
     cairo_cogl_surface_t *reference_surface = abstract_surface;
     cairo_cogl_surface_t *surface;
     CoglTexture *texture;
-    CoglTextureComponents components;
     cairo_status_t status;
     cairo_cogl_device_t *dev =
         to_device(reference_surface->base.device);
@@ -1445,8 +1440,8 @@ _cairo_cogl_surface_create_similar (void            *abstract_surface,
     if (!texture)
         return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_NO_MEMORY));
 
-    components = get_components_from_cairo_content (content);
-    cogl_texture_set_components (texture, components);
+    cogl_texture_set_components (texture,
+        get_components_from_cairo_content (content));
 
     surface = (cairo_cogl_surface_t *)
 	_cairo_cogl_surface_create_full (dev, content, NULL, texture);
@@ -1720,7 +1715,6 @@ _cairo_cogl_scale_texture (CoglContext           *context,
     CoglPipeline *copying_pipeline = NULL;
     CoglFramebuffer *fb = NULL;
     CoglError *error = NULL;
-    CoglTextureComponents components;
     unsigned int tex_width = new_width;
     unsigned int tex_height = new_height;
 
@@ -1737,8 +1731,6 @@ _cairo_cogl_scale_texture (CoglContext           *context,
         tex_height *= 2;
     }
 
-    components = cogl_texture_get_components (texture_in);
-
     texture_out =
         cogl_texture_2d_new_with_size (context, tex_width, tex_height);
     if (unlikely (!texture_out)) {
@@ -1746,7 +1738,8 @@ _cairo_cogl_scale_texture (CoglContext           *context,
         goto BAIL;
     }
 
-    cogl_texture_set_components (texture_out, components);
+    cogl_texture_set_components (texture_out,
+        cogl_texture_get_components (texture_in));
 
     fb = cogl_offscreen_new_with_texture (texture_out);
     if (unlikely (!cogl_framebuffer_allocate (fb, &error))) {
@@ -4025,7 +4018,6 @@ cairo_cogl_offscreen_surface_create (cairo_device_t *abstract_device,
 {
     CoglFramebuffer *fb;
     CoglTexture *tex;
-    CoglTextureComponents components;
     CoglError *error = NULL;
     cairo_surface_t *surface;
     cairo_cogl_device_t *dev = (cairo_cogl_device_t *)abstract_device;
@@ -4042,10 +4034,10 @@ cairo_cogl_offscreen_surface_create (cairo_device_t *abstract_device,
         tex_height = (int)pow (2, ceil (log2 (tex_height)));
     }
 
-    components = get_components_from_cairo_content (content);
     tex = cogl_texture_2d_new_with_size (dev->cogl_context,
                                          tex_width, tex_height);
-    cogl_texture_set_components (tex, components);
+    cogl_texture_set_components (tex,
+        get_components_from_cairo_content (content));
     fb = cogl_offscreen_new_with_texture (tex);
 
     if (unlikely (!cogl_framebuffer_allocate (fb, &error))) {

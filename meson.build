@@ -374,9 +374,10 @@ if cc.has_header('ApplicationServices/ApplicationServices.h')
 endif
 
 if host_machine.system() == 'windows'
-  win32_extra_libs = ['gdi32', 'msimg32']
-  foreach libname: win32_extra_libs
+  win32_extra_libs = []
+  foreach libname: ['gdi32', 'msimg32']
     deps += [cc.find_library(libname)]
+    win32_extra_libs += ['-l' + libname]
   endforeach
 
   feature_conf.set('CAIRO_HAS_WIN32_SURFACE', 1)

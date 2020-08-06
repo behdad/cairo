@@ -37,6 +37,7 @@
 #include "cairo-backend-private.h"
 #include "cairo-default-context-private.h"
 #include "cairo-surface-private.h"
+#include "cairo-freelist-private.h"
 
 #include <cogl/cogl2-experimental.h>
 
@@ -93,10 +94,11 @@ typedef struct _cairo_cogl_device {
     /* Caches 1d linear gradient textures */
     cairo_cache_t linear_cache;
 
-    cairo_cache_t path_fill_staging_cache;
     cairo_cache_t path_fill_prim_cache;
-    cairo_cache_t path_stroke_staging_cache;
     cairo_cache_t path_stroke_prim_cache;
+
+    cairo_freelist_t path_fill_meta_freelist;
+    cairo_freelist_t path_stroke_meta_freelist;
 } cairo_cogl_device_t;
 
 typedef struct _cairo_cogl_clip_primitives {
@@ -158,16 +160,5 @@ _cairo_cogl_path_fixed_rectangle (cairo_path_fixed_t *path,
 				  cairo_fixed_t y,
 				  cairo_fixed_t width,
 				  cairo_fixed_t height);
-
-cairo_int_status_t
-_cairo_cogl_surface_fill_rectangle (void		     *abstract_surface,
-				    cairo_operator_t	      op,
-				    const cairo_pattern_t    *source,
-				    double		      x,
-				    double		      y,
-				    double		      width,
-				    double		      height,
-				    cairo_matrix_t	     *ctm,
-				    const cairo_clip_t	     *clip);
 
 #endif /* CAIRO_COGL_PRIVATE_H */

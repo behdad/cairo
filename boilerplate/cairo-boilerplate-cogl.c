@@ -119,12 +119,12 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
         height = 1;
 
     if (content & CAIRO_CONTENT_ALPHA) {
-		/* A hackish way to ensure that we get a framebuffer with
-		 * an alpha component */
-		CoglSwapChain *swap_chain;
-		CoglOnscreenTemplate *onscreen_template;
-		CoglRenderer *renderer;
-		CoglDisplay *display;
+	/* A hackish way to ensure that we get a framebuffer with
+	 * an alpha component */
+	CoglSwapChain *swap_chain;
+	CoglOnscreenTemplate *onscreen_template;
+	CoglRenderer *renderer;
+	CoglDisplay *display;
 
         swap_chain = cogl_swap_chain_new ();
         cogl_swap_chain_set_has_alpha (swap_chain, TRUE);

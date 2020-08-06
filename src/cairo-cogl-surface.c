@@ -43,7 +43,6 @@
 #include "cairo-cogl-gradient-private.h"
 #include "cairo-arc-private.h"
 #include "cairo-traps-private.h"
-#include "cairo-cogl-context-private.h"
 #include "cairo-cogl-utils-private.h"
 #include "cairo-surface-subsurface-inline.h"
 #include "cairo-surface-fallback-private.h"
@@ -57,15 +56,8 @@
 #define CAIRO_COGL_DEBUG 0
 //#define FILL_WITH_COGL_PATH
 //#define USE_CAIRO_PATH_FLATTENER
-#define ENABLE_PATH_CACHE
 //#define DISABLE_BATCHING
 #define MAX_JOURNAL_SIZE 100
-#define ENABLE_RECTANGLES_FASTPATH
-//#define ENABLE_CLIP_CACHE // This hasn't been implemented yet
-
-#if defined (ENABLE_RECTANGLES_FASTPATH) || defined (ENABLE_PATH_CACHE)
-#define NEED_COGL_CONTEXT
-#endif
 
 #if CAIRO_COGL_DEBUG && __GNUC__
 #define UNSUPPORTED(reason) ({ \
@@ -139,7 +131,6 @@ typedef struct _cairo_cogl_journal_prim_entry {
     cairo_cogl_pipeline_t *pipeline;
 
     CoglPrimitive *primitive;
-    cairo_bool_t has_transform;
     cairo_matrix_t transform;
 } cairo_cogl_journal_prim_entry_t;
 
@@ -151,49 +142,25 @@ typedef struct _cairo_cogl_journal_path_entry {
 } cairo_cogl_journal_path_entry_t;
 
 typedef struct _cairo_cogl_path_fill_meta {
-    cairo_cache_entry_t	cache_entry;
-    cairo_reference_count_t ref_count;
-    int counter;
-    cairo_path_fixed_t *user_path;
-    cairo_matrix_t ctm_inverse;
-
-    /* TODO */
-#if 0
-    /* A cached path tessellation should be re-usable with different rotations
-     * and translations but not for different scales.
-     *
-     * one idea is to track the diagonal lengths of a unit rectangle
-     * transformed through the original ctm use to tessellate the geometry
-     * so we can check what the lengths are for any new ctm to know if
-     * this geometry is compatible.
-     */
-#endif
+    cairo_cache_entry_t	base;
+    cairo_path_fixed_t path;
+    cairo_fill_rule_t fill_rule;
+    double tolerance;
 
     CoglPrimitive *prim;
+
+    cairo_freelist_t *freelist;
 } cairo_cogl_path_fill_meta_t;
 
 typedef struct _cairo_cogl_path_stroke_meta {
-    cairo_cache_entry_t	cache_entry;
-    cairo_reference_count_t ref_count;
-    int counter;
-    cairo_path_fixed_t *user_path;
-    cairo_matrix_t ctm_inverse;
+    cairo_cache_entry_t	base;
+    cairo_path_fixed_t path;
     cairo_stroke_style_t style;
     double tolerance;
 
-    /* TODO */
-#if 0
-    /* A cached path tessellation should be re-usable with different rotations
-     * and translations but not for different scales.
-     *
-     * one idea is to track the diagonal lengths of a unit rectangle
-     * transformed through the original ctm use to tessellate the geometry
-     * so we can check what the lengths are for any new ctm to know if
-     * this geometry is compatible.
-     */
-#endif
-
     CoglPrimitive *prim;
+
+    cairo_freelist_t *freelist;
 } cairo_cogl_path_stroke_meta_t;
 
 static cairo_surface_t *
@@ -449,12 +416,7 @@ _cairo_cogl_journal_log_primitive (cairo_cogl_surface_t  *surface,
     if (primitive)
         cogl_object_ref (primitive);
 
-    if (transform) {
-	entry->transform = *transform;
-	entry->has_transform = TRUE;
-    } else {
-	entry->has_transform = FALSE;
-    }
+    entry->transform = *transform;
 
     g_queue_push_tail (surface->journal, entry);
 
@@ -623,11 +585,11 @@ _cairo_cogl_traps_to_triangles_buffer (cairo_cogl_surface_t *surface,
 	p[2].x = _cairo_cogl_util_fixed_to_float (trap->right.p2.x);
 	p[2].y = _cairo_cogl_util_fixed_to_float (trap->right.p2.y);
 
-	p[3].x = _cairo_cogl_util_fixed_to_float (trap->left.p1.x);
-	p[3].y = _cairo_cogl_util_fixed_to_float (trap->left.p1.y);
+	p[3].x = p[0].x;
+	p[3].y = p[0].y;
 
-	p[4].x = _cairo_cogl_util_fixed_to_float (trap->right.p2.x);
-	p[4].y = _cairo_cogl_util_fixed_to_float (trap->right.p2.y);
+	p[4].x = p[2].x;
+	p[4].y = p[2].y;
 
 	p[5].x = _cairo_cogl_util_fixed_to_float (trap->right.p1.x);
 	p[5].y = _cairo_cogl_util_fixed_to_float (trap->right.p1.y);
@@ -699,6 +661,87 @@ _cairo_cogl_traps_to_composite_prim (cairo_cogl_surface_t *surface,
     return prim;
 }
 
+/* In order to facilitate path caching, we transform the input path
+ * into a form that will make all translations and rotations of a given
+ * path identical, thereby allowing them to be identified with
+ * conventional path hashing and equivalence functions. A
+ * transformation matrix is also output so that the path can be
+ * transformed back into its original form during rendering. */
+static cairo_int_status_t
+_cairo_cogl_get_untransformed_path (cairo_path_fixed_t       *copy,
+                                    const cairo_path_fixed_t *orig,
+                                    cairo_matrix_t           *transform_out)
+{
+    cairo_matrix_t transform;
+    cairo_int_status_t status;
+
+    if (orig->buf.base.num_points < 1)
+        return CAIRO_INT_STATUS_NOTHING_TO_DO;
+
+    status = _cairo_path_fixed_init_copy (copy, orig);
+    if (unlikely (status))
+        return status;
+
+    /* First the path is translated so that its first point lies on the
+     * origin. */
+    cairo_matrix_init_translate (&transform,
+                                 -_cairo_fixed_to_double(orig->buf.points[0].x),
+                                 -_cairo_fixed_to_double(orig->buf.points[0].y));
+
+    /* Then the path is rotated so that its second point lies on the
+     * x axis. */
+    if (orig->buf.base.num_points > 1) {
+        double x = _cairo_fixed_to_double(orig->buf.points[1].x) -
+                   _cairo_fixed_to_double(orig->buf.points[0].x);
+        double y = _cairo_fixed_to_double(orig->buf.points[1].y) -
+                   _cairo_fixed_to_double(orig->buf.points[0].y);
+        double hyp = sqrt (x * x + y * y);
+
+        transform.xx = x / hyp;
+        transform.yy = x / hyp;
+        transform.xy = -y / hyp;
+        transform.yx = y / hyp;
+    }
+
+    _cairo_path_fixed_transform (copy, &transform);
+
+    *transform_out = transform;
+    status = cairo_matrix_invert (transform_out);
+    if (unlikely (status)) {
+        _cairo_path_fixed_fini (copy);
+        return status;
+    }
+
+    return CAIRO_INT_STATUS_SUCCESS;
+}
+
+static void
+_cairo_cogl_path_fill_meta_destroy (cairo_cogl_path_fill_meta_t *meta)
+{
+    _cairo_path_fixed_fini (&meta->path);
+    cogl_object_unref (meta->prim);
+
+    _cairo_freelist_free (meta->freelist, meta);
+}
+
+static cairo_bool_t
+_cairo_cogl_path_fill_meta_equal (const void *key_a, const void *key_b)
+{
+    const cairo_cogl_path_fill_meta_t *meta0 = key_a;
+    const cairo_cogl_path_fill_meta_t *meta1 = key_b;
+
+    if (meta0->fill_rule != meta1->fill_rule)
+        return FALSE;
+
+    if (meta0->tolerance != meta1->tolerance)
+        return FALSE;
+
+    if (!_cairo_path_fixed_equal (&meta0->path, &meta1->path))
+        return FALSE;
+
+    return TRUE;
+}
+
 static cairo_int_status_t
 _cairo_cogl_fill_to_primitive (cairo_cogl_surface_t	*surface,
 			       const cairo_path_fixed_t	*path,
@@ -706,13 +749,46 @@ _cairo_cogl_fill_to_primitive (cairo_cogl_surface_t	*surface,
 			       double			 tolerance,
 			       cairo_bool_t		 one_shot,
 			       CoglPrimitive	       **primitive,
-			       size_t			*size)
+                               cairo_matrix_t           *transform)
 {
     cairo_traps_t traps;
     cairo_int_status_t status;
+    cairo_cogl_path_fill_meta_t meta;
+    cairo_cogl_path_fill_meta_t *acquired_meta;
+    cairo_cogl_path_fill_meta_t *insert_meta = NULL;
+    cairo_cogl_device_t *dev = to_device (surface->base.device);
+    unsigned long hash;
+
+    *primitive = NULL;
+
+    status = _cairo_cogl_get_untransformed_path (&meta.path,
+                                                 path,
+                                                 transform);
+    if (unlikely (status))
+        return status;
+
+    hash = _cairo_path_fixed_hash (&meta.path);
+    hash = _cairo_hash_bytes (hash, &fill_rule, sizeof (fill_rule));
+    hash = _cairo_hash_bytes (hash, &tolerance, sizeof (tolerance));
+    meta.base.hash = hash;
+    meta.tolerance = tolerance;
+    meta.fill_rule = fill_rule;
+
+    acquired_meta = _cairo_cache_lookup (&dev->path_fill_prim_cache,
+                                         &meta.base);
+
+    if (acquired_meta) {
+        // g_print ("fill cache hit");
+        *primitive = cogl_object_ref (acquired_meta->prim);
+        _cairo_path_fixed_fini (&meta.path);
+        return CAIRO_STATUS_SUCCESS;
+    }
 
     _cairo_traps_init (&traps);
-    status = _cairo_path_fixed_fill_to_traps (path, fill_rule, tolerance, &traps);
+    status = _cairo_path_fixed_fill_to_traps (&meta.path,
+                                              fill_rule,
+                                              tolerance,
+                                              &traps);
     if (unlikely (status))
 	goto BAIL;
 
@@ -721,16 +797,249 @@ _cairo_cogl_fill_to_primitive (cairo_cogl_surface_t	*surface,
 	goto BAIL;
     }
 
-    *size = traps.num_traps * sizeof (CoglVertexP2) * 6;
-
-    *primitive = _cairo_cogl_traps_to_composite_prim (surface, &traps, one_shot);
+    *primitive = _cairo_cogl_traps_to_composite_prim (surface,
+                                                      &traps,
+                                                      one_shot);
     if (unlikely (!*primitive)) {
 	status = CAIRO_INT_STATUS_NO_MEMORY;
 	goto BAIL;
     }
 
-BAIL:
+    insert_meta =
+        _cairo_freelist_alloc (&dev->path_fill_meta_freelist);
+    if (unlikely (!insert_meta)) {
+        status = CAIRO_INT_STATUS_NO_MEMORY;
+        goto BAIL;
+    }
+
+    insert_meta->base.hash = meta.base.hash;
+    insert_meta->base.size =
+        traps.num_traps * sizeof (CoglVertexP2) * 6;
+    insert_meta->tolerance = tolerance;
+    insert_meta->fill_rule = fill_rule;
+    insert_meta->prim = cogl_object_ref (*primitive);
+    insert_meta->freelist = &dev->path_fill_meta_freelist;
+
+    status = _cairo_path_fixed_init_copy (&insert_meta->path,
+                                          &meta.path);
+    if (unlikely (status))
+        goto BAIL;
+
+    if (unlikely (_cairo_cache_insert (&dev->path_fill_prim_cache,
+                                       &insert_meta->base)))
+    {
+        g_warning ("Fill primitive cache insertion unsuccessful");
+        goto BAIL;
+    }
+
+    _cairo_path_fixed_fini (&meta.path);
     _cairo_traps_fini (&traps);
+
+    return status;
+
+BAIL:
+    if (*primitive) {
+        cogl_object_unref (*primitive);
+        *primitive = NULL;
+    }
+    if (insert_meta)
+        _cairo_cogl_path_fill_meta_destroy (insert_meta);
+    _cairo_path_fixed_fini (&meta.path);
+    _cairo_traps_fini (&traps);
+
+    return status;
+}
+
+static cairo_bool_t
+_cairo_cogl_stroke_style_equal (const cairo_stroke_style_t *a,
+			        const cairo_stroke_style_t *b)
+{
+    if (a->line_width == b->line_width &&
+	a->line_cap == b->line_cap &&
+	a->line_join == b->line_join &&
+	a->miter_limit == b->miter_limit &&
+	a->num_dashes == b->num_dashes &&
+	a->dash_offset == b->dash_offset)
+    {
+	unsigned int i;
+	for (i = 0; i < a->num_dashes; i++) {
+	    if (a->dash[i] != b->dash[i])
+		return FALSE;
+	}
+    }
+    return TRUE;
+}
+
+static cairo_bool_t
+_cairo_cogl_path_stroke_meta_equal (const void *key_a,
+                                    const void *key_b)
+{
+    const cairo_cogl_path_stroke_meta_t *meta0 = key_a;
+    const cairo_cogl_path_stroke_meta_t *meta1 = key_b;
+
+    if (meta0->tolerance != meta1->tolerance)
+        return FALSE;
+
+    if (!_cairo_cogl_stroke_style_equal (&meta0->style, &meta1->style))
+        return FALSE;
+
+    if (!_cairo_path_fixed_equal (&meta0->path, &meta1->path))
+        return FALSE;
+
+    return TRUE;
+}
+
+static void
+_cairo_cogl_path_stroke_meta_destroy (cairo_cogl_path_stroke_meta_t *meta)
+{
+    _cairo_stroke_style_fini (&meta->style);
+    _cairo_path_fixed_fini (&meta->path);
+    cogl_object_unref (meta->prim);
+
+    _cairo_freelist_free (meta->freelist, meta);
+}
+
+static unsigned long
+_cairo_cogl_stroke_style_hash (unsigned long               hash,
+			       const cairo_stroke_style_t *style)
+{
+    unsigned int i;
+    hash = _cairo_hash_bytes (hash, &style->line_width, sizeof (style->line_width));
+    hash = _cairo_hash_bytes (hash, &style->line_cap, sizeof (style->line_cap));
+    hash = _cairo_hash_bytes (hash, &style->line_join, sizeof (style->line_join));
+    hash = _cairo_hash_bytes (hash, &style->miter_limit, sizeof (style->miter_limit));
+    hash = _cairo_hash_bytes (hash, &style->num_dashes, sizeof (style->num_dashes));
+    hash = _cairo_hash_bytes (hash, &style->dash_offset, sizeof (style->dash_offset));
+    for (i = 0; i < style->num_dashes; i++)
+	hash = _cairo_hash_bytes (hash, &style->dash[i], sizeof (double));
+    return hash;
+}
+
+static cairo_int_status_t
+_cairo_cogl_stroke_to_primitive (cairo_cogl_surface_t	    *surface,
+				 const cairo_path_fixed_t   *path,
+				 const cairo_stroke_style_t *style,
+				 double			     tolerance,
+				 cairo_bool_t		     one_shot,
+				 CoglPrimitive		   **primitive,
+                                 cairo_matrix_t             *transform)
+{
+    cairo_traps_t traps;
+    cairo_int_status_t status;
+    cairo_cogl_path_stroke_meta_t meta;
+    cairo_cogl_path_stroke_meta_t *acquired_meta;
+    cairo_cogl_path_stroke_meta_t *insert_meta = NULL;
+    cairo_matrix_t identity;
+    cairo_cogl_device_t *dev = to_device (surface->base.device);
+    unsigned long hash;
+
+    *primitive = NULL;
+
+    status = _cairo_cogl_get_untransformed_path (&meta.path,
+                                                 path,
+                                                 transform);
+    if (unlikely (status))
+        return status;
+
+    hash = _cairo_path_fixed_hash (&meta.path);
+    hash = _cairo_cogl_stroke_style_hash (hash, style);
+    hash = _cairo_hash_bytes (hash, &tolerance, sizeof (tolerance));
+    meta.base.hash = hash;
+    meta.tolerance = tolerance;
+
+    status = _cairo_stroke_style_init_copy (&meta.style, style);
+    if (unlikely (status)) {
+        _cairo_path_fixed_fini (&meta.path);
+        return status;
+    }
+
+    acquired_meta = _cairo_cache_lookup (&dev->path_stroke_prim_cache,
+                                         &meta.base);
+
+    if (acquired_meta) {
+        // g_print ("stroke cache hit");
+        *primitive = cogl_object_ref (acquired_meta->prim);
+        _cairo_path_fixed_fini (&meta.path);
+        return CAIRO_STATUS_SUCCESS;
+    }
+
+    _cairo_traps_init (&traps);
+
+    cairo_matrix_init_identity (&identity);
+    status = _cairo_path_fixed_stroke_polygon_to_traps (&meta.path,
+                                                        style,
+                                                        &identity,
+                                                        &identity,
+                                                        tolerance,
+                                                        &traps);
+    if (unlikely (status))
+	goto BAIL;
+
+    if (traps.num_traps == 0) {
+	status = CAIRO_INT_STATUS_NOTHING_TO_DO;
+	goto BAIL;
+    }
+
+    *primitive = _cairo_cogl_traps_to_composite_prim (surface,
+                                                      &traps,
+                                                      one_shot);
+    if (unlikely (!*primitive)) {
+	status = CAIRO_INT_STATUS_NO_MEMORY;
+	goto BAIL;
+    }
+
+    insert_meta =
+        _cairo_freelist_alloc (&dev->path_stroke_meta_freelist);
+    if (unlikely (!insert_meta)) {
+        status = CAIRO_INT_STATUS_NO_MEMORY;
+        goto BAIL;
+    }
+
+    insert_meta->base.hash = meta.base.hash;
+    insert_meta->base.size =
+        traps.num_traps * sizeof (CoglVertexP2) * 6;
+    insert_meta->tolerance = tolerance;
+    insert_meta->prim = cogl_object_ref (*primitive);
+    insert_meta->freelist = &dev->path_stroke_meta_freelist;
+
+    status = _cairo_stroke_style_init_copy (&insert_meta->style,
+                                            style);
+    if (unlikely (status)) {
+        _cairo_stroke_style_fini (&insert_meta->style);
+        free (insert_meta);
+        insert_meta = NULL;
+        goto BAIL;
+    }
+
+    status = _cairo_path_fixed_init_copy (&insert_meta->path,
+                                          &meta.path);
+    if (unlikely (status))
+        goto BAIL;
+
+    if (unlikely (_cairo_cache_insert (&dev->path_stroke_prim_cache,
+                                       &insert_meta->base)))
+    {
+        g_warning ("Stroke primitive cache insertion unsuccessful");
+        goto BAIL;
+    }
+
+    _cairo_path_fixed_fini (&meta.path);
+    _cairo_stroke_style_fini (&meta.style);
+    _cairo_traps_fini (&traps);
+
+    return status;
+
+BAIL:
+    if (*primitive) {
+        cogl_object_unref (*primitive);
+        *primitive = NULL;
+    }
+    if (insert_meta)
+        _cairo_cogl_path_stroke_meta_destroy (insert_meta);
+    _cairo_path_fixed_fini (&meta.path);
+    _cairo_stroke_style_fini (&meta.style);
+    _cairo_traps_fini (&traps);
+
     return status;
 }
 
@@ -744,20 +1053,9 @@ _cairo_cogl_set_path_prim_clip (cairo_cogl_surface_t *surface,
     cairo_rectangle_int_t extents;
     cairo_int_status_t status;
     CoglPrimitive *prim;
-    size_t prim_size;
-
-    _cairo_path_fixed_approximate_clip_extents (path, &extents);
-
-    /* TODO - maintain a fifo of the last 10 used clips with cached
-     * primitives to see if we can avoid tessellating the path and
-     * uploading the vertices...
-     */
-#ifdef ENABLE_CLIP_CACHE
-    prim = NULL;
-    prim = find_clip_path_primitive (path);
-    if (prim)
-        // then bypass filling
-#endif
+    cairo_matrix_t transform;
+    CoglMatrix matrix;
+    double x1, y1, x2, y2;
 
     status = _cairo_cogl_fill_to_primitive (surface,
                                             path,
@@ -765,7 +1063,7 @@ _cairo_cogl_set_path_prim_clip (cairo_cogl_surface_t *surface,
                                             tolerance,
                                             FALSE,
                                             &prim,
-                                            &prim_size);
+                                            &transform);
     if (status == CAIRO_INT_STATUS_NOTHING_TO_DO) {
         /* If the clip is of zero fill area, set all clipped */
         cogl_framebuffer_push_scissor_clip (surface->framebuffer,
@@ -773,15 +1071,49 @@ _cairo_cogl_set_path_prim_clip (cairo_cogl_surface_t *surface,
         (*clip_stack_depth)++;
         return;
     } else if (unlikely (status)) {
-        g_warning ("Failed to get primitive for clip path while flushing journal");
+        g_warning ("Failed to get primitive for clip path while "
+                   "flushing journal");
         goto BAIL;
     }
 
+    float transformfv[16] = {
+        transform.xx, transform.yx, 0, 0,
+        transform.xy, transform.yy, 0, 0,
+        0,            0,            1, 0,
+        transform.x0, transform.y0, 0, 1
+    };
+
+    cogl_matrix_init_from_array (&matrix, transformfv);
+
+    cogl_framebuffer_push_matrix (surface->framebuffer);
+    cogl_framebuffer_transform (surface->framebuffer, &matrix);
+
+    _cairo_path_fixed_approximate_clip_extents (path, &extents);
+
+    /* The extents need to be transformed by the inverse of the
+     * modelview matrix because they are in terms of un-transformed
+     * device coordinates and the bounds coordinates will be
+     * transformed by the modelview matrix */
+    status = cairo_matrix_invert (&transform);
+    if (unlikely (status)) {
+        g_warning ("Could not apply clip due to invalid matrix from "
+                   "path transformation");
+        goto BAIL;
+    }
+
+    x1 = extents.x;
+    y1 = extents.y;
+    x2 = extents.x + extents.width;
+    y2 = extents.y + extents.height;
+    _cairo_matrix_transform_bounding_box (&transform,
+                                          &x1, &y1, &x2, &y2,
+                                          NULL);
+
     cogl_framebuffer_push_primitive_clip (surface->framebuffer, prim,
-                                          extents.x, extents.y,
-                                          extents.x + extents.width,
-                                          extents.y + extents.height);
+                                          x1, y1, x2, y2);
     (*clip_stack_depth)++;
+
+    cogl_framebuffer_pop_matrix (surface->framebuffer);
 
 BAIL:
     if (prim)
@@ -1158,20 +1490,15 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
                                          prim_entry->pipeline);
 
 	    cogl_framebuffer_push_matrix (surface->framebuffer);
-	    if (prim_entry->has_transform) {
-		cairo_matrix_t *ctm = &prim_entry->transform;
-		float ctmfv[16] = {
-		    ctm->xx, ctm->yx, 0, 0,
-		    ctm->xy, ctm->yy, 0, 0,
-		    0,	     0,	      1, 0,
-		    ctm->x0, ctm->y0, 0, 1
-		};
-		cogl_matrix_init_from_array (&transform, ctmfv);
-		cogl_framebuffer_transform (surface->framebuffer, &transform);
-	    } else {
-		cogl_matrix_init_identity (&transform);
-		cogl_framebuffer_set_modelview_matrix (surface->framebuffer, &transform);
-	    }
+            cairo_matrix_t *ctm = &prim_entry->transform;
+            float ctmfv[16] = {
+                ctm->xx, ctm->yx, 0, 0,
+                ctm->xy, ctm->yy, 0, 0,
+                0,       0,       1, 0,
+                ctm->x0, ctm->y0, 0, 1
+            };
+            cogl_matrix_init_from_array (&transform, ctmfv);
+            cogl_framebuffer_transform (surface->framebuffer, &transform);
 
             /* If the primitive is NULL, it means we just draw the
              * unbounded rectangle */
@@ -2702,8 +3029,11 @@ static void
 set_layer_texture_with_attributes (CoglPipeline                    *pipeline,
 				   int                              layer_index,
 				   CoglTexture                     *texture,
-				   cairo_cogl_texture_attributes_t *attributes)
+				   cairo_cogl_texture_attributes_t *attributes,
+                                   cairo_matrix_t                  *path_transform)
 {
+    cairo_matrix_t m;
+
     cogl_pipeline_set_layer_texture (pipeline, layer_index, texture);
 
     cogl_pipeline_set_layer_filters (pipeline,
@@ -2711,13 +3041,20 @@ set_layer_texture_with_attributes (CoglPipeline                    *pipeline,
                                      attributes->filter,
                                      attributes->filter);
 
-    if (!_cairo_matrix_is_identity (&attributes->matrix)) {
-	cairo_matrix_t *m = &attributes->matrix;
+    /* We multiply in the path transform here so that we read texture
+     * values from coordinates that are consistent with the coordinates
+     * of the path after it is transformed by the modelview matrix */
+    if (path_transform)
+        cairo_matrix_multiply (&m, path_transform, &attributes->matrix);
+    else
+        m = attributes->matrix;
+
+    if (!_cairo_matrix_is_identity (&m)) {
 	float texture_matrixfv[16] = {
-	    m->xx, m->yx, 0, 0,
-	    m->xy, m->yy, 0, 0,
-	    0, 0, 1, 0,
-	    m->x0, m->y0, 0, 1
+	    m.xx, m.yx, 0, 0,
+	    m.xy, m.yy, 0, 0,
+	    0,    0,    1, 0,
+	    m.x0, m.y0, 0, 1
 	};
 	CoglMatrix texture_matrix;
 	cogl_matrix_init_from_array (&texture_matrix, texture_matrixfv);
@@ -2741,7 +3078,8 @@ get_source_mask_operator_destination_pipelines (cairo_cogl_pipeline_t       **pi
 					        const cairo_pattern_t        *source,
 					        cairo_operator_t              op,
 					        cairo_cogl_surface_t         *destination,
-					        cairo_composite_rectangles_t *extents)
+					        cairo_composite_rectangles_t *extents,
+                                                cairo_matrix_t               *path_transform)
 {
     cairo_cogl_template_type template_type;
     cairo_cogl_device_t *dev = to_device(destination->base.device);
@@ -2899,7 +3237,8 @@ get_source_mask_operator_destination_pipelines (cairo_cogl_pipeline_t       **pi
             set_layer_texture_with_attributes (pipelines[1]->pipeline,
                                                pipelines[1]->n_layers++,
                                                texture,
-                                               &attributes);
+                                               &attributes,
+                                               path_transform);
             cogl_object_unref (texture);
 
             if (pipelines[1]->src_tex_clip.buf.base.num_ops > 0)
@@ -2953,7 +3292,8 @@ get_source_mask_operator_destination_pipelines (cairo_cogl_pipeline_t       **pi
 	        set_layer_texture_with_attributes (pipelines[1]->pipeline,
                                                    pipelines[1]->n_layers++,
                                                    texture,
-                                                   &attributes);
+                                                   &attributes,
+                                                   path_transform);
             }
             if (pipelines[0]) {
                 if (mask_tex_clip.buf.base.num_ops > 0) {
@@ -2965,7 +3305,8 @@ get_source_mask_operator_destination_pipelines (cairo_cogl_pipeline_t       **pi
                 set_layer_texture_with_attributes (pipelines[0]->pipeline,
                                                    pipelines[0]->n_layers++,
                                                    texture,
-                                                   &attributes);
+                                                   &attributes,
+                                                   path_transform);
             }
 
             _cairo_path_fixed_fini (&mask_tex_clip);
@@ -3147,8 +3488,9 @@ _cairo_cogl_surface_paint (void                  *abstract_surface,
                                                     source,
                                                     op,
                                                     surface,
-                                                    &extents);
-    if (!pipelines[0] && !pipelines[1]) {
+                                                    &extents,
+                                                    NULL);
+    if (unlikely (pipelines[0] == NULL && pipelines[1] == NULL)) {
         status = CAIRO_INT_STATUS_UNSUPPORTED;
         goto BAIL;
     }
@@ -3210,8 +3552,9 @@ _cairo_cogl_surface_mask (void                  *abstract_surface,
                                                     source,
                                                     op,
                                                     surface,
-                                                    &extents);
-    if (!pipelines[0] && !pipelines[1]) {
+                                                    &extents,
+                                                    NULL);
+    if (unlikely (pipelines[0] == NULL && pipelines[1] == NULL)) {
 	status = CAIRO_INT_STATUS_UNSUPPORTED;
         goto BAIL;
     }
@@ -3242,230 +3585,6 @@ BAIL:
     return status;
 }
 
-static cairo_bool_t
-_cairo_cogl_path_fill_meta_equal (const void *key_a, const void *key_b)
-{
-    const cairo_cogl_path_fill_meta_t *meta0 = key_a;
-    const cairo_cogl_path_fill_meta_t *meta1 = key_b;
-
-    return _cairo_path_fixed_equal (meta0->user_path, meta1->user_path);
-}
-
-static cairo_bool_t
-_cairo_cogl_stroke_style_equal (const cairo_stroke_style_t *a,
-			        const cairo_stroke_style_t *b)
-{
-    if (a->line_width == b->line_width &&
-	a->line_cap == b->line_cap &&
-	a->line_join == b->line_join &&
-	a->miter_limit == b->miter_limit &&
-	a->num_dashes == b->num_dashes &&
-	a->dash_offset == b->dash_offset)
-    {
-	unsigned int i;
-	for (i = 0; i < a->num_dashes; i++) {
-	    if (a->dash[i] != b->dash[i])
-		return FALSE;
-	}
-    }
-    return TRUE;
-}
-
-static cairo_bool_t
-_cairo_cogl_path_stroke_meta_equal (const void *key_a,
-                                    const void *key_b)
-{
-    const cairo_cogl_path_stroke_meta_t *meta0 = key_a;
-    const cairo_cogl_path_stroke_meta_t *meta1 = key_b;
-
-    return _cairo_cogl_stroke_style_equal (&meta0->style, &meta1->style) &&
-	_cairo_path_fixed_equal (meta0->user_path, meta1->user_path);
-}
-
-static cairo_cogl_path_stroke_meta_t *
-_cairo_cogl_path_stroke_meta_reference (cairo_cogl_path_stroke_meta_t *meta)
-{
-    assert (CAIRO_REFERENCE_COUNT_HAS_REFERENCE (&meta->ref_count));
-
-    _cairo_reference_count_inc (&meta->ref_count);
-
-    return meta;
-}
-
-static void
-_cairo_cogl_path_stroke_meta_destroy (cairo_cogl_path_stroke_meta_t *meta)
-{
-    assert (CAIRO_REFERENCE_COUNT_HAS_REFERENCE (&meta->ref_count));
-
-    if (! _cairo_reference_count_dec_and_test (&meta->ref_count))
-	return;
-
-    _cairo_path_fixed_fini (meta->user_path);
-    free (meta->user_path);
-
-    _cairo_stroke_style_fini (&meta->style);
-
-    if (meta->prim)
-	cogl_object_unref (meta->prim);
-
-    free (meta);
-}
-
-static cairo_cogl_path_stroke_meta_t *
-_cairo_cogl_path_stroke_meta_lookup (cairo_cogl_device_t	*ctx,
-				     unsigned long		 hash,
-				     cairo_path_fixed_t		*user_path,
-				     const cairo_stroke_style_t *style,
-				     double			 tolerance)
-{
-    cairo_cogl_path_stroke_meta_t *ret;
-    cairo_cogl_path_stroke_meta_t lookup;
-
-    lookup.cache_entry.hash = hash;
-    lookup.user_path = user_path;
-    lookup.style = *style;
-    lookup.tolerance = tolerance;
-
-    ret = _cairo_cache_lookup (&ctx->path_stroke_staging_cache, &lookup.cache_entry);
-    if (!ret)
-	ret = _cairo_cache_lookup (&ctx->path_stroke_prim_cache, &lookup.cache_entry);
-    return ret;
-}
-
-static void
-_cairo_cogl_path_stroke_meta_set_prim_size (cairo_cogl_surface_t          *surface,
-					    cairo_cogl_path_stroke_meta_t *meta,
-					    size_t                         size)
-{
-    /* now that we know the meta structure is associated with a primitive
-     * we promote it from the staging cache into the primitive cache.
-     */
-
-    /* XXX: _cairo_cache borks if you try and remove an entry that's already
-     * been evicted so we explicitly look it up first... */
-    if (_cairo_cache_lookup (&to_device(surface->base.device)->path_stroke_staging_cache, &meta->cache_entry)) {
-	_cairo_cogl_path_stroke_meta_reference (meta);
-	_cairo_cache_remove (&to_device(surface->base.device)->path_stroke_staging_cache, &meta->cache_entry);
-    }
-
-    meta->cache_entry.size = size;
-    if (_cairo_cache_insert (&to_device(surface->base.device)->path_stroke_prim_cache, &meta->cache_entry) !=
-	CAIRO_STATUS_SUCCESS)
-	_cairo_cogl_path_stroke_meta_destroy (meta);
-}
-
-static unsigned int
-_cairo_cogl_stroke_style_hash (unsigned int                hash,
-			       const cairo_stroke_style_t *style)
-{
-    unsigned int i;
-    hash = _cairo_hash_bytes (hash, &style->line_width, sizeof (style->line_width));
-    hash = _cairo_hash_bytes (hash, &style->line_cap, sizeof (style->line_cap));
-    hash = _cairo_hash_bytes (hash, &style->line_join, sizeof (style->line_join));
-    hash = _cairo_hash_bytes (hash, &style->miter_limit, sizeof (style->miter_limit));
-    hash = _cairo_hash_bytes (hash, &style->num_dashes, sizeof (style->num_dashes));
-    hash = _cairo_hash_bytes (hash, &style->dash_offset, sizeof (style->dash_offset));
-    for (i = 0; i < style->num_dashes; i++)
-	hash = _cairo_hash_bytes (hash, &style->dash[i], sizeof (double));
-    return hash;
-}
-
-static cairo_cogl_path_stroke_meta_t *
-_cairo_cogl_get_path_stroke_meta (cairo_cogl_surface_t       *surface,
-				  const cairo_stroke_style_t *style,
-				  double                      tolerance)
-{
-    unsigned long hash;
-    cairo_cogl_path_stroke_meta_t *meta = NULL;
-    cairo_path_fixed_t *meta_path = NULL;
-    cairo_status_t status;
-
-    if (!surface->user_path)
-	return NULL;
-
-    hash = _cairo_path_fixed_hash (surface->user_path);
-    hash = _cairo_cogl_stroke_style_hash (hash, style);
-    hash = _cairo_hash_bytes (hash, &tolerance, sizeof (tolerance));
-
-    meta = _cairo_cogl_path_stroke_meta_lookup (to_device(surface->base.device), hash,
-						surface->user_path, style, tolerance);
-    if (meta)
-	return meta;
-
-    meta = calloc (1, sizeof (cairo_cogl_path_stroke_meta_t));
-    if (unlikely (!meta))
-	goto BAIL;
-    CAIRO_REFERENCE_COUNT_INIT (&meta->ref_count, 1);
-    meta->cache_entry.hash = hash;
-    meta->counter = 0;
-    meta_path = _cairo_malloc (sizeof (cairo_path_fixed_t));
-    if (unlikely (!meta_path))
-	goto BAIL;
-    /* FIXME: we should add a ref-counted wrapper for our user_paths
-     * so we don't have to keep copying them here! */
-    status = _cairo_path_fixed_init_copy (meta_path, surface->user_path);
-    if (unlikely (status))
-	goto BAIL;
-    meta->user_path = meta_path;
-    meta->ctm_inverse = surface->ctm_inverse;
-
-    status = _cairo_stroke_style_init_copy (&meta->style, style);
-    if (unlikely (status)) {
-	_cairo_path_fixed_fini (meta_path);
-	goto BAIL;
-    }
-    meta->tolerance = tolerance;
-
-    return meta;
-
-BAIL:
-    free (meta_path);
-    free (meta);
-    return NULL;
-}
-
-static cairo_int_status_t
-_cairo_cogl_stroke_to_primitive (cairo_cogl_surface_t	    *surface,
-				 const cairo_path_fixed_t   *path,
-				 const cairo_stroke_style_t *style,
-				 const cairo_matrix_t	    *ctm,
-				 const cairo_matrix_t	    *ctm_inverse,
-				 double			     tolerance,
-				 cairo_bool_t		     one_shot,
-				 CoglPrimitive		   **primitive,
-				 size_t			    *size)
-{
-    cairo_traps_t traps;
-    cairo_int_status_t status;
-
-    _cairo_traps_init (&traps);
-
-    status = _cairo_path_fixed_stroke_polygon_to_traps (path, style,
-							ctm, ctm_inverse,
-							tolerance,
-							&traps);
-    if (unlikely (status))
-	goto BAIL;
-
-    if (traps.num_traps == 0) {
-	status = CAIRO_INT_STATUS_NOTHING_TO_DO;
-	goto BAIL;
-    }
-
-    *size = traps.num_traps * sizeof (CoglVertexP2) * 6;
-
-    //g_print ("new stroke prim\n");
-    *primitive = _cairo_cogl_traps_to_composite_prim (surface, &traps, one_shot);
-    if (unlikely (!*primitive)) {
-	status = CAIRO_INT_STATUS_NO_MEMORY;
-	goto BAIL;
-    }
-
-BAIL:
-    _cairo_traps_fini (&traps);
-    return status;
-}
-
 static cairo_int_status_t
 _cairo_cogl_surface_stroke (void                       *abstract_surface,
 			    cairo_operator_t            op,
@@ -3482,14 +3601,8 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
     cairo_composite_rectangles_t extents;
     cairo_cogl_pipeline_t *pipelines[2];
     cairo_int_status_t status;
-#ifdef ENABLE_PATH_CACHE
-    cairo_cogl_path_stroke_meta_t *meta = NULL;
-    cairo_matrix_t transform_matrix;
-#endif
-    cairo_matrix_t *transform = NULL;
-    cairo_bool_t one_shot = TRUE;
+    cairo_matrix_t transform;
     CoglPrimitive *prim = NULL;
-    cairo_bool_t new_prim = FALSE;
 
     if (! is_operator_supported (op))
 	return CAIRO_INT_STATUS_UNSUPPORTED;
@@ -3503,44 +3616,15 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
     if (unlikely (status))
 	return status;
 
-#ifdef ENABLE_PATH_CACHE
-    /* FIXME: we are currently leaking the meta state if we don't reach
-     * the cache_insert at the end. */
-    meta = _cairo_cogl_get_path_stroke_meta (surface, style, tolerance);
-    if (meta) {
-	prim = meta->prim;
-	if (prim) {
-	    cairo_matrix_multiply (&transform_matrix,
-                                   &meta->ctm_inverse,
-                                   &surface->ctm);
-	    transform = &transform_matrix;
-	} else if (meta->counter++ > 10) {
-	    one_shot = FALSE;
-        }
-    }
-#endif
-
-    if (!prim) {
-	size_t prim_size;
-	status = _cairo_cogl_stroke_to_primitive (surface, path, style,
-                                                  ctm, ctm_inverse, tolerance,
-                                                  one_shot, &prim,
-                                                  &prim_size);
-        if (status == CAIRO_INT_STATUS_NOTHING_TO_DO
-            && _cairo_operator_bounded_by_mask (op) == FALSE) {
-            /* Just render the unbounded rectangle */
-            prim = NULL;
-	} else if (unlikely (status)) {
-	    goto BAIL;
-        } else {
-            new_prim = TRUE;
-        }
-#if defined (ENABLE_PATH_CACHE)
-	if (meta && prim) {
-	    meta->prim = cogl_object_ref (prim);
-	    _cairo_cogl_path_stroke_meta_set_prim_size (surface, meta, prim_size);
-	}
-#endif
+    status = _cairo_cogl_stroke_to_primitive (surface, path, style,
+                                              tolerance, TRUE, &prim,
+                                              &transform);
+    if (status == CAIRO_INT_STATUS_NOTHING_TO_DO
+        && _cairo_operator_bounded_by_mask (op) == FALSE) {
+        /* Just render the unbounded rectangle */
+        prim = NULL;
+    } else if (unlikely (status)) {
+        goto BAIL;
     }
 
     get_source_mask_operator_destination_pipelines (pipelines,
@@ -3548,8 +3632,9 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
                                                     source,
                                                     op,
                                                     surface,
-                                                    &extents);
-    if (!pipelines[0] && !pipelines[1]) {
+                                                    &extents,
+                                                    &transform);
+    if (unlikely (pipelines[0] == NULL && pipelines[1] == NULL)) {
         status = CAIRO_INT_STATUS_UNSUPPORTED;
         goto BAIL;
     }
@@ -3560,138 +3645,21 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
         _cairo_cogl_journal_log_primitive (surface,
                                            pipelines[0],
                                            prim,
-                                           transform);
+                                           &transform);
     if (pipelines[1])
         _cairo_cogl_journal_log_primitive (surface,
                                            pipelines[1],
                                            prim,
-                                           transform);
+                                           &transform);
 
 BAIL:
     /* The journal will take a reference on the primitive... */
-    if (new_prim)
+    if (prim)
 	cogl_object_unref (prim);
 
     _cairo_composite_rectangles_fini (&extents);
 
     return status;
-}
-
-static cairo_cogl_path_fill_meta_t *
-_cairo_cogl_path_fill_meta_reference (cairo_cogl_path_fill_meta_t *meta)
-{
-    assert (CAIRO_REFERENCE_COUNT_HAS_REFERENCE (&meta->ref_count));
-
-    _cairo_reference_count_inc (&meta->ref_count);
-
-    return meta;
-}
-
-static void
-_cairo_cogl_path_fill_meta_destroy (cairo_cogl_path_fill_meta_t *meta)
-{
-    assert (CAIRO_REFERENCE_COUNT_HAS_REFERENCE (&meta->ref_count));
-
-    if (! _cairo_reference_count_dec_and_test (&meta->ref_count))
-	return;
-
-    _cairo_path_fixed_fini (meta->user_path);
-    free (meta->user_path);
-
-    if (meta->prim)
-	cogl_object_unref (meta->prim);
-
-    free (meta);
-}
-
-static cairo_cogl_path_fill_meta_t *
-_cairo_cogl_path_fill_meta_lookup (cairo_cogl_device_t	*ctx,
-				   unsigned long	 hash,
-				   cairo_path_fixed_t	*user_path)
-{
-    cairo_cogl_path_fill_meta_t *ret;
-    cairo_cogl_path_fill_meta_t lookup;
-
-    lookup.cache_entry.hash = hash;
-    lookup.user_path = user_path;
-
-    ret = _cairo_cache_lookup (&ctx->path_fill_staging_cache, &lookup.cache_entry);
-    if (!ret)
-	ret = _cairo_cache_lookup (&ctx->path_fill_prim_cache, &lookup.cache_entry);
-    return ret;
-}
-
-static void
-_cairo_cogl_path_fill_meta_set_prim_size (cairo_cogl_surface_t        *surface,
-					  cairo_cogl_path_fill_meta_t *meta,
-					  size_t                       size)
-{
-    /* now that we know the meta structure is associated with a primitive
-     * we promote it from the staging cache into the primitive cache.
-     */
-
-    /* XXX: _cairo_cache borks if you try and remove an entry that's already
-     * been evicted so we explicitly look it up first... */
-    if (_cairo_cache_lookup (&to_device(surface->base.device)->path_fill_staging_cache, &meta->cache_entry)) {
-	_cairo_cogl_path_fill_meta_reference (meta);
-	_cairo_cache_remove (&to_device(surface->base.device)->path_fill_staging_cache, &meta->cache_entry);
-    }
-
-    meta->cache_entry.size = size;
-    if (_cairo_cache_insert (&to_device(surface->base.device)->path_fill_prim_cache, &meta->cache_entry) !=
-	CAIRO_STATUS_SUCCESS)
-	_cairo_cogl_path_fill_meta_destroy (meta);
-}
-
-static cairo_cogl_path_fill_meta_t *
-_cairo_cogl_get_path_fill_meta (cairo_cogl_surface_t *surface)
-{
-    unsigned long hash;
-    cairo_cogl_path_fill_meta_t *meta = NULL;
-    cairo_path_fixed_t *meta_path = NULL;
-    cairo_status_t status;
-
-    if (!surface->user_path)
-	return NULL;
-
-    hash = _cairo_path_fixed_hash (surface->user_path);
-
-    meta = _cairo_cogl_path_fill_meta_lookup (to_device(surface->base.device),
-					      hash, surface->user_path);
-    if (meta)
-	return meta;
-
-    meta = calloc (1, sizeof (cairo_cogl_path_fill_meta_t));
-    if (unlikely (!meta))
-	goto BAIL;
-    meta->cache_entry.hash = hash;
-    meta->counter = 0;
-    CAIRO_REFERENCE_COUNT_INIT (&meta->ref_count, 1);
-    meta_path = _cairo_malloc (sizeof (cairo_path_fixed_t));
-    if (unlikely (!meta_path))
-	goto BAIL;
-    /* FIXME: we should add a ref-counted wrapper for our user_paths
-     * so we don't have to keep copying them here! */
-    status = _cairo_path_fixed_init_copy (meta_path, surface->user_path);
-    if (unlikely (status))
-	goto BAIL;
-    meta->user_path = meta_path;
-    meta->ctm_inverse = surface->ctm_inverse;
-
-    /* To start with - until we associate a CoglPrimitive with the meta
-     * structure - we keep the meta in a staging structure until we
-     * see whether it actually gets re-used. */
-    meta->cache_entry.size = 1;
-    if (_cairo_cache_insert (&to_device(surface->base.device)->path_fill_staging_cache, &meta->cache_entry) !=
-	CAIRO_STATUS_SUCCESS)
-	_cairo_cogl_path_fill_meta_destroy (meta);
-
-    return meta;
-
-BAIL:
-    free (meta_path);
-    free (meta);
-    return NULL;
 }
 
 static cairo_int_status_t
@@ -3707,14 +3675,8 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
     cairo_cogl_surface_t *surface = abstract_surface;
     cairo_composite_rectangles_t extents;
     cairo_int_status_t status;
-#ifdef ENABLE_PATH_CACHE
-    cairo_cogl_path_fill_meta_t *meta = NULL;
-    cairo_matrix_t transform_matrix;
-#endif
-    cairo_matrix_t *transform = NULL;
-    cairo_bool_t one_shot = TRUE;
+    cairo_matrix_t transform;
     CoglPrimitive *prim = NULL;
-    cairo_bool_t new_prim = FALSE;
     cairo_cogl_pipeline_t *pipelines[2];
 
     if (! is_operator_supported (op))
@@ -3728,42 +3690,16 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
 	return status;
 
 #ifndef FILL_WITH_COGL_PATH
-#ifdef ENABLE_PATH_CACHE
-    meta = _cairo_cogl_get_path_fill_meta (surface);
-    if (meta) {
-	prim = meta->prim;
-	if (prim) {
-	    cairo_matrix_multiply (&transform_matrix,
-                                   &meta->ctm_inverse,
-                                   &surface->ctm);
-	    transform = &transform_matrix;
-	} else if (meta->counter++ > 10) {
-	    one_shot = FALSE;
-        }
+    status = _cairo_cogl_fill_to_primitive (surface, path, fill_rule,
+                                            tolerance, TRUE, &prim,
+                                            &transform);
+    if (status == CAIRO_INT_STATUS_NOTHING_TO_DO
+        && _cairo_operator_bounded_by_mask (op) == FALSE) {
+        /* Just render the unbounded rectangle */
+        prim = NULL;
+    } else if (unlikely (status)) {
+        goto BAIL;
     }
-#endif /* ENABLE_PATH_CACHE */
-
-    if (!prim) {
-	size_t prim_size;
-	status = _cairo_cogl_fill_to_primitive (surface, path, fill_rule, tolerance,
-						one_shot, &prim, &prim_size);
-        if (status == CAIRO_INT_STATUS_NOTHING_TO_DO
-            && _cairo_operator_bounded_by_mask (op) == FALSE) {
-            /* Just render the unbounded rectangle */
-            prim = NULL;
-	} else if (unlikely (status)) {
-	    goto BAIL;
-        } else {
-            new_prim = TRUE;
-        }
-#ifdef ENABLE_PATH_CACHE
-	if (meta && prim) {
-	    meta->prim = cogl_object_ref (prim);
-	    _cairo_cogl_path_fill_meta_set_prim_size (surface, meta, prim_size);
-	}
-#endif /* ENABLE_PATH_CACHE */
-    }
-
 #endif /* !FILL_WITH_COGL_PATH */
 
     get_source_mask_operator_destination_pipelines (pipelines,
@@ -3771,8 +3707,9 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
                                                     source,
                                                     op,
                                                     surface,
-                                                    &extents);
-    if (!pipelines[0] && !pipelines[1]) {
+                                                    &extents,
+                                                    &transform);
+    if (unlikely (pipelines[0] == NULL && pipelines[1] == NULL)) {
         status = CAIRO_INT_STATUS_UNSUPPORTED;
         goto BAIL;
     }
@@ -3784,12 +3721,12 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
         _cairo_cogl_journal_log_primitive (surface,
                                            pipelines[0],
                                            prim,
-                                           transform);
+                                           &transform);
     if (pipelines[1])
         _cairo_cogl_journal_log_primitive (surface,
                                            pipelines[1],
                                            prim,
-                                           transform);
+                                           &transform);
 #else
     CoglPath * cogl_path = _cairo_cogl_util_path_from_cairo (path, fill_rule, tolerance);
 
@@ -3806,86 +3743,12 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
 #endif
 
 BAIL:
-#ifndef FILL_WITH_COGL_PATH
     /* The journal will take a reference on the prim */
-    if (new_prim)
+    if (prim)
 	cogl_object_unref (prim);
-#endif
-
     _cairo_composite_rectangles_fini (&extents);
 
     return status;
-}
-
-cairo_int_status_t
-_cairo_cogl_surface_fill_rectangle (void		     *abstract_surface,
-				    cairo_operator_t	      op,
-				    const cairo_pattern_t    *source,
-				    double		      x,
-				    double		      y,
-				    double		      width,
-				    double		      height,
-				    cairo_matrix_t	     *ctm,
-				    const cairo_clip_t	     *clip)
-{
-    cairo_cogl_surface_t *surface = abstract_surface;
-    cairo_composite_rectangles_t extents;
-    cairo_int_status_t status;
-    cairo_cogl_pipeline_t *pipelines[2];
-
-    if (! is_operator_supported (op))
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-
-    if (source->type == CAIRO_PATTERN_TYPE_SOLID) {
-        /* These extents will be larger than necessary, but in the absence
-         * of a specialized function, they will do */
-        status =
-            _cairo_composite_rectangles_init_for_paint (&extents,
-                                                        &surface->base,
-                                                        op,
-                                                        source,
-                                                        clip);
-        if (unlikely (status))
-	    return status;
-
-	get_source_mask_operator_destination_pipelines (pipelines,
-                                                        NULL,
-                                                        source,
-                                                        op,
-                                                        surface,
-                                                        &extents);
-        if (!pipelines[0] && !pipelines[1]) {
-            status = CAIRO_INT_STATUS_UNSUPPORTED;
-            goto BAIL;
-        }
-
-	_cairo_cogl_log_clip (surface, clip);
-
-        if (pipelines[0])
-            _cairo_cogl_journal_log_rectangle (surface,
-                                               pipelines[0],
-                                               x, y, width, height,
-                                               ctm);
-        if (pipelines[1])
-            _cairo_cogl_journal_log_rectangle (surface,
-                                               pipelines[1],
-                                               x, y, width, height,
-                                               ctm);
-
-BAIL:
-        _cairo_composite_rectangles_fini (&extents);
-
-	return status;
-    } else {
-	return CAIRO_INT_STATUS_UNSUPPORTED;
-    }
-
-    /* TODO:
-     * We need to acquire the textures here, look at the corresponding
-     * attributes and see if this can be trivially handled by logging
-     * a textured rectangle only needing simple scaling or translation
-     * of texture coordinates.
-     */
 }
 
 /* Mostly taken from cairo_vg_surface.c */
@@ -3900,7 +3763,6 @@ _cairo_cogl_surface_show_glyphs (void                  *abstract_surface,
                                  cairo_scaled_font_t   *scaled_font,
                                  const cairo_clip_t    *clip)
 {
-    cairo_cogl_surface_t *surface = abstract_surface;
     cairo_status_t status = CAIRO_STATUS_SUCCESS;
     cairo_path_fixed_t path;
     int num_chunk_glyphs;
@@ -3925,15 +3787,6 @@ _cairo_cogl_surface_show_glyphs (void                  *abstract_surface,
         if (unlikely (status))
             goto BAIL;
 
-#ifdef NEED_COGL_CONTEXT
-        /* XXX: in cairo-cogl-context.c we set some sideband data on the
-         * surface before issuing a fill so we need to do that here too... */
-        surface->user_path = &path;
-        cairo_matrix_init_identity (&surface->ctm);
-        surface->ctm_inverse = surface->ctm;
-        surface->path_is_rectangle = FALSE;
-#endif
-
         status = _cairo_cogl_surface_fill (abstract_surface,
                                            op, source, &path,
                                            CAIRO_FILL_RULE_WINDING,
@@ -3957,11 +3810,7 @@ BAIL:
 const cairo_surface_backend_t _cairo_cogl_surface_backend = {
     CAIRO_SURFACE_TYPE_COGL,
     _cairo_cogl_surface_finish,
-#ifdef NEED_COGL_CONTEXT
-    _cairo_cogl_context_create,
-#else
     _cairo_default_context_create,
-#endif
 
     _cairo_cogl_surface_create_similar,
     NULL, /* create similar image */
@@ -4232,10 +4081,11 @@ _cairo_cogl_device_finish (void *device)
     /* XXX: Drop references to external resources */
 
     _cairo_cache_fini (&dev->linear_cache);
-    _cairo_cache_fini (&dev->path_fill_staging_cache);
     _cairo_cache_fini (&dev->path_fill_prim_cache);
-    _cairo_cache_fini (&dev->path_stroke_staging_cache);
     _cairo_cache_fini (&dev->path_stroke_prim_cache);
+
+    _cairo_freelist_fini (&dev->path_fill_meta_freelist);
+    _cairo_freelist_fini (&dev->path_stroke_meta_freelist);
 
     if (dev->buffer_stack && dev->buffer_stack_offset) {
         cogl_buffer_unmap (dev->buffer_stack);
@@ -4308,18 +4158,6 @@ cairo_cogl_device_create (CoglContext *cogl_context)
         return _cairo_device_create_in_error (status);
     }
 
-    status = _cairo_cache_init (&dev->path_fill_staging_cache,
-                                _cairo_cogl_path_fill_meta_equal,
-                                NULL,
-                                (cairo_destroy_func_t) _cairo_cogl_path_fill_meta_destroy,
-                                1000);
-
-    status = _cairo_cache_init (&dev->path_stroke_staging_cache,
-                                _cairo_cogl_path_stroke_meta_equal,
-                                NULL,
-                                (cairo_destroy_func_t) _cairo_cogl_path_stroke_meta_destroy,
-                                1000);
-
     status = _cairo_cache_init (&dev->path_fill_prim_cache,
                                 _cairo_cogl_path_fill_meta_equal,
                                 NULL,
@@ -4331,6 +4169,11 @@ cairo_cogl_device_create (CoglContext *cogl_context)
                                 NULL,
                                 (cairo_destroy_func_t) _cairo_cogl_path_stroke_meta_destroy,
                                 CAIRO_COGL_PATH_META_CACHE_SIZE);
+
+    _cairo_freelist_init (&dev->path_fill_meta_freelist,
+                          sizeof(cairo_cogl_path_fill_meta_t));
+    _cairo_freelist_init (&dev->path_stroke_meta_freelist,
+                          sizeof(cairo_cogl_path_stroke_meta_t));
 
     _cairo_device_init (&dev->base, &_cairo_cogl_device_backend);
     return &dev->base;

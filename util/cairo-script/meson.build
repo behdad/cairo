@@ -24,7 +24,8 @@ csi_trace_sources = [
   'csi-trace.c',
 ]
 
-libcairoscript = library('cairo-script', cairoscript_interpreter_sources,
+libcairoscript = library('cairo-script-interpreter',
+  cairoscript_interpreter_sources,
   c_args: ['-DHAVE_CONFIG_H'],
   include_directories: [incbase, incsrc],
   dependencies: deps,

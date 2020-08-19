@@ -3888,6 +3888,72 @@ BAIL:
      */
 }
 
+/* Mostly taken from cairo_vg_surface.c */
+/* TODO: implement actual font support, with either cogl-pango's glyph
+ * cache or our own */
+static cairo_int_status_t
+_cairo_cogl_surface_show_glyphs (void                  *abstract_surface,
+                                 cairo_operator_t       op,
+                                 const cairo_pattern_t *source,
+                                 cairo_glyph_t         *glyphs,
+                                 int                    num_glyphs,
+                                 cairo_scaled_font_t   *scaled_font,
+                                 const cairo_clip_t    *clip)
+{
+    cairo_cogl_surface_t *surface = abstract_surface;
+    cairo_status_t status = CAIRO_STATUS_SUCCESS;
+    cairo_path_fixed_t path;
+    int num_chunk_glyphs;
+    int i;
+
+    if (num_glyphs <= 0)
+        return CAIRO_STATUS_SUCCESS;
+
+#define GLYPH_CHUNK_SIZE 100
+
+    /* Chunk glyphs in order to avoid large computation overheads
+     * during tessellation of long strings */
+    for (i = 0; i < num_glyphs; i += GLYPH_CHUNK_SIZE) {
+        num_chunk_glyphs = (num_glyphs - i) < GLYPH_CHUNK_SIZE ?
+                           (num_glyphs - i) : GLYPH_CHUNK_SIZE;
+
+        _cairo_path_fixed_init (&path);
+        status = _cairo_scaled_font_glyph_path (scaled_font,
+                                                &glyphs[i],
+                                                num_chunk_glyphs,
+                                                &path);
+        if (unlikely (status))
+            goto BAIL;
+
+#ifdef NEED_COGL_CONTEXT
+        /* XXX: in cairo-cogl-context.c we set some sideband data on the
+         * surface before issuing a fill so we need to do that here too... */
+        surface->user_path = &path;
+        cairo_matrix_init_identity (&surface->ctm);
+        surface->ctm_inverse = surface->ctm;
+        surface->path_is_rectangle = FALSE;
+#endif
+
+        status = _cairo_cogl_surface_fill (abstract_surface,
+                                           op, source, &path,
+                                           CAIRO_FILL_RULE_WINDING,
+                                           CAIRO_GSTATE_TOLERANCE_DEFAULT,
+                                           CAIRO_ANTIALIAS_DEFAULT,
+                                           clip);
+
+        _cairo_path_fixed_fini (&path);
+    }
+
+#undef GLYPH_CHUNK_SIZE
+
+    return CAIRO_STATUS_SUCCESS;
+
+BAIL:
+    _cairo_path_fixed_fini (&path);
+
+    return status;
+}
+
 const cairo_surface_backend_t _cairo_cogl_surface_backend = {
     CAIRO_SURFACE_TYPE_COGL,
     _cairo_cogl_surface_finish,
@@ -3921,7 +3987,7 @@ const cairo_surface_backend_t _cairo_cogl_surface_backend = {
     _cairo_cogl_surface_stroke,
     _cairo_cogl_surface_fill,
     NULL, /* fill_stroke */
-    _cairo_surface_fallback_glyphs,
+    _cairo_cogl_surface_show_glyphs,
 };
 
 static cairo_surface_t *

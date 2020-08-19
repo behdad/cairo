@@ -78,6 +78,9 @@ _cairo_boilerplate_cogl_create_offscreen_color_surface (const char		*name,
 
     device = cairo_cogl_device_create (context);
 
+    /* The device will take a reference on the context */
+    cogl_object_unref (context);
+
     closure = _cairo_malloc (sizeof (cogl_closure_t));
     *abstract_closure = closure;
     closure->device = device;
@@ -124,18 +127,30 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
 		CoglDisplay *display;
 
         swap_chain = cogl_swap_chain_new ();
-		cogl_swap_chain_set_has_alpha (swap_chain, TRUE);
+        cogl_swap_chain_set_has_alpha (swap_chain, TRUE);
 
         onscreen_template = cogl_onscreen_template_new (swap_chain);
         renderer = cogl_renderer_new ();
         display = cogl_display_new (renderer, onscreen_template);
 
+        /* References will be taken on the swap chain, renderer, and
+         * onscreen template by the constructors */
+        cogl_object_unref (swap_chain);
+        cogl_object_unref (renderer);
+        cogl_object_unref (onscreen_template);
+
         context = cogl_context_new (display, NULL);
-	} else {
+
+        /* The context will take a reference on the display */
+        cogl_object_unref (display);
+    } else {
         context = cogl_context_new (NULL, NULL);
     }
 
     device = cairo_cogl_device_create (context);
+
+    /* The device will take a reference on the context */
+    cogl_object_unref (context);
 
     closure = _cairo_malloc (sizeof (cogl_closure_t));
     *abstract_closure = closure;

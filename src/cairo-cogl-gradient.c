@@ -644,6 +644,7 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
     }
 
     cogl_object_unref (prim);
+    cogl_object_unref (pipeline);
 
     cogl_object_unref (offscreen);
     offscreen = NULL;

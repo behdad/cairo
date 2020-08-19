@@ -3148,8 +3148,10 @@ _cairo_cogl_surface_paint (void                  *abstract_surface,
                                                     op,
                                                     surface,
                                                     &extents);
-    if (!pipelines[0] && !pipelines[1])
-        return CAIRO_INT_STATUS_UNSUPPORTED;
+    if (!pipelines[0] && !pipelines[1]) {
+        status = CAIRO_INT_STATUS_UNSUPPORTED;
+        goto BAIL;
+    }
 
     _cairo_cogl_maybe_log_clip (surface, &extents);
 
@@ -3171,7 +3173,10 @@ _cairo_cogl_surface_paint (void                  *abstract_surface,
                                            extents.bounded.height,
                                            &identity);
 
-    return CAIRO_STATUS_SUCCESS;
+BAIL:
+    _cairo_composite_rectangles_fini (&extents);
+
+    return status;
 }
 
 static cairo_int_status_t
@@ -3206,8 +3211,10 @@ _cairo_cogl_surface_mask (void                  *abstract_surface,
                                                     op,
                                                     surface,
                                                     &extents);
-    if (!pipelines[0] && !pipelines[1])
-	return CAIRO_INT_STATUS_UNSUPPORTED;
+    if (!pipelines[0] && !pipelines[1]) {
+	status = CAIRO_INT_STATUS_UNSUPPORTED;
+        goto BAIL;
+    }
 
     _cairo_cogl_maybe_log_clip (surface, &extents);
 
@@ -3229,7 +3236,10 @@ _cairo_cogl_surface_mask (void                  *abstract_surface,
                                            extents.bounded.height,
                                            &identity);
 
-    return CAIRO_STATUS_SUCCESS;
+BAIL:
+    _cairo_composite_rectangles_fini (&extents);
+
+    return status;
 }
 
 static cairo_bool_t
@@ -3521,7 +3531,7 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
             /* Just render the unbounded rectangle */
             prim = NULL;
 	} else if (unlikely (status)) {
-	    return status;
+	    goto BAIL;
         } else {
             new_prim = TRUE;
         }
@@ -3539,8 +3549,10 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
                                                     op,
                                                     surface,
                                                     &extents);
-    if (!pipelines[0] && !pipelines[1])
-        return CAIRO_INT_STATUS_UNSUPPORTED;
+    if (!pipelines[0] && !pipelines[1]) {
+        status = CAIRO_INT_STATUS_UNSUPPORTED;
+        goto BAIL;
+    }
 
     _cairo_cogl_maybe_log_clip (surface, &extents);
 
@@ -3554,11 +3566,15 @@ _cairo_cogl_surface_stroke (void                       *abstract_surface,
                                            pipelines[1],
                                            prim,
                                            transform);
+
+BAIL:
     /* The journal will take a reference on the primitive... */
     if (new_prim)
 	cogl_object_unref (prim);
 
-    return CAIRO_STATUS_SUCCESS;
+    _cairo_composite_rectangles_fini (&extents);
+
+    return status;
 }
 
 static cairo_cogl_path_fill_meta_t *
@@ -3736,7 +3752,7 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
             /* Just render the unbounded rectangle */
             prim = NULL;
 	} else if (unlikely (status)) {
-	    return status;
+	    goto BAIL;
         } else {
             new_prim = TRUE;
         }
@@ -3756,8 +3772,10 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
                                                     op,
                                                     surface,
                                                     &extents);
-    if (!pipelines[0] && !pipelines[1])
-	return CAIRO_INT_STATUS_UNSUPPORTED;
+    if (!pipelines[0] && !pipelines[1]) {
+        status = CAIRO_INT_STATUS_UNSUPPORTED;
+        goto BAIL;
+    }
 
     _cairo_cogl_maybe_log_clip (surface, &extents);
 
@@ -3772,9 +3790,6 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
                                            pipelines[1],
                                            prim,
                                            transform);
-    /* The journal will take a reference on the prim */
-    if (new_prim)
-	cogl_object_unref (prim);
 #else
     CoglPath * cogl_path = _cairo_cogl_util_path_from_cairo (path, fill_rule, tolerance);
 
@@ -3790,7 +3805,16 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
     cogl_object_unref (cogl_path);
 #endif
 
-    return CAIRO_STATUS_SUCCESS;
+BAIL:
+#ifndef FILL_WITH_COGL_PATH
+    /* The journal will take a reference on the prim */
+    if (new_prim)
+	cogl_object_unref (prim);
+#endif
+
+    _cairo_composite_rectangles_fini (&extents);
+
+    return status;
 }
 
 cairo_int_status_t
@@ -3830,8 +3854,10 @@ _cairo_cogl_surface_fill_rectangle (void		     *abstract_surface,
                                                         op,
                                                         surface,
                                                         &extents);
-        if (!pipelines[0] && !pipelines[1])
-            return CAIRO_INT_STATUS_UNSUPPORTED;
+        if (!pipelines[0] && !pipelines[1]) {
+            status = CAIRO_INT_STATUS_UNSUPPORTED;
+            goto BAIL;
+        }
 
 	_cairo_cogl_log_clip (surface, clip);
 
@@ -3846,7 +3872,10 @@ _cairo_cogl_surface_fill_rectangle (void		     *abstract_surface,
                                                x, y, width, height,
                                                ctm);
 
-	return CAIRO_INT_STATUS_SUCCESS;
+BAIL:
+        _cairo_composite_rectangles_fini (&extents);
+
+	return status;
     } else {
 	return CAIRO_INT_STATUS_UNSUPPORTED;
     }
@@ -4185,7 +4214,7 @@ cairo_cogl_device_create (CoglContext *cogl_context)
     cairo_cogl_device_t *dev = g_new (cairo_cogl_device_t, 1);
     cairo_status_t status;
 
-    dev->cogl_context = cogl_context;
+    dev->cogl_context = cogl_object_ref (cogl_context);
 
     dev->has_npots =
         cogl_has_features (cogl_context,

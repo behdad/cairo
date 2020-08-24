@@ -467,8 +467,6 @@ cairo_vg_sources = cairo-vg-surface.c
 
 cairo_cogl_headers = cairo-cogl.h
 cairo_cogl_private = cairo-cogl-private.h \
-		     cairo-cogl-gradient-private.h \
-		     cairo-cogl-utils-private.h
+		     cairo-cogl-gradient-private.h
 cairo_cogl_sources = cairo-cogl-surface.c \
-		     cairo-cogl-gradient.c \
-		     cairo-cogl-utils.c
+		     cairo-cogl-gradient.c

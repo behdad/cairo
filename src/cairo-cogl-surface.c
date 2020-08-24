@@ -43,7 +43,6 @@
 #include "cairo-cogl-gradient-private.h"
 #include "cairo-arc-private.h"
 #include "cairo-traps-private.h"
-#include "cairo-cogl-utils-private.h"
 #include "cairo-surface-subsurface-inline.h"
 #include "cairo-surface-fallback-private.h"
 #include "cairo-surface-offset-private.h"
@@ -54,8 +53,6 @@
 #include <glib.h>
 
 #define CAIRO_COGL_DEBUG 0
-//#define FILL_WITH_COGL_PATH
-//#define USE_CAIRO_PATH_FLATTENER
 //#define DISABLE_BATCHING
 #define MAX_JOURNAL_SIZE 100
 
@@ -102,7 +99,6 @@ typedef struct _cairo_cogl_pipeline {
 typedef enum _cairo_cogl_journal_entry_type {
     CAIRO_COGL_JOURNAL_ENTRY_TYPE_RECTANGLE,
     CAIRO_COGL_JOURNAL_ENTRY_TYPE_PRIMITIVE,
-    CAIRO_COGL_JOURNAL_ENTRY_TYPE_PATH,
     CAIRO_COGL_JOURNAL_ENTRY_TYPE_CLIP
 } cairo_cogl_journal_entry_type_t;
 
@@ -133,13 +129,6 @@ typedef struct _cairo_cogl_journal_prim_entry {
     CoglPrimitive *primitive;
     cairo_matrix_t transform;
 } cairo_cogl_journal_prim_entry_t;
-
-typedef struct _cairo_cogl_journal_path_entry {
-    cairo_cogl_journal_entry_t base;
-    cairo_cogl_pipeline_t *pipeline;
-
-    CoglPath *path;
-} cairo_cogl_journal_path_entry_t;
 
 typedef struct _cairo_cogl_path_fill_meta {
     cairo_cache_entry_t	base;
@@ -324,19 +313,6 @@ _cairo_cogl_journal_discard (cairo_cogl_surface_t *surface)
 	    entry_size = sizeof (cairo_cogl_journal_prim_entry_t);
 	    break;
 	}
-	case CAIRO_COGL_JOURNAL_ENTRY_TYPE_PATH: {
-	    cairo_cogl_journal_path_entry_t *path_entry =
-		(cairo_cogl_journal_path_entry_t *)entry;
-	    cogl_object_unref (path_entry->pipeline->pipeline);
-	    cogl_object_unref (path_entry->path);
-            if (path_entry->pipeline->has_src_tex_clip)
-                _cairo_path_fixed_fini (&path_entry->pipeline->src_tex_clip);
-            if (path_entry->pipeline->has_mask_tex_clip)
-                _cairo_path_fixed_fini (&path_entry->pipeline->mask_tex_clip);
-            g_free (path_entry->pipeline);
-	    entry_size = sizeof (cairo_cogl_journal_path_entry_t);
-	    break;
-	}
 	default:
 	    assert (0); /* not reached! */
 	    entry_size = 0; /* avoid compiler warning */
@@ -359,39 +335,6 @@ _cairo_cogl_journal_free (cairo_cogl_surface_t *surface)
     g_queue_free (surface->journal);
     surface->journal = NULL;
 }
-
-#ifdef FILL_WITH_COGL_PATH
-static void
-_cairo_cogl_journal_log_path (cairo_cogl_surface_t  *surface,
-			      cairo_cogl_pipeline_t *pipeline,
-			      CoglPath              *path)
-{
-    cairo_cogl_journal_path_entry_t *entry;
-
-    if (unlikely (surface->journal == NULL))
-	surface->journal = g_queue_new ();
-
-    /* FIXME: Instead of a GList here we should stack allocate the journal
-     * entries so it would be cheaper to allocate and they can all be freed in
-     * one go after flushing! */
-    entry = g_slice_new (cairo_cogl_journal_path_entry_t);
-    entry->base.type = CAIRO_COGL_JOURNAL_ENTRY_TYPE_PATH;
-
-    entry->pipeline = pipeline;
-    entry->path = cogl_object_ref (path);
-
-    g_queue_push_tail (surface->journal, entry);
-
-#ifdef DISABLE_BATCHING
-    _cairo_cogl_journal_flush (surface);
-#else
-    /* To avoid consuming too much memory, flush the journal if it gets
-     * to a certain size */
-    if (g_queue_get_length (surface->journal) > MAX_JOURNAL_SIZE)
-        _cairo_cogl_journal_flush (surface);
-#endif /* DISABLE_BATCHING */
-}
-#endif /* FILL_WITH_COGL_PATH */
 
 static void
 _cairo_cogl_journal_log_primitive (cairo_cogl_surface_t  *surface,
@@ -576,14 +519,14 @@ _cairo_cogl_traps_to_triangles_buffer (cairo_cogl_surface_t *surface,
 	CoglVertexP2 *p = &triangles[i * 6];
 	cairo_trapezoid_t *trap = &traps->traps[i];
 
-	p[0].x = _cairo_cogl_util_fixed_to_float (trap->left.p1.x);
-	p[0].y = _cairo_cogl_util_fixed_to_float (trap->left.p1.y);
+	p[0].x = _cairo_fixed_to_double (trap->left.p1.x);
+	p[0].y = _cairo_fixed_to_double (trap->left.p1.y);
 
-	p[1].x = _cairo_cogl_util_fixed_to_float (trap->left.p2.x);
-	p[1].y = _cairo_cogl_util_fixed_to_float (trap->left.p2.y);
+	p[1].x = _cairo_fixed_to_double (trap->left.p2.x);
+	p[1].y = _cairo_fixed_to_double (trap->left.p2.y);
 
-	p[2].x = _cairo_cogl_util_fixed_to_float (trap->right.p2.x);
-	p[2].y = _cairo_cogl_util_fixed_to_float (trap->right.p2.y);
+	p[2].x = _cairo_fixed_to_double (trap->right.p2.x);
+	p[2].y = _cairo_fixed_to_double (trap->right.p2.y);
 
 	p[3].x = p[0].x;
 	p[3].y = p[0].y;
@@ -591,8 +534,8 @@ _cairo_cogl_traps_to_triangles_buffer (cairo_cogl_surface_t *surface,
 	p[4].x = p[2].x;
 	p[4].y = p[2].y;
 
-	p[5].x = _cairo_cogl_util_fixed_to_float (trap->right.p1.x);
-	p[5].y = _cairo_cogl_util_fixed_to_float (trap->right.p1.y);
+	p[5].x = _cairo_fixed_to_double (trap->right.p1.x);
+	p[5].y = _cairo_fixed_to_double (trap->right.p1.y);
     }
 
     if (!one_shot)
@@ -1525,43 +1468,6 @@ _cairo_cogl_journal_flush (cairo_cogl_surface_t *surface)
                                                prim_entry->pipeline);
 
 	    cogl_framebuffer_pop_matrix (surface->framebuffer);
-	    break;
-	}
-	case CAIRO_COGL_JOURNAL_ENTRY_TYPE_PATH: {
-	    cairo_cogl_journal_path_entry_t *path_entry =
-		(cairo_cogl_journal_path_entry_t *)entry;
-            cairo_bool_t needs_vertex_render;
-            CoglPipeline *unbounded_pipeline;
-
-            _cairo_cogl_apply_tex_clips (surface,
-                                         &clip_stack_depth,
-                                         path_entry->pipeline);
-
-            /* Use this until cogl2_path_fill is updated to take
-             * framebuffer and pipeline arguments */
-            cogl_framebuffer_fill_path (surface->framebuffer,
-                                        path_entry->pipeline->pipeline,
-                                        path_entry->path);
-
-            _cairo_cogl_unbounded_render (surface,
-                                          &clip_stack_depth,
-                                          path_entry->pipeline,
-                                          &needs_vertex_render);
-            if (needs_vertex_render) {
-                unbounded_pipeline =
-                    _cairo_cogl_setup_unbounded_area_pipeline (surface,
-                                                               path_entry->pipeline->op);
-                cogl_framebuffer_fill_path (surface->framebuffer,
-                                            unbounded_pipeline,
-                                            path_entry->path);
-                cogl_object_unref (unbounded_pipeline);
-            }
-            _cairo_cogl_post_unbounded_render (surface,
-                                               &clip_stack_depth,
-                                               path_entry->pipeline);
-
-	    cogl_framebuffer_pop_matrix (surface->framebuffer);
-
 	    break;
 	}
 	default:
@@ -3689,7 +3595,6 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
     if (unlikely (status))
 	return status;
 
-#ifndef FILL_WITH_COGL_PATH
     status = _cairo_cogl_fill_to_primitive (surface, path, fill_rule,
                                             tolerance, TRUE, &prim,
                                             &transform);
@@ -3700,7 +3605,6 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
     } else if (unlikely (status)) {
         goto BAIL;
     }
-#endif /* !FILL_WITH_COGL_PATH */
 
     get_source_mask_operator_destination_pipelines (pipelines,
                                                     NULL,
@@ -3716,7 +3620,6 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
 
     _cairo_cogl_maybe_log_clip (surface, &extents);
 
-#ifndef FILL_WITH_COGL_PATH
     if (pipelines[0])
         _cairo_cogl_journal_log_primitive (surface,
                                            pipelines[0],
@@ -3727,20 +3630,6 @@ _cairo_cogl_surface_fill (void			    *abstract_surface,
                                            pipelines[1],
                                            prim,
                                            &transform);
-#else
-    CoglPath * cogl_path = _cairo_cogl_util_path_from_cairo (path, fill_rule, tolerance);
-
-    if (pipelines[0])
-        _cairo_cogl_journal_log_path (surface,
-                                      pipelines[0],
-                                      cogl_path);
-    if (pipelines[1])
-        _cairo_cogl_journal_log_path (surface,
-                                      pipelines[1],
-                                      cogl_path);
-    /* The journal will take a reference on the path */
-    cogl_object_unref (cogl_path);
-#endif
 
 BAIL:
     /* The journal will take a reference on the prim */

@@ -217,7 +217,6 @@ cairo_feature_sources = {
   'cairo-cogl': [
     'cairo-cogl-surface.c',
     'cairo-cogl-gradient.c',
-    'cairo-cogl-utils.c',
   ],
   'cairo-directfb': [
     'cairo-directfb-surface.c',

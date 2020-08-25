@@ -518,10 +518,8 @@ if feature_conf.get('CAIRO_HAS_GL_SURFACE', 0) == 0 and feature_conf.get('CAIRO_
   endif
 endif
 
-# FIXME: Broken for me, depends on experimental API
-# https://gitlab.freedesktop.org/cairo/cairo/-/issues/410
 cogl_dep = dependency('cogl-2.0-experimental', required: get_option('cogl'))
-if cogl_dep.found() and false
+if cogl_dep.found()
   deps += [cogl_dep]
 
   feature_conf.set('CAIRO_HAS_COGL_SURFACE', 1)

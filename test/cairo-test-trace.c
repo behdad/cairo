@@ -79,13 +79,21 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/mman.h>
-#include <sys/poll.h>
 #include <sys/un.h>
 #include <errno.h>
 #include <assert.h>
 #include <unistd.h>
+
 #if CAIRO_HAS_REAL_PTHREAD
 #include <pthread.h>
+#endif
+
+#if defined(HAVE_POLL_H)
+#include <poll.h>
+#elif defined(HAVE_SYS_POLL_H)
+#include <sys/poll.h>
+#else
+#error No poll.h equivalent found
 #endif
 
 #if HAVE_FCFINI

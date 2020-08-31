@@ -44,6 +44,7 @@ check_headers = [
   ['signal.h'],
   ['sys/stat.h'],
   ['sys/socket.h'],
+  ['poll.h'],
   ['sys/poll.h'],
   ['sys/un.h'],
   ['sched.h', {'check-funcs': ['sched_getaffinity']}],

@@ -85,12 +85,17 @@
 #include <fcntl.h>
 #endif
 
-#if HAVE_UNISTD_H && HAVE_SIGNAL_H && HAVE_SYS_STAT_H && HAVE_SYS_SOCKET_H && HAVE_SYS_POLL_H && HAVE_SYS_UN_H
+#if HAVE_UNISTD_H && HAVE_SIGNAL_H && HAVE_SYS_STAT_H && HAVE_SYS_SOCKET_H && (HAVE_POLL_H || HAVE_SYS_POLL_H) && HAVE_SYS_UN_H
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/poll.h>
 #include <sys/un.h>
+
+#if defined(HAVE_POLL_H)
+#include <poll.h>
+#elif defined(HAVE_SYS_POLL_H)
+#include <sys/poll.h>
+#endif
 
 #define SOCKET_PATH "./.any2ppm"
 #define TIMEOUT 60000 /* 60 seconds */

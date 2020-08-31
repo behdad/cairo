@@ -58,8 +58,7 @@ foreach util : cairo_utils
   )
 endforeach
 
-# This is useless and doesn't build on Windows
-if host_machine.system() != 'windows'
+if cc.has_header_symbol('malloc.h', '__malloc_hook')
   libmallocstats = library('malloc-stats', 'malloc-stats.c')
 endif
 

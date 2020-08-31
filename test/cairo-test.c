@@ -1663,11 +1663,13 @@ cairo_test_get_context (cairo_t *cr)
 }
 
 cairo_t *
-cairo_test_create (cairo_surface_t *surface, cairo_test_context_t *ctx)
+cairo_test_create (cairo_surface_t *surface,
+		   const cairo_test_context_t *ctx)
 {
-  cairo_t *cr = cairo_create(surface);
-  cairo_set_user_data(cr, &_cairo_test_context_key, ctx, NULL);
-  return cr;
+    cairo_t *cr = cairo_create (surface);
+    cairo_set_user_data (cr, &_cairo_test_context_key,
+			 (void*) ctx, NULL);
+    return cr;
 }
 
 cairo_surface_t *

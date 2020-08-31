@@ -164,11 +164,13 @@ static cairo_bool_t
 is_running_under_debugger (void)
 {
 #if HAVE_UNISTD_H && HAVE_LIBGEN_H && __linux__
-    char buf[1024];
+    char buf[1024] = { 0 };
+    char buf2[1024] = { 0 };
 
     sprintf (buf, "/proc/%d/exe", getppid ());
-    if (readlink (buf, buf, sizeof (buf)) != -1 &&
-	strncmp (basename (buf), "gdb", 3) == 0)
+    if (readlink (buf, buf2, sizeof (buf2)) != -1 &&
+	buf2[1023] == 0 &&
+	strncmp (basename (buf2), "gdb", 3) == 0)
     {
 	return TRUE;
     }

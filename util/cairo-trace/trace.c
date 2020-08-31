@@ -784,7 +784,7 @@ static cairo_bool_t
 _init_logfile (void)
 {
     static cairo_bool_t initialized;
-    char buf[4096];
+    char buf[4105];
     const char *filename;
     const char *env;
 

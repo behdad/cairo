@@ -2,6 +2,10 @@ cairo_trace_sources = [
   'trace.c',
 ]
 
+if conf.get('CAIRO_HAS_SYMBOL_LOOKUP', 0) == 1
+  cairo_trace_sources += ['lookup-symbol.c']
+endif
+
 shared_lib_ext = libcairo.full_path().split('.')[-1]
 
 libcairotrace = library('cairo-trace', cairo_trace_sources,

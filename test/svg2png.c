@@ -80,9 +80,6 @@ int main (int argc, char *argv[])
     if (status)
 	FAIL (cairo_status_to_string (status));
 
-    if (!rsvg_handle_close (handle, &error))
-	FAIL (error->message);
-
     g_object_unref (handle);
     return 0;
 }

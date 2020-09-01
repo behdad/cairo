@@ -5278,16 +5278,16 @@ _hash_data (const unsigned char *data, int length, uint32_t initval)
 
     c += length;
     switch(len) {
-    case 11: c+= ((uint32_t) data[10] << 24);
-    case 10: c+= ((uint32_t) data[9] << 16);
-    case 9 : c+= ((uint32_t) data[8] << 8);
-    case 8 : b+= ((uint32_t) data[7] << 24);
-    case 7 : b+= ((uint32_t) data[6] << 16);
-    case 6 : b+= ((uint32_t) data[5] << 8);
-    case 5 : b+= data[4];
-    case 4 : a+= ((uint32_t) data[3] << 24);
-    case 3 : a+= ((uint32_t) data[2] << 16);
-    case 2 : a+= ((uint32_t) data[1] << 8);
+    case 11: c+= ((uint32_t) data[10] << 24); /* fall through */
+    case 10: c+= ((uint32_t) data[9] << 16);  /* fall through */
+    case 9 : c+= ((uint32_t) data[8] << 8);   /* fall through */
+    case 8 : b+= ((uint32_t) data[7] << 24);  /* fall through */
+    case 7 : b+= ((uint32_t) data[6] << 16);  /* fall through */
+    case 6 : b+= ((uint32_t) data[5] << 8);   /* fall through */
+    case 5 : b+= data[4];		      /* fall through */
+    case 4 : a+= ((uint32_t) data[3] << 24);  /* fall through */
+    case 3 : a+= ((uint32_t) data[2] << 16);  /* fall through */
+    case 2 : a+= ((uint32_t) data[1] << 8);   /* fall through */
     case 1 : a+= data[0];
     }
     HASH_MIX (a,b,c);
@@ -5309,7 +5309,7 @@ _create_font_subset_tag (cairo_scaled_font_subset_t	*font_subset,
     hash = _hash_data ((unsigned char *) (font_subset->glyphs),
 		       font_subset->num_glyphs * sizeof(unsigned long), hash);
 
-    numerator = abs (hash);
+    numerator = hash;
     for (i = 0; i < 6; i++) {
 	d = ldiv (numerator, 26);
 	numerator = d.quot;

@@ -1369,6 +1369,7 @@ _get_bitmap_surface (FT_Bitmap		     *bitmap,
 	    memcpy (data, bitmap->buffer, stride * height);
 	    break;
 	}
+	/* fall through */
 	/* These could be triggered by very rare types of TrueType fonts */
     default:
 	if (own_buffer)

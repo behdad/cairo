@@ -465,6 +465,7 @@ _csi_ostack_get_matrix (csi_t *ctx, unsigned int i, cairo_matrix_t *out)
 			       csi_number_get_value (&obj->datum.array->stack.objects[5]));
 	    return CSI_STATUS_SUCCESS;
 	}
+	/* else fall through */
     default:
 	return _csi_error (CSI_STATUS_INVALID_SCRIPT);
     }

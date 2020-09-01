@@ -784,7 +784,7 @@ static cairo_bool_t
 _init_logfile (void)
 {
     static cairo_bool_t initialized;
-    char buf[4105];
+    char buf[4096];
     const char *filename;
     const char *env;
 
@@ -836,8 +836,12 @@ _init_logfile (void)
 	if (*name == '\0')
 	    strcpy (name, "cairo-trace.dat");
 
-	snprintf (buf, sizeof (buf), "%s/%s.%d.trace",
-		filename, name, getpid());
+	if (snprintf (buf, sizeof (buf), "%s/%s.%d.trace",
+		      filename, name, getpid()) >= (int) sizeof (buf))
+	{
+	    fprintf (stderr, "cairo-trace: Trace file name too long\n");
+	    return FALSE;
+	}
 
 	filename = buf;
     } else {

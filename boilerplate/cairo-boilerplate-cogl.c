@@ -31,7 +31,6 @@
  */
 
 #include "cairo-boilerplate-private.h"
-#include "cairo-malloc-private.h"
 
 #include <cairo-cogl.h>
 #include <cogl/cogl2-experimental.h>
@@ -81,7 +80,7 @@ _cairo_boilerplate_cogl_create_offscreen_color_surface (const char		*name,
     /* The device will take a reference on the context */
     cogl_object_unref (context);
 
-    closure = _cairo_malloc (sizeof (cogl_closure_t));
+    closure = malloc (sizeof (cogl_closure_t));
     *abstract_closure = closure;
     closure->device = device;
     closure->surface = cairo_cogl_offscreen_surface_create (device,
@@ -152,7 +151,7 @@ _cairo_boilerplate_cogl_create_onscreen_color_surface (const char	       *name,
     /* The device will take a reference on the context */
     cogl_object_unref (context);
 
-    closure = _cairo_malloc (sizeof (cogl_closure_t));
+    closure = malloc (sizeof (cogl_closure_t));
     *abstract_closure = closure;
     closure->device = device;
     closure->surface = cairo_cogl_onscreen_surface_create (device,

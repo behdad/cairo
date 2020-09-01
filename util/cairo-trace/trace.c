@@ -1824,6 +1824,7 @@ _encode_string_literal (char *out, int max,
 	    *out++ = '\\';
 	    *out++ = 'r';
 	    max -= 2;
+	    break;
 	case '\t':
 	    *out++ = '\\';
 	    *out++ = 't';

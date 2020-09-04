@@ -518,7 +518,10 @@ if feature_conf.get('CAIRO_HAS_GL_SURFACE', 0) == 0 and feature_conf.get('CAIRO_
   endif
 endif
 
-cogl_dep = dependency('cogl-2.0-experimental', required: get_option('cogl'))
+cogl_dep = dependency('cogl-2.0-experimental',
+  version: '>= 1.17.2',
+  required: get_option('cogl'),
+)
 if cogl_dep.found()
   deps += [cogl_dep]
 

@@ -2976,7 +2976,7 @@ set_layer_texture_with_attributes (CoglPipeline                    *pipeline,
 }
 
 /* This takes an argument of a pointer to an array of two pointers to
- * cairo_cogl_pipeline_ts. On failure, both pointers will be set to
+ * #cairo_cogl_pipeline_t. On failure, both pointers will be set to
  * NULL */
 static void
 get_source_mask_operator_destination_pipelines (cairo_cogl_pipeline_t       **pipelines,
@@ -3640,7 +3640,7 @@ BAIL:
     return status;
 }
 
-/* Mostly taken from cairo_vg_surface.c */
+/* Mostly taken from #cairo_vg_surface.c */
 /* TODO: implement actual font support, with either cogl-pango's glyph
  * cache or our own */
 static cairo_int_status_t

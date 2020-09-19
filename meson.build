@@ -24,6 +24,18 @@ if cc.get_id() == 'msvc'
                         language : 'c')
 endif
 
+# Make sure source directory hasn't been configured with autotools
+if meson.version().version_compare('>= 0.53')
+  fs = import('fs')
+  if fs.exists('config.h') or fs.exists('src/cairo-features.h') or fs.exists('src/cairo-supported-features.h')
+    error('''
+          The source directory '@0@' appears to contain
+          autotools configuration artifacts. This can cause difficult to
+          debug build problems. Please clean it up and then re-run meson.
+          '''.format(meson.source_root()))
+  endif
+endif
+
 pkgmod = import('pkgconfig')
 python3 = import('python').find_installation()
 

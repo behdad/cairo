@@ -56,6 +56,7 @@ EXTRA_DIST += \
 EXTRA_DIST += \
 	meson.build \
 	meson_options.txt \
+	version.py \
 	boilerplate/make-cairo-boilerplate-constructors.py \
 	boilerplate/meson.build \
 	src/meson.build \

@@ -1,6 +1,6 @@
 project('cairo', 'c', 'cpp',
   meson_version: '>= 0.54.0',
-  version: '1.17.3',
+  version: run_command(find_program('version.py'), check: true).stdout().strip(),
 )
 
 cc = meson.get_compiler('c')

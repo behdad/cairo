@@ -933,8 +933,6 @@ foreach feature: built_features
   )
 endforeach
 
-install_headers('cairo-version.h', subdir: 'cairo')
-
 # summary
 if meson.version().version_compare('>= 0.53')
   summary({

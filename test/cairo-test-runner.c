@@ -26,13 +26,6 @@
 #include "cairo-test-private.h"
 #include "cairo-boilerplate-getopt.h"
 
-/* get the "real" version info instead of dummy cairo-version.h */
-#undef CAIRO_VERSION_H
-#undef CAIRO_VERSION_MAJOR
-#undef CAIRO_VERSION_MINOR
-#undef CAIRO_VERSION_MICRO
-#include "../cairo-version.h"
-
 #include <pixman.h> /* for version information */
 
 #define SHOULD_FORK HAVE_FORK && HAVE_WAITPID

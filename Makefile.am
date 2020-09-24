@@ -23,8 +23,6 @@ if CAIRO_HAS_PNG_FUNCTIONS
 SUBDIRS += boilerplate test perf
 endif
 
-configure: cairo-version.h
-
 doc:
 	cd doc && $(MAKE) $(AM_MAKEFLAGS) $@
 test retest recheck: all
@@ -52,7 +50,6 @@ EXTRA_DIST += \
 	README \
 	RELEASING \
 	autogen.sh \
-	cairo-version.h \
 	$(NULL)
 
 # Meson build system files

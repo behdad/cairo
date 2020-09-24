@@ -119,6 +119,7 @@ cairo_sources = [
 
 cairo_headers = [
   'cairo.h',
+  'cairo-version.h',
   'cairo-deprecated.h',
 ]
 

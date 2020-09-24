@@ -30,8 +30,6 @@
 
 #define _GNU_SOURCE 1	/* for sched_getaffinity() and getline() */
 
-#include "../cairo-version.h" /* for the real version */
-
 #include "cairo-missing.h"
 #include "cairo-perf.h"
 #include "cairo-stats.h"

@@ -106,7 +106,7 @@ Here are the steps to follow to create a new cairo release:
 
 		https://cairographics.org/releases/ChangeLog.cairo-${THIS_RELEASE}
 
-4) Increment cairo_version_{minor|micro} in cairo-version.h:
+4) Increment cairo_version_{minor|micro} in src/cairo-version.h:
 
 	If there are backward-incompatible changes in the API, stop
 	now and don't release. Go back and fix the API instead. Cairo
@@ -131,7 +131,7 @@ Here are the steps to follow to create a new cairo release:
 	  <title>Index of new symbols in X.Y</title>
 	</index>
 
-6) Commit the changes to NEWS and cairo-version.h
+6) Commit the changes to NEWS and src/cairo-version.h
 
 	It's especially important to mention the new version number in your
 	commit log.
@@ -186,7 +186,7 @@ Here are the steps to follow to create a new cairo release:
 9) Update master (or the stable branch) version number.
 
 	For Micro releases (X.Y.Z+2), increment cairo_version_micro to
-	the next larger (odd) number in cairo-version.h, commit, and
+	the next larger (odd) number in src/cairo-version.h, commit, and
 	push.
 
 		DEVEL_VERSION="X.Y.Z+1"  # e.g. 1.15.10 -> 1.15.11
@@ -197,7 +197,7 @@ Here are the steps to follow to create a new cairo release:
 
 	       DEVEL_VERSION="X.Y.Z+1"  # e.g. 1.16.0 -> 1.17.1
 
-	git commit cairo-version.h -m "Bump version for ${DEVEL_VERSION}"
+	git commit src/cairo-version.h -m "Bump version for ${DEVEL_VERSION}"
 
 10) Send out an announcement message.
 

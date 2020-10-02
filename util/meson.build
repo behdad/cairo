@@ -58,7 +58,7 @@ foreach util : cairo_utils
   )
 endforeach
 
-if cc.has_header_symbol('malloc.h', '__malloc_hook')
+if cc.has_header_symbol('malloc.h', '__malloc_hook') and cc.has_header('execinfo.h')
   libmallocstats = library('malloc-stats', 'malloc-stats.c')
 endif
 

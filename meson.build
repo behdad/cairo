@@ -179,43 +179,6 @@ if png_dep.found()
   endif
 endif
 
-freetype_dep = dependency('freetype2',
-  required: get_option('freetype'),
-  version: freetype_required_version,
-  fallback: ['freetype2', 'freetype_dep'],
-)
-if freetype_dep.found()
-  feature_conf.set('CAIRO_HAS_FT_FONT', 1)
-  built_features += [{
-    'name': 'cairo-ft',
-    'description': 'Freetype font backend',
-    'deps': [freetype_dep],
-  }]
-
-  ft_check_funcs = [
-    'FT_Get_X11_Font_Format',
-    'FT_GlyphSlot_Embolden',
-    'FT_GlyphSlot_Oblique',
-    'FT_Load_Sfnt_Table',
-    'FT_Library_SetLcdFilter',
-    'FT_Get_Var_Design_Coordinates',
-    'FT_Done_MM_Var',
-  ]
-
-  if freetype_dep.type_name() == 'internal'
-    foreach func : ft_check_funcs
-      conf.set('HAVE_@0@'.format(func.to_upper()), 1)
-    endforeach
-    internal_deps += [freetype_dep]
-  else
-    if not cc.links(files('meson-cc-tests/ft_has_color.c'), dependencies: freetype_dep, name: 'FT has color')
-      conf.set('FT_HAS_COLOR', '(0)')
-    endif
-    check_funcs += ft_check_funcs
-    deps += [freetype_dep]
-  endif
-endif
-
 fontconfig_dep = dependency('fontconfig',
   required: get_option('fontconfig'),
   version: fontconfig_required_version,
@@ -243,6 +206,45 @@ if fontconfig_dep.found()
     'description': 'Fontconfig font backend',
     'deps': [fontconfig_dep],
   }]
+endif
+
+freetype_dep = dependency('freetype2',
+  required: get_option('freetype'),
+  version: freetype_required_version,
+  fallback: ['freetype2', 'freetype_dep'],
+)
+if freetype_dep.found()
+  feature_conf.set('CAIRO_HAS_FT_FONT', 1)
+  built_features += [{
+    'name': 'cairo-ft',
+    'description': 'Freetype font backend',
+    'deps': [freetype_dep],
+    # cairo-ft.h includes fontconfig.h so it needs its cflags
+    'compile-deps': [fontconfig_dep.partial_dependency(compile_args: true, includes: true)],
+  }]
+
+  ft_check_funcs = [
+    'FT_Get_X11_Font_Format',
+    'FT_GlyphSlot_Embolden',
+    'FT_GlyphSlot_Oblique',
+    'FT_Load_Sfnt_Table',
+    'FT_Library_SetLcdFilter',
+    'FT_Get_Var_Design_Coordinates',
+    'FT_Done_MM_Var',
+  ]
+
+  if freetype_dep.type_name() == 'internal'
+    foreach func : ft_check_funcs
+      conf.set('HAVE_@0@'.format(func.to_upper()), 1)
+    endforeach
+    internal_deps += [freetype_dep]
+  else
+    if not cc.links(files('meson-cc-tests/ft_has_color.c'), dependencies: freetype_dep, name: 'FT has color')
+      conf.set('FT_HAS_COLOR', '(0)')
+    endif
+    check_funcs += ft_check_funcs
+    deps += [freetype_dep]
+  endif
 endif
 
 x11_dep = dependency('x11', required: get_option('xlib'))
@@ -865,13 +867,14 @@ configure_file(output: 'config.h', configuration: conf)
 foreach feature: built_features
   feature_deps = feature.get('deps', [])
   feature_libs = feature.get('libs', [])
+  feature_compile_deps = feature.get('compile-deps', [])
   pkgmod.generate(libraries: [libcairo] + feature_deps + feature_libs,
     name: feature['name'],
     description: feature['description'] + ' for cairo graphics library',
   )
   meson.override_dependency(feature['name'],
     declare_dependency(link_with: libcairo,
-      dependencies: feature_deps,
+      dependencies: feature_deps + feature_compile_deps,
       link_args: feature_libs,
     )
   )

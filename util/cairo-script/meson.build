@@ -38,7 +38,16 @@ libcairoscript = library('cairo-script-interpreter',
 inccairoscript = include_directories('.')
 
 libcairoscript_dep = declare_dependency(link_with: libcairoscript,
-  include_directories: [incbase, inccairoscript])
+  include_directories: [inccairoscript],
+  dependencies: libcairo_dep)
+
+pkgmod.generate(libcairoscript,
+  libraries: [libcairo],
+  description: 'script surface backend for cairo graphics library',
+  subdirs: [meson.project_name()],
+)
+
+meson.override_dependency('cairo-script-interpreter', libcairoscript_dep)
 
 csi_replay_exe = executable('csi-replay', csi_replay_sources,
   c_args: ['-DHAVE_CONFIG_H'],

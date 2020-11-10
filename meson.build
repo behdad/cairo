@@ -154,7 +154,7 @@ endif
 
 png_dep = dependency('libpng',
   required: get_option('png'),
-  fallback: ['libpng', 'png_dep']
+  fallback: ['libpng', 'libpng_dep']
 )
 if png_dep.found()
   feature_conf.set('CAIRO_HAS_SVG_SURFACE', 1)

@@ -1642,6 +1642,10 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t      *document,
 				     extents.height);
     }
 
+    if (source->base.content == CAIRO_CONTENT_ALPHA) {
+	_cairo_svg_surface_emit_alpha_filter (document);
+    }
+
     _cairo_output_stream_printf (document->xml_node_defs,
 				 "<g id=\"surface%d\"",
 				 source_id);
@@ -1653,7 +1657,6 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t      *document,
     }
 
     if (source->base.content == CAIRO_CONTENT_ALPHA) {
-	_cairo_svg_surface_emit_alpha_filter (document);
 	_cairo_output_stream_printf (document->xml_node_defs,
 				     " filter=\"url(#alpha)\"");
     }

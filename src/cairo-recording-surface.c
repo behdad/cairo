@@ -613,6 +613,8 @@ _cairo_recording_surface_acquire_source_image (void			 *abstract_surface,
     if (unlikely (image->status))
 	return image->status;
 
+    cairo_surface_set_device_offset(image, -surface->extents.x, -surface->extents.y);
+
     /* Handle recursion by returning future reads from the current image */
     proxy = attach_proxy (abstract_surface, image);
     status = _cairo_recording_surface_replay (&surface->base, image);
@@ -1592,6 +1594,8 @@ _cairo_recording_surface_snapshot (void *abstract_other)
     surface->extents_pixels = other->extents_pixels;
     surface->extents = other->extents;
     surface->unbounded = other->unbounded;
+    surface->has_bilevel_alpha = other->has_bilevel_alpha;
+    surface->has_only_op_over = other->has_only_op_over;
 
     surface->base.is_clear = other->base.is_clear;
 

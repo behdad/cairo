@@ -110,8 +110,12 @@ fedora meson build:
     - '.fdo.distribution-image@fedora'
     - '.ccache_setup'
   stage: 'test'
+  variables:
+    MESON_ARGS: >
+      ${DEFAULT_MESON_ARGS}
+      -Dgl-backend=gl
   script:
-    - meson builddir
+    - meson builddir ${MESON_ARGS}
     - ninja -C builddir
     # - ninja -C builddir test
     - ninja -C builddir install

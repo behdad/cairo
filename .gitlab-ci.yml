@@ -15,6 +15,9 @@ variables:
 
   DEFAULT_MESON_ARGS: >
     --default-library=both
+    -Dgl-backend=auto
+    -Dglesv2=auto
+    -Dglesv2=auto
 
 stages:
   - prep

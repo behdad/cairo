@@ -5,11 +5,11 @@ option('freetype', type : 'feature', value : 'auto')
 # Cairo surface backends
 option('cogl', type : 'feature', value : 'disabled')
 option('directfb', type : 'feature', value : 'disabled')
-option('gl-backend', type : 'combo', value : 'auto',
+option('gl-backend', type : 'combo', value : 'disabled',
        # FIXME: https://github.com/mesonbuild/meson/issues/4566
        choices : ['auto', 'gl', 'glesv2', 'glesv3', 'disabled'])
-option('glesv2', type : 'feature', value : 'auto')
-option('glesv3', type : 'feature', value : 'auto')
+option('glesv2', type : 'feature', value : 'disabled')
+option('glesv3', type : 'feature', value : 'disabled')
 option('drm', type : 'feature', value : 'disabled')
 option('openvg', type : 'feature', value : 'disabled')
 option('png', type : 'feature', value : 'auto') # png and svg surfaces

@@ -2207,6 +2207,7 @@ _cairo_pdf_surface_finish (void *abstract_surface)
     cairo_pdf_resource_t catalog;
     cairo_status_t status, status2;
     int size, i;
+    cairo_pdf_source_surface_t doc_surface;
     cairo_pdf_jbig2_global_t *global;
     char *label;
 
@@ -2287,6 +2288,12 @@ _cairo_pdf_surface_finish (void *abstract_surface)
     _cairo_array_fini (&surface->alpha_linear_functions);
     _cairo_array_fini (&surface->page_patterns);
     _cairo_array_fini (&surface->page_surfaces);
+
+    size = _cairo_array_num_elements (&surface->doc_surfaces);
+    for (i = 0; i < size; i++) {
+	_cairo_array_copy_element (&surface->doc_surfaces, i, &doc_surface);
+	cairo_surface_destroy (doc_surface.surface);
+    }
     _cairo_array_fini (&surface->doc_surfaces);
     _cairo_hash_table_foreach (surface->all_surfaces,
 			       _cairo_pdf_source_surface_entry_pluck,

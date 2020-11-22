@@ -17,7 +17,7 @@ variables:
     --default-library=both
     -Dgl-backend=auto
     -Dglesv2=auto
-    -Dglesv2=auto
+    -Dglesv3=auto
 
 stages:
   - prep

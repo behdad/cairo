@@ -1,3 +1,43 @@
+Release 1.17.4 (2020-11-27 Bryce Harrington <bryce@bryceharrington.org>)
+========================================================================
+
+Thank you to the many people who have contributed the large number of
+bug fixes and refinements since 1.17.2.
+
+A particularly noteworthy improvement in this release is the addition of
+the meson build system as an alternative to autotools.  Autotools is
+still used for producing the releases, so will be the default in the
+tarball and presumably will still be preferred by distro packagers of
+Cairo.  It should be possible to build the release tarball using meson,
+but as this is new functionality consider it still a work in progress.
+The meson configuration has striven to track the autotools
+implementation but be aware there may still be some differences between
+the two.
+
+Continuous Integration configurations have been added that enable
+testing on a variety of platforms including Fedora, Windows MSVC, etc.
+This work has helped in identifying updates and fixes including
+adjusting to changes in API calls in dependencies like rsvg and
+fontconfig, and to fix platform-specific build issues.
+
+The cogl Cairo backend underwent significant development this cycle.
+Cogl provides GPU accelerated drawing support.  The development work
+includes implementation of core functionality, performance
+optimizations, and stabilization.
+
+Subpixel positioning support allows improved glyph outlines with the
+Freetype font backend.
+
+For a complete log of changes, please see
+
+    https://cairographics.org/releases/ChangeLog.1.17.4
+
+[On a personal note, this will be my last release for Cairo.  My Cairo
+time availability has been non-existent (particularly this crazy past
+year).  The release process is well documented and hopefully will help
+whomever picks up the baton from here.]
+
+
 Release 1.17.2 (2019-01-31 Bryce Harrington <bryce@bryceharrington.org>)
 ========================================================================
 This snapshot provides the new support for writing floating point

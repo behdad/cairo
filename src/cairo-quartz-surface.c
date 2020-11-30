@@ -2273,11 +2273,13 @@ _cairo_quartz_surface_create_internal (CGContextRef cgContext,
     surface->extents.width = width;
     surface->extents.height = height;
     surface->virtual_extents = surface->extents;
+    surface->imageData = NULL;
+    surface->imageSurfaceEquiv = NULL;
+
 
     if (IS_EMPTY (surface)) {
 	surface->cgContext = NULL;
 	surface->cgContextBaseCTM = CGAffineTransformIdentity;
-	surface->imageData = NULL;
 	surface->base.is_clear = TRUE;
 	return surface;
     }
@@ -2289,9 +2291,6 @@ _cairo_quartz_surface_create_internal (CGContextRef cgContext,
 
     surface->cgContext = cgContext;
     surface->cgContextBaseCTM = CGContextGetCTM (cgContext);
-
-    surface->imageData = NULL;
-    surface->imageSurfaceEquiv = NULL;
 
     return surface;
 }

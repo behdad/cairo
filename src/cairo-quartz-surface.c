@@ -784,6 +784,7 @@ typedef struct {
     cairo_surface_t *surface;
     cairo_image_surface_t *image_out;
     void *image_extra;
+    void *image_data;
 } quartz_source_image_t;
 
 static void
@@ -791,6 +792,8 @@ DataProviderReleaseCallback (void *info, const void *data, size_t size)
 {
     quartz_source_image_t *source_img = info;
     _cairo_surface_release_source_image (source_img->surface, source_img->image_out, source_img->image_extra);
+    cairo_surface_destroy (source_img->surface);
+    free (source_img->image_data);
     free (source_img);
 }
 
@@ -830,7 +833,7 @@ _cairo_surface_to_cgimage (cairo_surface_t       *source,
     if (unlikely (source_img == NULL))
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
-    source_img->surface = source;
+    source_img->surface = _cairo_surface_snapshot (source);
 
     if (source->type == CAIRO_SURFACE_TYPE_RECORDING) {
 	image_surface = (cairo_image_surface_t *)
@@ -853,7 +856,7 @@ _cairo_surface_to_cgimage (cairo_surface_t       *source,
 	}
 
 	source_img->image_out = image_surface;
-	source_img->image_extra = NULL;
+	source_img->image_data = NULL;
 
 	cairo_matrix_init_identity (matrix);
     }
@@ -867,6 +870,12 @@ _cairo_surface_to_cgimage (cairo_surface_t       *source,
 	}
     }
 
+    source_img->image_data = malloc (source_img->image_out->height * source_img->image_out->stride);
+    if (unlikely (!source_img->image_data))
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    memcpy (source_img->image_data, source_img->image_out->data,
+	    source_img->image_out->height * source_img->image_out->stride);
     if (source_img->image_out->width == 0 || source_img->image_out->height == 0) {
 	*image_out = NULL;
 	DataProviderReleaseCallback (source_img,
@@ -877,7 +886,7 @@ _cairo_surface_to_cgimage (cairo_surface_t       *source,
 					       source_img->image_out->width,
 					       source_img->image_out->height,
 					       source_img->image_out->stride,
-					       source_img->image_out->data,
+					       source_img->image_data,
 					       TRUE,
 					       NULL,
 					       DataProviderReleaseCallback,

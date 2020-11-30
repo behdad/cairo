@@ -49,11 +49,18 @@
 #define SURFACE_ERROR_INVALID_SIZE (_cairo_surface_create_in_error(_cairo_error(CAIRO_STATUS_INVALID_SIZE)))
 #define SURFACE_ERROR_INVALID_FORMAT (_cairo_surface_create_in_error(_cairo_error(CAIRO_STATUS_INVALID_FORMAT)))
 
+typedef struct {
+    cairo_surface_t *surface;
+    void *image_data;
+} quartz_image_info_t;
+
 static void
 DataProviderReleaseCallback (void *info, const void *data, size_t size)
 {
-    cairo_surface_t *surface = (cairo_surface_t *) info;
-    cairo_surface_destroy (surface);
+    quartz_image_info_t *image_info = (quartz_image_info_t *) info;
+    cairo_surface_destroy (image_info->surface);
+    free (image_info->image_data);
+    free (image_info);
 }
 
 static cairo_surface_t *
@@ -147,24 +154,35 @@ _cairo_quartz_image_surface_flush (void *asurface,
     cairo_quartz_image_surface_t *surface = (cairo_quartz_image_surface_t *) asurface;
     CGImageRef oldImage = surface->image;
     CGImageRef newImage = NULL;
+    quartz_image_info_t *image_info;
 
     if (flags)
 	return CAIRO_STATUS_SUCCESS;
 
     /* XXX only flush if the image has been modified. */
 
-    /* To be released by the ReleaseCallback */
-    cairo_surface_reference ((cairo_surface_t*) surface->imageSurface);
+    image_info = _cairo_malloc (sizeof (quartz_image_info_t));
+    if (unlikely (!image_info))
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    image_info->surface = _cairo_surface_snapshot ((cairo_surface_t*)surface->imageSurface);
+    image_info->image_data = _cairo_malloc_ab (surface->imageSurface->height,
+					       surface->imageSurface->stride);
+    if (unlikely (!image_info->image_data))
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    memcpy (image_info->image_data, surface->imageSurface->data,
+	    surface->imageSurface->height * surface->imageSurface->stride);
 
     newImage = CairoQuartzCreateCGImage (surface->imageSurface->format,
 					 surface->imageSurface->width,
 					 surface->imageSurface->height,
 					 surface->imageSurface->stride,
-					 surface->imageSurface->data,
+					 image_info->image_data,
 					 TRUE,
 					 NULL,
 					 DataProviderReleaseCallback,
-					 surface->imageSurface);
+					 image_info);
 
     surface->image = newImage;
     CGImageRelease (oldImage);
@@ -309,6 +327,7 @@ cairo_quartz_image_surface_create (cairo_surface_t *surface)
     int width, height, stride;
     cairo_format_t format;
     unsigned char *data;
+    quartz_image_info_t *image_info;
 
     if (surface->status)
 	return surface;
@@ -338,20 +357,24 @@ cairo_quartz_image_surface_create (cairo_surface_t *surface)
 
     memset (qisurf, 0, sizeof(cairo_quartz_image_surface_t));
 
-    /* In case the create_cgimage fails, this ref will
-     * be released via the callback (which will be called in
-     * case of failure.)
-     */
-    cairo_surface_reference (surface);
+    image_info = _cairo_malloc (sizeof (quartz_image_info_t));
+    if (unlikely (!image_info))
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
+    image_info->surface = _cairo_surface_snapshot (surface);
+    image_info->image_data = _cairo_malloc_ab (height, stride);
+    if (unlikely (!image_info->image_data))
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+    memcpy (image_info->image_data, data, height * stride);
     image = CairoQuartzCreateCGImage (format,
 				      width, height,
 				      stride,
-				      data,
+				      image_info->image_data,
 				      TRUE,
 				      NULL,
 				      DataProviderReleaseCallback,
-				      image_surface);
+				      image_info);
 
     if (!image) {
 	free (qisurf);

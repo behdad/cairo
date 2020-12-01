@@ -778,23 +778,10 @@ CairoQuartzCreateGradientFunction (const cairo_gradient_pattern_t *gradient,
 			     &gradient_callbacks);
 }
 
-/* Obtain a CGImageRef from a #cairo_surface_t * */
-
-typedef struct {
-    cairo_surface_t *surface;
-    cairo_image_surface_t *image_out;
-    void *image_extra;
-    void *image_data;
-} quartz_source_image_t;
-
 static void
 DataProviderReleaseCallback (void *info, const void *data, size_t size)
 {
-    quartz_source_image_t *source_img = info;
-    _cairo_surface_release_source_image (source_img->surface, source_img->image_out, source_img->image_extra);
-    cairo_surface_destroy (source_img->surface);
-    free (source_img->image_data);
-    free (source_img);
+    free (info);
 }
 
 static cairo_status_t
@@ -806,8 +793,8 @@ _cairo_surface_to_cgimage (cairo_surface_t       *source,
 			   CGImageRef            *image_out)
 {
     cairo_status_t status;
-    quartz_source_image_t *source_img;
     cairo_image_surface_t *image_surface;
+    void *image_data, *image_extra;
 
     if (source->backend && source->backend->type == CAIRO_SURFACE_TYPE_QUARTZ_IMAGE) {
 	cairo_quartz_image_surface_t *surface = (cairo_quartz_image_surface_t *) source;
@@ -829,19 +816,12 @@ _cairo_surface_to_cgimage (cairo_surface_t       *source,
 	}
     }
 
-    source_img = _cairo_malloc (sizeof (quartz_source_image_t));
-    if (unlikely (source_img == NULL))
-	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
-
-    source_img->surface = _cairo_surface_snapshot (source);
-
     if (source->type == CAIRO_SURFACE_TYPE_RECORDING) {
 	image_surface = (cairo_image_surface_t *)
 	    cairo_image_surface_create (format, extents->width, extents->height);
 	if (unlikely (image_surface->base.status)) {
 	    status = image_surface->base.status;
 	    cairo_surface_destroy (&image_surface->base);
-	    free (source_img);
 	    return status;
 	}
 
@@ -851,51 +831,43 @@ _cairo_surface_to_cgimage (cairo_surface_t       *source,
 							    NULL);
 	if (unlikely (status)) {
 	    cairo_surface_destroy (&image_surface->base);
-	    free (source_img);
 	    return status;
 	}
-
-	source_img->image_out = image_surface;
-	source_img->image_data = NULL;
 
 	cairo_matrix_init_identity (matrix);
     }
     else {
-	status = _cairo_surface_acquire_source_image (source_img->surface,
-						      &source_img->image_out,
-						      &source_img->image_extra);
-	if (unlikely (status)) {
-	    free (source_img);
+	status = _cairo_surface_acquire_source_image (source, &image_surface,
+						      &image_extra);
+	if (unlikely (status))
 	    return status;
-	}
     }
 
-    source_img->image_data = malloc (source_img->image_out->height * source_img->image_out->stride);
-    if (unlikely (!source_img->image_data))
+    image_data = _cairo_malloc_ab (image_surface->height, image_surface->stride);
+    if (unlikely (!image_data))
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
-    memcpy (source_img->image_data, source_img->image_out->data,
-	    source_img->image_out->height * source_img->image_out->stride);
-    if (source_img->image_out->width == 0 || source_img->image_out->height == 0) {
+    memcpy (image_data, image_surface->data,
+	    image_surface->height * image_surface->stride);
+    if (image_surface->width == 0 || image_surface->height == 0) {
 	*image_out = NULL;
-	DataProviderReleaseCallback (source_img,
-				     source_img->image_out->data,
-				     source_img->image_out->height * source_img->image_out->stride);
+	DataProviderReleaseCallback (image_data, image_data, 0);
     } else {
-	*image_out = CairoQuartzCreateCGImage (source_img->image_out->format,
-					       source_img->image_out->width,
-					       source_img->image_out->height,
-					       source_img->image_out->stride,
-					       source_img->image_data,
+	*image_out = CairoQuartzCreateCGImage (image_surface->format,
+					       image_surface->width,
+					       image_surface->height,
+					       image_surface->stride,
+					       image_data,
 					       TRUE,
 					       NULL,
 					       DataProviderReleaseCallback,
-					       source_img);
+					       image_data);
 
 	/* TODO: differentiate memory error and unsupported surface type */
 	if (unlikely (*image_out == NULL))
 	    status = CAIRO_INT_STATUS_UNSUPPORTED;
     }
+    _cairo_surface_release_source_image (source, image_surface, image_extra);
 
     return status;
 }

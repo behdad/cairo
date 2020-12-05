@@ -276,6 +276,7 @@ _cairo_boilerplate_xcb_create_surface (const char		 *name,
     xtc->c = c = xcb_connect(NULL,NULL);
     if (c == NULL || xcb_connection_has_error(c)) {
 	free (xtc);
+	free (info);
 	return NULL;
     }
 
@@ -309,12 +310,17 @@ _cairo_boilerplate_xcb_create_surface (const char		 *name,
     if (xcb_request_check (c, cookie) != NULL) {
 	xcb_disconnect (c);
 	free (xtc);
+	free (info);
 	return NULL;
     }
 
     info->formats = xcb_render_query_pict_formats_reply (c, formats_cookie, 0);
-    if (info->formats == NULL)
+    if (info->formats == NULL) {
+	xcb_disconnect (c);
+	free (xtc);
+	free (info);
 	return NULL;
+    }
 
     for (i = xcb_render_query_pict_formats_formats_iterator (info->formats);
 	 i.rem;

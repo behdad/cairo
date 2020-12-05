@@ -795,6 +795,7 @@ _cairo_surface_to_cgimage (cairo_surface_t       *source,
     cairo_status_t status;
     cairo_image_surface_t *image_surface;
     void *image_data, *image_extra;
+    cairo_bool_t acquired = FALSE;
 
     if (source->backend && source->backend->type == CAIRO_SURFACE_TYPE_QUARTZ_IMAGE) {
 	cairo_quartz_image_surface_t *surface = (cairo_quartz_image_surface_t *) source;
@@ -841,33 +842,50 @@ _cairo_surface_to_cgimage (cairo_surface_t       *source,
 						      &image_extra);
 	if (unlikely (status))
 	    return status;
+	acquired = TRUE;
+    }
+
+    if (image_surface->width == 0 || image_surface->height == 0) {
+	*image_out = NULL;
+	if (acquired)
+	    _cairo_surface_release_source_image (source, image_surface, image_extra);
+	else
+	    cairo_surface_destroy (&image_surface->base);
+
+	return status;
     }
 
     image_data = _cairo_malloc_ab (image_surface->height, image_surface->stride);
     if (unlikely (!image_data))
+    {
+	if (acquired)
+	    _cairo_surface_release_source_image (source, image_surface, image_extra);
+	else
+	    cairo_surface_destroy (&image_surface->base);
+
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+    }
 
     memcpy (image_data, image_surface->data,
 	    image_surface->height * image_surface->stride);
-    if (image_surface->width == 0 || image_surface->height == 0) {
-	*image_out = NULL;
-	DataProviderReleaseCallback (image_data, image_data, 0);
-    } else {
-	*image_out = CairoQuartzCreateCGImage (image_surface->format,
-					       image_surface->width,
-					       image_surface->height,
-					       image_surface->stride,
-					       image_data,
-					       TRUE,
-					       NULL,
-					       DataProviderReleaseCallback,
-					       image_data);
+    *image_out = CairoQuartzCreateCGImage (image_surface->format,
+					   image_surface->width,
+					   image_surface->height,
+					   image_surface->stride,
+					   image_data,
+					   TRUE,
+					   NULL,
+					   DataProviderReleaseCallback,
+					   image_data);
 
-	/* TODO: differentiate memory error and unsupported surface type */
-	if (unlikely (*image_out == NULL))
-	    status = CAIRO_INT_STATUS_UNSUPPORTED;
-    }
-    _cairo_surface_release_source_image (source, image_surface, image_extra);
+    /* TODO: differentiate memory error and unsupported surface type */
+    if (unlikely (*image_out == NULL))
+	status = CAIRO_INT_STATUS_UNSUPPORTED;
+
+    if (acquired)
+	_cairo_surface_release_source_image (source, image_surface, image_extra);
+    else
+	cairo_surface_destroy (&image_surface->base);
 
     return status;
 }

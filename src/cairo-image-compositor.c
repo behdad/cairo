@@ -2610,14 +2610,14 @@ _inplace_src_spans (void *abstract_renderer, int y, int h,
 		    unsigned num_spans)
 {
     cairo_image_span_renderer_t *r = abstract_renderer;
-    uint8_t *m;
+    uint8_t *m, *base = (uint8_t*)pixman_image_get_data(r->mask);
     int x0;
 
     if (num_spans == 0)
 	return CAIRO_STATUS_SUCCESS;
 
     x0 = spans[0].x;
-    m = r->_buf;
+    m = base;
     do {
 	int len = spans[1].x - spans[0].x;
 	if (len >= r->u.composite.run_length && spans[0].coverage == 0xff) {
@@ -2655,7 +2655,7 @@ _inplace_src_spans (void *abstract_renderer, int y, int h,
 				      spans[0].x, y,
 				      spans[1].x - spans[0].x, h);
 
-	    m = r->_buf;
+	    m = base;
 	    x0 = spans[1].x;
 	} else if (spans[0].coverage == 0x0) {
 	    if (spans[0].x != x0) {
@@ -2684,7 +2684,7 @@ _inplace_src_spans (void *abstract_renderer, int y, int h,
 #endif
 	    }
 
-	    m = r->_buf;
+	    m = base;
 	    x0 = spans[1].x;
 	} else {
 	    *m++ = spans[0].coverage;

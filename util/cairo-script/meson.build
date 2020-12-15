@@ -30,8 +30,8 @@ libcairoscript = library('cairo-script-interpreter',
   include_directories: [incbase, incsrc],
   dependencies: deps,
   link_with: [libcairo],
-  soversion: '2',
-  version: '2.' + ''.join(meson.project_version().split('.')) + '.0',
+  soversion: cairo_version_sonum,
+  version: cairo_libversion,
   install: true,
 )
 

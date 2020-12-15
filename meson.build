@@ -3,8 +3,6 @@ project('cairo', 'c', 'cpp',
   version: run_command(find_program('version.py'), check: true).stdout().strip(),
 )
 
-cc = meson.get_compiler('c')
-
 # Keep in sync with configure.ac!
 freetype_required_version = '>= 9.7.3'
 fontconfig_required_version = '>= 2.2.95'
@@ -15,6 +13,27 @@ qtgui_required_version = '>= 4.4.0'
 libudev_required_version = '>= 136'
 libdrm_required_version = '>= 2.4'
 glib_required_version = '>= 2.14'
+
+# library versioning
+version_arr = meson.project_version().split('.')
+cairo_version_major = version_arr[0].to_int()
+cairo_version_minor = version_arr[1].to_int()
+cairo_version_micro = version_arr[2].to_int()
+
+# The libtool shared library version stuff.
+# Try and maintain compatibility with the previous library versioning.
+cairo_version_sonum = cairo_version_major + 1
+cairo_version =  cairo_version_major * 10000 + cairo_version_minor * 100 + cairo_version_micro
+
+if cairo_version_minor % 2 == 1
+  # unstable release
+  cairo_libversion = '@0@.@1@.0'.format(cairo_version_sonum, cairo_version)
+else
+  # stable release
+  cairo_libversion = '@0@.@1@.@2@'.format(cairo_version_sonum, cairo_version, cairo_version_micro)
+endif
+
+cc = meson.get_compiler('c')
 
 if cc.get_id() == 'msvc'
   # Basic usage in the cairo type system that causes spammy and useless warnings

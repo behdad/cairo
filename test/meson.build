@@ -26,6 +26,7 @@ test_sources = [
   'bilevel-image.c',
   'bug-40410.c',
   'bug-51910.c',
+  'bug-75705.c',
   'bug-84115.c',
   'bug-bo-rectangular.c',
   'bug-bo-collins.c',
@@ -144,7 +145,6 @@ test_sources = [
   'font-face-get-type.c',
   'font-matrix-translation.c',
   'font-options.c',
-  #'font-variations.c',
   'glyph-cache-pressure.c',
   'get-and-set.c',
   'get-clip.c',
@@ -356,6 +356,7 @@ test_sources = [
   'text-glyph-range.c',
   'text-pattern.c',
   'text-rotate.c',
+  'text-subpixel.c',
   'text-transform.c',
   'text-unhinted-metrics.c',
   'text-zero-len.c',
@@ -398,7 +399,10 @@ test_pthread_sources = [
   'pthread-similar.c',
 ]
 
+# Only font-variations.c is ft-specific according to Makefile.sources, the other
+# depend on fontconfig
 test_ft_font_sources = [
+  'font-variations.c',
   'bitmap-font.c',
   'ft-font-create-for-ft-face.c',
   'ft-show-glyphs-positioning.c',

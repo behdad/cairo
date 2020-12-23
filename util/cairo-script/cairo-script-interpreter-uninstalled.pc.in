@@ -1,0 +1,8 @@
+Name: cairo-script-interpreter
+Description: script surface backend for cairo graphics library
+Version: @VERSION@
+
+Requires: cairo
+Libs: ${pc_top_builddir}/${pcfiledir}/util/cairo-script/libcairo-script-interpreter.la
+Cflags: -I${pc_top_builddir}/${pcfiledir}/@srcdir@/util/cairo-script
+

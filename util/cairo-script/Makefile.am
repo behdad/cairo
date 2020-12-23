@@ -17,6 +17,9 @@ libcairo_script_interpreter_la_CFLAGS = $(CAIRO_CFLAGS)
 libcairo_script_interpreter_la_LDFLAGS = -version-info $(CAIRO_LIBTOOL_VERSION_INFO) -no-undefined $(export_symbols)
 libcairo_script_interpreter_la_LIBADD = $(top_builddir)/src/libcairo.la $(CAIRO_LIBS) $(lzo_LIBS) -lz
 
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = cairo-script-interpreter.pc
+
 csi_replay_SOURCES = csi-replay.c
 csi_replay_CFLAGS = $(CAIRO_CFLAGS)
 csi_replay_LDADD = libcairo-script-interpreter.la $(top_builddir)/src/libcairo.la $(CAIRO_LIBS)

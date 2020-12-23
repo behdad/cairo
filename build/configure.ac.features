@@ -136,9 +136,11 @@ dnl
 dnl Generate .pc files
 dnl
 
-dnl All .pc files are generated automatically except for this one
+dnl All .pc files are generated automatically except for these
 AC_CONFIG_FILES([src/cairo.pc])dnl
 AC_CONFIG_FILES([cairo-uninstalled.pc:src/cairo-uninstalled.pc.in])dnl
+AC_CONFIG_FILES([util/cairo-script/cairo-script-interpreter.pc])dnl
+AC_CONFIG_FILES([util/cairo-script/cairo-script-interpreter-uninstalled.pc:util/cairo-script/cairo-script-interpreter-uninstalled.pc.in])dnl
 
 dnl pkg-config requires, non-pkgconfig cflags and libs, and total cflags and libs
 CAIRO_FEATURE_VARS_REGISTER([BASE],[cairo])dnl

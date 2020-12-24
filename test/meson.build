@@ -32,6 +32,7 @@ test_sources = [
   'bug-bo-ricotz.c',
   'bug-source-cu.c',
   'bug-extents.c',
+  'bug-image-compositor.c',  
   'bug-seams.c',
   'caps.c',
   'checkerboard.c',

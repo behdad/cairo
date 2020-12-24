@@ -34,6 +34,7 @@ test_sources = \
 	bug-source-cu.c					\
 	bug-extents.c					\
 	bug-seams.c					\
+	bug-image-compositor.c				\
 	caps.c						\
 	checkerboard.c					\
 	caps-joins.c					\

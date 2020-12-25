@@ -174,6 +174,7 @@ find_depth (xcb_connection_t  *connection,
 }
 
 static const cairo_user_data_key_t key;
+static const cairo_user_data_key_t key2;
 
 struct similar {
     xcb_connection_t *connection;
@@ -276,6 +277,7 @@ _cairo_boilerplate_xcb_create_surface (const char		 *name,
     xtc->c = c = xcb_connect(NULL,NULL);
     if (c == NULL || xcb_connection_has_error(c)) {
 	free (xtc);
+	free (info);
 	return NULL;
     }
 
@@ -309,12 +311,17 @@ _cairo_boilerplate_xcb_create_surface (const char		 *name,
     if (xcb_request_check (c, cookie) != NULL) {
 	xcb_disconnect (c);
 	free (xtc);
+	free (info);
 	return NULL;
     }
 
     info->formats = xcb_render_query_pict_formats_reply (c, formats_cookie, 0);
-    if (info->formats == NULL)
+    if (info->formats == NULL) {
+	xcb_disconnect (c);
+	free (xtc);
+	free (info);
 	return NULL;
+    }
 
     for (i = xcb_render_query_pict_formats_formats_iterator (info->formats);
 	 i.rem;
@@ -359,6 +366,7 @@ _cairo_boilerplate_xcb_create_surface (const char		 *name,
 							    render_format,
 							    width, height);
     cairo_device_set_user_data (cairo_surface_get_device (surface), &key, info, free);
+    cairo_device_set_user_data (cairo_surface_get_device (surface), &key2, info->formats, free);
     if (mode != CAIRO_BOILERPLATE_MODE_PERF)
 	_cairo_boilerplate_xcb_setup_test_surface(surface);
 
@@ -623,8 +631,8 @@ _cairo_boilerplate_xcb_create_render_0_0 (const char		    *name,
 							    xtc->drawable,
 							    render_format,
 							    width, height);
+    free (formats);
     if (cairo_surface_status (surface)) {
-	free (formats);
 	xcb_disconnect (c);
 	free (xtc);
 	return surface;

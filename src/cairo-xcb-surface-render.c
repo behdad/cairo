@@ -3144,8 +3144,7 @@ _clip_and_composite_boxes (cairo_xcb_surface_t *dst,
 					 antialias,
 					 fill_rule,
 					 extents);
-	    if (extents->clip != clip)
-		clip = NULL;
+	    clip = extents->clip;
 	    extents->clip = saved_clip;
 	    _cairo_polygon_fini (&polygon);
 	}

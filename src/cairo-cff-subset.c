@@ -1604,6 +1604,8 @@ cairo_cff_parse_charstring (cairo_cff_font_t *font,
 		}
             } else {
                 sub_num = font->type2_stack_top_value + font->local_sub_bias;
+		if (sub_num >= _cairo_array_num_elements(&font->local_sub_index))
+		    return CAIRO_INT_STATUS_UNSUPPORTED;
                 element = _cairo_array_index (&font->local_sub_index, sub_num);
                 if (! font->local_subs_used[sub_num] ||
 		    (need_width && !font->type2_found_width))

@@ -1582,6 +1582,8 @@ _cairo_recording_surface_snapshot (void *abstract_other)
     surface->indices = NULL;
     surface->num_indices = 0;
     surface->optimize_clears = TRUE;
+    surface->has_bilevel_alpha = other->has_bilevel_alpha;
+    surface->has_only_op_over = other->has_only_op_over;
 
     _cairo_array_init (&surface->commands, sizeof (cairo_command_t *));
     status = _cairo_recording_surface_copy (surface, other);

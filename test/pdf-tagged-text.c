@@ -29,6 +29,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_MMAP
+#include <sys/mman.h>
+#endif
 
 #include <cairo.h>
 #include <cairo-pdf.h>
@@ -365,11 +376,76 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
 }
 
 static cairo_test_status_t
+check_contains_string(cairo_test_context_t *ctx, const void *hay, size_t size, const char *needle)
+{
+    if (memmem(hay, size, needle, strlen(needle)))
+        return CAIRO_TEST_SUCCESS;
+
+    cairo_test_log (ctx, "Failed to find expected string in generated PDF: %s\n", needle);
+    return CAIRO_TEST_FAILURE;
+}
+
+static cairo_test_status_t
+check_created_pdf(cairo_test_context_t *ctx, const char* filename)
+{
+    cairo_test_status_t result = CAIRO_TEST_SUCCESS;
+    int fd;
+    struct stat st;
+    void *contents;
+
+    fd = open(filename, O_RDONLY, 0);
+    if (fd < 0) {
+        cairo_test_log (ctx, "Failed to open generated PDF file %s: %s\n", filename, strerror(errno));
+        return CAIRO_TEST_FAILURE;
+    }
+
+    if (fstat(fd, &st) == -1)
+    {
+        cairo_test_log (ctx, "Failed to stat generated PDF file %s: %s\n", filename, strerror(errno));
+        close(fd);
+        return CAIRO_TEST_FAILURE;
+    }
+
+    if (st.st_size == 0)
+    {
+        cairo_test_log (ctx, "Generated PDF file %s is empty\n", filename);
+        close(fd);
+        return CAIRO_TEST_FAILURE;
+    }
+
+#ifdef HAVE_MMAP
+    contents = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (contents == NULL)
+    {
+        cairo_test_log (ctx, "Failed to mmap generated PDF file %s: %s\n", filename, strerror(errno));
+        close(fd);
+        return CAIRO_TEST_FAILURE;
+    }
+
+    /* check metadata */
+    result |= check_contains_string(ctx, contents, st.st_size, "/Title (PDF Features Test)");
+    result |= check_contains_string(ctx, contents, st.st_size, "/Author (cairo test suite)");
+    result |= check_contains_string(ctx, contents, st.st_size, "/Creator (pdf-features)");
+    result |= check_contains_string(ctx, contents, st.st_size, "/CreationDate (20160101123456+10'30')");
+    result |= check_contains_string(ctx, contents, st.st_size, "/ModDate (20160621054321Z)");
+
+    // TODO: add more checks
+
+    munmap(contents, st.st_size);
+#endif
+
+    close(fd);
+
+    return result;
+}
+
+static cairo_test_status_t
 preamble (cairo_test_context_t *ctx)
 {
     cairo_surface_t *surface;
     cairo_t *cr;
     cairo_status_t status, status2;
+    cairo_test_status_t result;
     char *filename;
     const char *path = cairo_test_mkdir (CAIRO_TEST_OUTPUT_DIR) ? CAIRO_TEST_OUTPUT_DIR : ".";
 
@@ -396,9 +472,11 @@ preamble (cairo_test_context_t *ctx)
 	return CAIRO_TEST_FAILURE;
     }
 
+    result = check_created_pdf(ctx, filename);
+
     free (filename);
 
-    return CAIRO_TEST_SUCCESS;
+    return result;
 }
 
 CAIRO_TEST (pdf_tagged_text,

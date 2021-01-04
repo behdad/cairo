@@ -628,7 +628,7 @@ cairo_test_for_target (cairo_test_context_t		 *ctx,
 		       int				  dev_scale,
 		       cairo_bool_t                       similar)
 {
-    cairo_test_status_t status;
+    cairo_status_t finish_status;
     cairo_surface_t *surface = NULL;
     cairo_t *cr;
     const char *empty_str = "";
@@ -644,7 +644,7 @@ cairo_test_for_target (cairo_test_context_t		 *ctx,
     char *base_xfail_png_path;
     char *diff_png_path;
     char *test_filename = NULL, *pass_filename = NULL, *fail_filename = NULL;
-    cairo_test_status_t ret;
+    cairo_test_status_t ret, test_status;
     cairo_content_t expected_content;
     cairo_font_options_t *font_options;
     const char *format;
@@ -930,7 +930,7 @@ REPEAT:
 
     cairo_save (cr);
     alarm (ctx->timeout);
-    status = (ctx->test->draw) (cr, ctx->test->width, ctx->test->height);
+    test_status = (ctx->test->draw) (cr, ctx->test->width, ctx->test->height);
     alarm (0);
     cairo_restore (cr);
 
@@ -946,7 +946,7 @@ REPEAT:
     /* repeat test after malloc failure injection */
     if (ctx->malloc_failure &&
 	MEMFAULT_COUNT_FAULTS () - last_fault_count > 0 &&
-	(status == CAIRO_TEST_NO_MEMORY ||
+	(test_status == CAIRO_TEST_NO_MEMORY ||
 	 cairo_status (cr) == CAIRO_STATUS_NO_MEMORY ||
 	 cairo_surface_status (surface) == CAIRO_STATUS_NO_MEMORY))
     {
@@ -968,9 +968,9 @@ REPEAT:
 #endif
 
     /* Then, check all the different ways it could fail. */
-    if (status) {
+    if (test_status) {
 	cairo_test_log (ctx, "Error: Function under test failed\n");
-	ret = status;
+	ret = test_status;
 	goto UNWIND_CAIRO;
     }
 
@@ -995,7 +995,7 @@ REPEAT:
 
 	/* also check for infinite loops whilst replaying */
 	alarm (ctx->timeout);
-	status = target->finish_surface (surface);
+	finish_status = target->finish_surface (surface);
 	alarm (0);
 
 #if HAVE_MEMFAULT
@@ -1003,7 +1003,7 @@ REPEAT:
 
 	if (ctx->malloc_failure &&
 	    MEMFAULT_COUNT_FAULTS () - last_fault_count > 0 &&
-	    status == CAIRO_STATUS_NO_MEMORY)
+	    finish_status == CAIRO_STATUS_NO_MEMORY)
 	{
 	    cairo_destroy (cr);
 	    cairo_surface_destroy (surface);
@@ -1021,9 +1021,9 @@ REPEAT:
 	    goto REPEAT;
 	}
 #endif
-	if (status) {
+	if (finish_status) {
 	    cairo_test_log (ctx, "Error: Failed to finish surface: %s\n",
-			    cairo_status_to_string (status));
+			    cairo_status_to_string (finish_status));
 	    ret = CAIRO_TEST_FAILURE;
 	    goto UNWIND_CAIRO;
 	}

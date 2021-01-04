@@ -48,8 +48,8 @@ draw (cairo_t *cr, int width, int height)
 	cairo_surface_destroy (region[i]);
 
 	cairo_select_font_face (cr_region, "@cairo:",
-				CAIRO_FONT_WEIGHT_NORMAL,
-				CAIRO_FONT_SLANT_NORMAL);
+				CAIRO_FONT_SLANT_NORMAL,
+                                CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_font_size (cr_region, 20);
 	cairo_text_extents (cr_region, buf, &extents);
 	cairo_move_to (cr_region,

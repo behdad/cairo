@@ -1456,17 +1456,17 @@ _cairo_recording_surface_copy__tag (cairo_recording_surface_t *surface,
 	    command->attributes = strdup (src->tag.attributes);
 
 	status = _cairo_pattern_init_copy (&command->source.base,
-					   &src->stroke.source.base);
+					   &src->tag.source.base);
 	if (unlikely (status))
 	    goto err_command;
 
 	status = _cairo_stroke_style_init_copy (&command->style,
-						&src->stroke.style);
+						&src->tag.style);
 	if (unlikely (status))
 	    goto err_source;
 
-	command->ctm = src->stroke.ctm;
-	command->ctm_inverse = src->stroke.ctm_inverse;
+	command->ctm = src->tag.ctm;
+	command->ctm_inverse = src->tag.ctm_inverse;
     }
 
     status = _cairo_recording_surface_commit (surface, &command->header);

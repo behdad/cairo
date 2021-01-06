@@ -715,8 +715,12 @@ CAIRO_ENABLE_SURFACE_BACKEND(recording, recording, always)
 CAIRO_ENABLE_SURFACE_BACKEND(observer, observer, always)
 CAIRO_ENABLE_SURFACE_BACKEND(tee, tee, no)
 CAIRO_ENABLE_SURFACE_BACKEND(xml, xml, no, [
-    use_xml=$have_libz
-    xml_NONPKGCONFIG_LIBS=-lz
+    if test "x$use_png" != "xyes"; then
+        use_xml="no (requires --enable-png)"
+    else
+        use_xml=$have_libz
+        xml_NONPKGCONFIG_LIBS=-lz
+    fi
 ])
 
 dnl ===========================================================================

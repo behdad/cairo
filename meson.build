@@ -371,37 +371,34 @@ if qtgui_dep.found() and false
   deps += [qtgui_dep]
 endif
 
-# Untested
-if cc.has_header('ApplicationServices/ApplicationServices.h')
-  if cc.has_header('CoreGraphics/CoreGraphics.h')
-    quartz_extra_libs = ['-Xlinker', '-framework', '-Xlinker', 'CoreGraphics']
-  else
-    quartz_extra_libs = ['-Xlinker', '-framework', '-Xlinker', 'ApplicationServices']
+if host_machine.system() == 'darwin' and not get_option('quartz').disabled()
+  quartz_deps = dependency('appleframeworks', modules : ['CoreFoundation', 'ApplicationServices'], required: get_option('quartz'))
+
+  if quartz_deps.found()
+    deps += [quartz_deps]
+
+    feature_conf.set('CAIRO_HAS_QUARTZ_SURFACE', 1)
+    feature_conf.set('CAIRO_HAS_QUARTZ_FONT', 1)
+    feature_conf.set('CAIRO_HAS_QUARTZ_IMAGE_SURFACE', 1)
+
+    built_features += [
+      {
+        'name': 'cairo-quartz',
+        'description': 'Quartz surface backend',
+        'deps': quartz_deps,
+      },
+      {
+        'name': 'cairo-quartz-image',
+        'description': 'Quartz Image surface backend',
+        'deps': quartz_deps,
+      },
+      {
+        'name': 'cairo-quartz-font',
+        'description': 'Quartz font backend',
+        'deps': quartz_deps,
+      },
+    ]
   endif
-
-  extra_link_args += quartz_extra_libs
-
-  feature_conf.set('CAIRO_HAS_QUARTZ_SURFACE', 1)
-  feature_conf.set('CAIRO_HAS_QUARTZ_FONT', 1)
-  feature_conf.set('CAIRO_HAS_QUARTZ_IMAGE_SURFACE', 1)
-
-  built_features += [
-    {
-      'name': 'cairo-quartz',
-      'description': 'Quartz surface backend',
-      'libs': quartz_extra_libs,
-    },
-    {
-      'name': 'cairo-quartz-image',
-      'description': 'Quartz Image surface backend',
-      'libs': quartz_extra_libs,
-    },
-    {
-      'name': 'cairo-quartz-font',
-      'description': 'Quartz font backend',
-      'libs': quartz_extra_libs,
-    },
-  ]
 endif
 
 if host_machine.system() == 'windows'
@@ -887,13 +884,13 @@ foreach feature: built_features
   feature_deps = feature.get('deps', [])
   feature_libs = feature.get('libs', [])
   feature_compile_deps = feature.get('compile-deps', [])
-  pkgmod.generate(libraries: [libcairo] + feature_deps + feature_libs,
+  pkgmod.generate(libraries: [libcairo, feature_deps, feature_libs],
     name: feature['name'],
     description: feature['description'] + ' for cairo graphics library',
   )
   meson.override_dependency(feature['name'],
     declare_dependency(link_with: libcairo,
-      dependencies: feature_deps + feature_compile_deps,
+      dependencies: [feature_deps, feature_compile_deps],
       link_args: feature_libs,
     )
   )

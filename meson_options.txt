@@ -13,6 +13,7 @@ option('glesv3', type : 'feature', value : 'disabled')
 option('drm', type : 'feature', value : 'disabled')
 option('openvg', type : 'feature', value : 'disabled')
 option('png', type : 'feature', value : 'auto') # png and svg surfaces
+option('quartz', type : 'feature', value : 'auto')
 option('qt', type : 'feature', value : 'disabled')
 option('tee', type : 'feature', value : 'disabled')
 option('xcb', type : 'feature', value : 'auto')

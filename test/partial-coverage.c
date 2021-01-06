@@ -101,7 +101,7 @@ reference (cairo_t *cr, int width, int height)
 	cairo_fill (cr);
     }
 
-    return CAIRO_STATUS_SUCCESS;
+    return CAIRO_TEST_SUCCESS;
 }
 
 static cairo_test_status_t
@@ -119,7 +119,7 @@ three_quarter_reference (cairo_t *cr, int width, int height)
 	cairo_fill (cr);
     }
 
-    return CAIRO_STATUS_SUCCESS;
+    return CAIRO_TEST_SUCCESS;
 }
 
 static cairo_test_status_t
@@ -137,7 +137,7 @@ half_reference (cairo_t *cr, int width, int height)
 	cairo_fill (cr);
     }
 
-    return CAIRO_STATUS_SUCCESS;
+    return CAIRO_TEST_SUCCESS;
 }
 
 static cairo_test_status_t

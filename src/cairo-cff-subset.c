@@ -991,6 +991,8 @@ cairo_cff_font_read_fdselect (cairo_cff_font_t *font, unsigned char *p)
             p += 2;
             fd = *p++;
             last = get_unaligned_be16 (p);
+            if (last > font->num_glyphs)
+                return CAIRO_INT_STATUS_UNSUPPORTED;
             for (j = first; j < last; j++)
                 font->fdselect[j] = fd;
         }

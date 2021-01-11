@@ -1784,6 +1784,11 @@ _cairo_recording_surface_merge_source_attributes (cairo_recording_surface_t  *su
 	if (_cairo_surface_is_snapshot (surf))
 	    free_me = surf = _cairo_surface_snapshot_get_target (surf);
 
+	if (unlikely (surf->status))
+	    // There was some kind of error and the surface could be a nil error
+	    // surface with various "problems" (e.g. ->backend == NULL).
+	    return;
+
 	if (surf->type == CAIRO_SURFACE_TYPE_RECORDING) {
 	    cairo_recording_surface_t *rec_surf = (cairo_recording_surface_t *) surf;
 

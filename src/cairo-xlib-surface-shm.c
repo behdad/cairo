@@ -809,6 +809,9 @@ _cairo_xlib_shm_surface_create (cairo_xlib_surface_t *other,
     pixman_image_t *image;
     int stride, size;
 
+    if (width > XLIB_COORD_MAX || height > XLIB_COORD_MAX)
+	return NULL;
+
     stride = CAIRO_STRIDE_FOR_WIDTH_BPP (width, PIXMAN_FORMAT_BPP(format));
     size = stride * height;
     if (size < MIN_SIZE)

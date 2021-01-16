@@ -40,4 +40,6 @@ libcairoboilerplate = static_library('cairoboilerplate', cairo_boilerplate_sourc
   include_directories: [incbase, incsrc],
   dependencies: deps,
   link_with: [libcairo],
+  install: false,
+  build_by_default: false,
 )

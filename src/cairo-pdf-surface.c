@@ -943,7 +943,8 @@ _cairo_pdf_surface_clear (cairo_pdf_surface_t *surface)
     _cairo_array_truncate (&surface->knockout_group, 0);
     _cairo_array_truncate (&surface->page_annots, 0);
 
-    cairo_surface_destroy (&surface->thumbnail_image->base);
+    if (surface->thumbnail_image)
+	cairo_surface_destroy (&surface->thumbnail_image->base);
     surface->thumbnail_image = NULL;
 }
 

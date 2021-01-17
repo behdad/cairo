@@ -162,8 +162,19 @@ _cairo_win32_scaled_font_init_glyph_path (cairo_win32_scaled_font_t *scaled_font
 static HDC
 _get_global_font_dc (void)
 {
-    static HDC hdc;
+    static DWORD hdc_tls_index;
+    HDC hdc;
 
+    if (!hdc_tls_index) {
+	CAIRO_MUTEX_LOCK (_cairo_win32_font_dc_mutex);
+	if (!hdc_tls_index) {
+	    hdc_tls_index = TlsAlloc ();
+	    assert (hdc_tls_index != TLS_OUT_OF_INDEXES);
+	}
+	CAIRO_MUTEX_UNLOCK (_cairo_win32_font_dc_mutex);
+    }
+
+    hdc = TlsGetValue (hdc_tls_index);
     if (!hdc) {
 	hdc = CreateCompatibleDC (NULL);
 	if (!hdc) {
@@ -173,6 +184,11 @@ _get_global_font_dc (void)
 
 	if (!SetGraphicsMode (hdc, GM_ADVANCED)) {
 	    _cairo_win32_print_gdi_error ("_get_global_font_dc");
+	    DeleteDC (hdc);
+	    return NULL;
+	}
+
+	if (!TlsSetValue (hdc_tls_index, hdc)) {
 	    DeleteDC (hdc);
 	    return NULL;
 	}

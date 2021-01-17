@@ -77,6 +77,16 @@ EXTRA_DIST += \
 	meson-cc-tests/pthread.c \
 	meson-cc-tests/atomic-ops-gcc-legacy.c \
 	meson-cc-tests/mkdir-variant-2.c \
+	subprojects/expat.wrap \
+	subprojects/fontconfig.wrap \
+	subprojects/freetype2.wrap \
+	subprojects/glib.wrap \
+	subprojects/gperf.wrap \
+	subprojects/libffi.wrap \
+	subprojects/libpng.wrap \
+	subprojects/pixman.wrap \
+	subprojects/proxy-libintl.wrap \
+	subprojects/zlib.wrap \
 	$(NULL)
 
 DISTCLEANFILES += config.cache

@@ -155,6 +155,9 @@ _cairo_win32_surface_get_extents (void		          *abstract_surface,
 HDC
 cairo_win32_surface_get_dc (cairo_surface_t *surface)
 {
+    if (surface->backend == NULL)
+	return NULL;
+
     if (surface->backend->type == CAIRO_SURFACE_TYPE_WIN32)
 	return to_win32_surface(surface)->dc;
 

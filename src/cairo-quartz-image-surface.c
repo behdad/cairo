@@ -369,7 +369,7 @@ cairo_quartz_image_surface_create (cairo_surface_t *surface)
     qisurf->height = height;
 
     qisurf->image = image;
-    qisurf->imageSurface = image_surface;
+    qisurf->imageSurface = (cairo_image_surface_t*) cairo_surface_reference(surface);
 
     return &qisurf->base;
 }

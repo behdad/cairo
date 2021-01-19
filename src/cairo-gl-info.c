@@ -27,6 +27,7 @@
  *
  * Contributor(s):
  *      Alexandros Frantzis <alexandros.frantzis@linaro.org>
+ *      Heiko Lewin <heiko.lewin@gmx.de>
  */
 
 #include "cairoint.h"
@@ -57,22 +58,53 @@ _cairo_gl_get_version (void)
     return CAIRO_GL_VERSION_ENCODE (major, minor);
 }
 
+
+cairo_gl_flavor_t
+_cairo_gl_degrade_flavor_by_build_features (cairo_gl_flavor_t flavor) {
+    switch(flavor) {
+    case CAIRO_GL_FLAVOR_DESKTOP:
+#if CAIRO_HAS_GL_SURFACE
+	return CAIRO_GL_FLAVOR_DESKTOP;
+#else
+	return CAIRO_GL_FLAVOR_NONE;
+#endif
+
+    case CAIRO_GL_FLAVOR_ES3:
+#if CAIRO_HAS_GLESV3_SURFACE
+	return CAIRO_GL_FLAVOR_ES3;
+#else
+	/* intentional fall through: degrade to GLESv2 if GLESv3-surfaces are not available */
+#endif
+
+    case CAIRO_GL_FLAVOR_ES2:
+#if CAIRO_HAS_GLESV2_SURFACE
+	return CAIRO_GL_FLAVOR_ES2;
+#else
+	/* intentional fall through: no OpenGL in first place or no surfaces for it's version */
+#endif
+
+    default:
+	return CAIRO_GL_FLAVOR_NONE;
+    }
+}
+
 cairo_gl_flavor_t
 _cairo_gl_get_flavor (void)
 {
     const char *version = (const char *) glGetString (GL_VERSION);
     cairo_gl_flavor_t flavor;
 
-    if (version == NULL)
+    if (version == NULL) {
 	flavor = CAIRO_GL_FLAVOR_NONE;
-    else if (strstr (version, "OpenGL ES 3") != NULL)
+    } else if (strstr (version, "OpenGL ES 3") != NULL) {
 	flavor = CAIRO_GL_FLAVOR_ES3;
-    else if (strstr (version, "OpenGL ES 2") != NULL)
+    } else if (strstr (version, "OpenGL ES 2") != NULL) {
 	flavor = CAIRO_GL_FLAVOR_ES2;
-    else
+    } else {
 	flavor = CAIRO_GL_FLAVOR_DESKTOP;
+    }
 
-    return flavor;
+    return _cairo_gl_degrade_flavor_by_build_features(flavor);
 }
 
 unsigned long

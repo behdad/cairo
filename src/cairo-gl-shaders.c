@@ -37,6 +37,7 @@
  *	Eric Anholt <eric@anholt.net>
  *	T. Zachary Laine <whatwasthataddress@gmail.com>
  *	Alexandros Frantzis <alexandros.frantzis@linaro.org>
+ *  H. Lewin <heiko.lewin@gmx.de>
  */
 
 #include "cairoint.h"
@@ -900,7 +901,7 @@ _cairo_gl_shader_compile_and_link (cairo_gl_context_t *ctx,
  * texture unit 1 if present, so we can just initialize these once at
  * compile time.
  */
-static void
+static cairo_status_t
 _cairo_gl_shader_set_samplers (cairo_gl_context_t *ctx,
 			       cairo_gl_shader_t *shader)
 {
@@ -924,8 +925,14 @@ _cairo_gl_shader_set_samplers (cairo_gl_context_t *ctx,
     if (location != -1) {
 	dispatch->Uniform1i (location, CAIRO_GL_TEX_MASK);
     }
-
+    if(_cairo_gl_get_error()) return CAIRO_STATUS_DEVICE_ERROR;
     dispatch->UseProgram (saved_program);
+    /* Pop and ignore a possible gl-error when restoring the previous program.
+     * It may be that being selected in the gl-context was the last reference
+     * to the shader.
+     */
+    _cairo_gl_get_error(); 
+    return CAIRO_STATUS_SUCCESS;
 }
 
 void
@@ -1084,7 +1091,12 @@ _cairo_gl_get_shader_by_type (cairo_gl_context_t *ctx,
 	return status;
     }
 
-    _cairo_gl_shader_set_samplers (ctx, &entry->shader);
+    status = _cairo_gl_shader_set_samplers (ctx, &entry->shader);
+    if (unlikely (status)) {
+	_cairo_gl_shader_fini (ctx, &entry->shader);
+	free (entry);
+	return status;
+    }
 
     status = _cairo_cache_insert (&ctx->shaders, &entry->base);
     if (unlikely (status)) {

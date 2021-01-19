@@ -72,8 +72,6 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
-#define XLIB_COORD_MAX 32767
-
 #define DEBUG 0
 
 #if DEBUG

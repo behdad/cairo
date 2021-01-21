@@ -2,7 +2,7 @@ AC_PREREQ([2.63])
 CAIRO_PARSE_VERSION
 AC_INIT([cairo],
 	[cairo_version_major.cairo_version_minor.cairo_version_micro],
-	[https://bugs.freedesktop.org/enter_bug.cgi?product=cairo],
+	[https://gitlab.freedesktop.org/cairo/cairo/-/issues],
 	[cairo],
 	[https://cairographics.org/])
 AC_CONFIG_AUX_DIR(build)
@@ -98,7 +98,7 @@ CAIRO_ENABLE_SURFACE_BACKEND(xlib, Xlib, auto, [
 
   if test "$ac_cv_header_sys_ipc_h" = "yes" -a "$ac_cv_header_sys_shm_h" = "yes"; then
       AC_MSG_CHECKING(whether shmctl IPC_RMID allowes subsequent attaches)
-      AC_TRY_RUN([
+      AC_RUN_IFELSE([AC_LANG_SOURCE([[
 		  #include <sys/types.h>
 		  #include <sys/ipc.h>
 		  #include <sys/shm.h>
@@ -117,12 +117,11 @@ CAIRO_ENABLE_SURFACE_BACKEND(xlib, Xlib, auto, [
 		      shmdt (shmaddr);
 		      return 0;
 		  }
-		  ],
-		  AC_DEFINE(IPC_RMID_DEFERRED_RELEASE, 1,
-			    [Define to 1 if shared memory segments are released deferred.])
-		  AC_MSG_RESULT(yes),
-		  AC_MSG_RESULT(no),
-		  AC_MSG_RESULT(assuming no))
+		  ]])],
+		  [
+		  	AC_DEFINE(IPC_RMID_DEFERRED_RELEASE, 1, Define to 1 if shared memory segments are released deferred.)
+		  	AC_MSG_RESULT(yes)],
+		  [AC_MSG_RESULT(no)],[AC_MSG_RESULT(assuming no)])
       fi
 
       AC_CHECK_HEADERS([X11/extensions/XShm.h X11/extensions/shmproto.h X11/extensions/shmstr.h], [], [],

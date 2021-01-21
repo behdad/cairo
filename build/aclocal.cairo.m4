@@ -100,7 +100,7 @@ AC_DEFUN([CAIRO_CC_TRY_LINK_WITH_ENV_SILENT],[dnl
 	_save_libs="$LIBS"
 	$1
 	AC_LINK_IFELSE(
-		[AC_LANG_SOURCE([$_compile_program])],
+		[AC_LANG_SOURCE([[$_compile_program]])],
 		[cairo_cc_stderr=`test -f conftest.err && cat conftest.err`
 		 cairo_cc_flag=yes],
 		[cairo_cc_stderr=`test -f conftest.err && cat conftest.err`
@@ -161,18 +161,18 @@ AC_DEFUN([CAIRO_CHECK_NATIVE_ATOMIC_PRIMITIVES],
 	[
 		cairo_cv_atomic_primitives="none"
 
-		AC_TRY_LINK([
+		AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 int atomic_add(int i) { return __sync_fetch_and_add (&i, 1); }
 int atomic_cmpxchg(int i, int j, int k) { return __sync_val_compare_and_swap (&i, j, k); }
-], [],
-		  cairo_cv_atomic_primitives="gcc-legacy"
+]], [[]])],
+		  [ cairo_cv_atomic_primitives="gcc-legacy" ], []
 		  )
 
-		AC_TRY_LINK([
+		AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 int atomic_add(int i) { return __atomic_fetch_add(&i, 1, __ATOMIC_SEQ_CST); }
 int atomic_cmpxchg(int i, int j, int k) { return __atomic_compare_exchange_n(&i, &j, k, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); }
-], [],
-		   cairo_cv_atomic_primitives="cxx11"
+]], [[]])],
+		   [ cairo_cv_atomic_primitives="cxx11" ], []
 		   )
 
 		if test "x$cairo_cv_atomic_primitives" = "xnone"; then

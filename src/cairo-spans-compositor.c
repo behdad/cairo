@@ -1128,6 +1128,7 @@ _cairo_spans_compositor_fill (const cairo_compositor_t		*_compositor,
     }
     if (status == CAIRO_INT_STATUS_UNSUPPORTED) {
 	cairo_polygon_t polygon;
+	cairo_box_t limits;
 
 	TRACE((stderr, "%s - polygon\n", __FUNCTION__));
 
@@ -1138,7 +1139,6 @@ _cairo_spans_compositor_fill (const cairo_compositor_t		*_compositor,
 	    if (extents->clip->num_boxes == 1) {
 		_cairo_polygon_init (&polygon, extents->clip->boxes, 1);
 	    } else {
-		cairo_box_t limits;
 		_cairo_box_from_rectangle (&limits, &extents->unbounded);
 		_cairo_polygon_init (&polygon, &limits, 1);
 	    }

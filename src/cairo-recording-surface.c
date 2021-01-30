@@ -609,6 +609,7 @@ _cairo_recording_surface_acquire_source_image (void			 *abstract_surface,
     image = _cairo_image_surface_create_with_content (surface->base.content,
 						      surface->extents.width,
 						      surface->extents.height);
+    cairo_surface_set_device_offset (image, -surface->extents.x, -surface->extents.y);
     if (unlikely (image->status))
 	return image->status;
 

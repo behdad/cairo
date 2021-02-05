@@ -24,32 +24,50 @@
  *
  * Based on an example by Dirk "krit" Schulze found during WebKit integration.
  */
+ 
+ /*  Copyright (C) 2021 Heiko Lewin <hlewin@gmx.de> 
+  *  Added error margin for point comparisons */
 
 #include "cairo-test.h"
+#include "cairo-fixed-type-private.h"
 
 /* we know that this is an inherent limitation in cairo */
 #define FAIL CAIRO_TEST_XFAILURE
 
 /* Test the idempotency of path construction and copying */
 
+
+/* The error to be expected from double<->fixed conversions */
+#define EXPECTED_ERROR (0.5 / (1<<CAIRO_FIXED_FRAC_BITS))
+
+static int compare_points( double *p1, double *p2 ) {
+    for(int i=0; i<2; ++i) {
+	double error = fabs(p2[i]-p1[i]);
+	if(error > EXPECTED_ERROR) {
+	    return 1;
+	}
+    }
+    return 0;
+}
+
 static cairo_test_status_t
 draw (cairo_t *cr, int width, int height)
 {
     cairo_path_data_t path_data[] = {
 	{ { CAIRO_PATH_MOVE_TO, 2 }, },
-	{ { 95.000000, 40.000000 }, },
+	{ .point={ 95.000000, 40.000000 }, },
 
 	{ { CAIRO_PATH_LINE_TO, 2 }, },
-	{ { 94.960533, 41.255810 }, },
+	{ .point={ 94.960533, 41.255810 }, },
 
 	{ { CAIRO_PATH_LINE_TO, 2 }, },
-	{ { 94.842293, 42.50666 }, },
+	{ .point={ 94.842293, 42.50666 }, },
 
 	{ { CAIRO_PATH_LINE_TO, 2 }, },
-	{ { 94.645744, 43.747627 }, },
+	{ .point={ 94.645744, 43.747627 }, },
 
 	{ { CAIRO_PATH_LINE_TO, 2 }, },
-	{ { 94.371666, 44.973797 }, },
+	{ .point={ 94.371666, 44.973797 }, },
     };
     const cairo_test_context_t *ctx = cairo_test_get_context (cr);
     cairo_path_t path, *path_copy;
@@ -87,7 +105,7 @@ draw (cairo_t *cr, int width, int height)
 	    break;
 	}
 
-	if (memcmp (&src[1].point, &dst[1].point, sizeof (src->point))) {
+	if (compare_points ((double*)&src[1].point, (double*)&dst[1].point)) {
 	    cairo_test_log (ctx,
 			    "Paths differ in coordinates after %d operations.\n"
 			    "Expected point (%f, %f), found (%f, %f).\n",

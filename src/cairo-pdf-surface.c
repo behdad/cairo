@@ -5310,18 +5310,14 @@ _create_font_subset_tag (cairo_scaled_font_subset_t	*font_subset,
 {
     uint32_t hash;
     int i;
-    long numerator;
-    ldiv_t d;
 
     hash = _hash_data ((unsigned char *) font_name, strlen(font_name), 0);
     hash = _hash_data ((unsigned char *) (font_subset->glyphs),
 		       font_subset->num_glyphs * sizeof(unsigned long), hash);
 
-    numerator = hash;
     for (i = 0; i < 6; i++) {
-	d = ldiv (numerator, 26);
-	numerator = d.quot;
-        tag[i] = 'A' + d.rem;
+	tag[i] = 'A' + (hash % 26);
+	hash /= 26;
     }
     tag[i] = 0;
 }

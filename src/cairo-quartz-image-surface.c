@@ -88,7 +88,7 @@ _cairo_quartz_image_surface_finish (void *asurface)
     cairo_quartz_image_surface_t *surface = (cairo_quartz_image_surface_t *) asurface;
 
     CGImageRelease (surface->image);
-    cairo_surface_destroy (surface->imageSurface);
+    cairo_surface_destroy ( (cairo_surface_t*) surface->imageSurface);
     return CAIRO_STATUS_SUCCESS;
 }
 
@@ -341,8 +341,10 @@ cairo_quartz_image_surface_create (cairo_surface_t *surface)
     memset (qisurf, 0, sizeof(cairo_quartz_image_surface_t));
 
     image_data = _cairo_malloc_ab (height, stride);
-    if (unlikely (!image_data))
-	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+    if (unlikely (!image_data)) {
+	free(qisurf);
+	return SURFACE_ERROR_NO_MEMORY;
+    }
 
     memcpy (image_data, image_surface->data, height * stride);
     image = CairoQuartzCreateCGImage (format,
@@ -382,7 +384,7 @@ cairo_quartz_image_surface_get_image (cairo_surface_t *asurface)
 
     /* Throw an error for a non-quartz surface */
     if (! _cairo_surface_is_quartz (asurface)) {
-        return _cairo_surface_create_in_error (_cairo_error (CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
+        return SURFACE_ERROR_TYPE_MISMATCH;
     }
 
     return (cairo_surface_t*) surface->imageSurface;

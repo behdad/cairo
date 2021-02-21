@@ -1134,13 +1134,20 @@ _cairo_pdf_interchange_begin_dest_tag (cairo_pdf_surface_t    *surface,
 
 	status = _cairo_tag_parse_dest_attributes (attributes, &dest->attrs);
 	if (unlikely (status))
+	{
+	    free (dest);
 	    return status;
+	}
 
 	dest->page = _cairo_array_num_elements (&surface->pages);
 	init_named_dest_key (dest);
 	status = _cairo_hash_table_insert (ic->named_dests, &dest->base);
 	if (unlikely (status))
+	{
+	    free (dest->attrs.name);
+	    free (dest);
 	    return status;
+	}
 
 	_cairo_tag_stack_set_top_data (&ic->analysis_tag_stack, dest);
 	cairo_list_add_tail (&dest->extents.link, &ic->extents_list);

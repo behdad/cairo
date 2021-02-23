@@ -65,7 +65,6 @@
 
 #if HAVE_BFD
 #include <bfd.h>
-#include <libiberty.h>
 
 struct symtab {
     bfd *bfd;
@@ -145,14 +144,14 @@ find_address_in_section (bfd *abfd,
     if (symbol->found)
 	return;
 
-    if ((bfd_get_section_flags (symtab->bfd, section) & SEC_ALLOC) == 0)
+    if ((bfd_section_flags (section) & SEC_ALLOC) == 0)
 	return;
 
-    vma = bfd_get_section_vma (symtab->bfd, section);
+    vma = bfd_section_vma (section);
     if (symbol->pc < vma)
 	return;
 
-    size = bfd_section_size (symtab->bfd, section);
+    size = bfd_section_size (section);
     if (symbol->pc >= vma + size)
 	return;
 

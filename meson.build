@@ -673,15 +673,16 @@ if zlib_dep.found() and png_dep.found()
   }]
 endif
 
-# Untested, libiberty.h is in a libiberty subfolder for me
-# Also, the bfd API seems to have changed at some point
-bfd_dep = cc.find_library('bfd', has_headers: ['bfd.h', 'libiberty.h'], required: get_option('symbol-lookup'))
-if bfd_dep.found() and cc.has_function('bfd_openr', dependencies: [bfd_dep])
+bfd_dep = cc.find_library('bfd', has_headers: ['bfd.h'], required: get_option('symbol-lookup'))
+if bfd_dep.found() and \
+   cc.has_function('bfd_openr', dependencies: [bfd_dep]) and \
+   cc.links(files('meson-cc-tests/bfd-section-flags.c'), name: 'bfd_section_flags', dependencies: bfd_dep)
   conf.set('HAVE_BFD', 1)
   deps += [bfd_dep]
+elif get_option('symbol-lookup').enabled()
+  error('symbol lookup via bfd was enabled via options but is not available (bfd might be too old)')
 endif
 
-# Untested, see above
 if conf.get('HAVE_BFD', 0) == 1
   conf.set('CAIRO_HAS_SYMBOL_LOOKUP', 1)
 endif

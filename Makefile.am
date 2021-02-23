@@ -71,6 +71,7 @@ EXTRA_DIST += \
 	util/cairo-trace/meson.build \
 	util/meson.build \
 	meson-cc-tests/atomic-ops-cxx11.c \
+	meson-cc-tests/bfd-section-flags.c \
 	meson-cc-tests/ipc_rmid_deferred_release.c \
 	meson-cc-tests/ft_has_color.c \
 	meson-cc-tests/mkdir-variant-1.c \

@@ -826,7 +826,13 @@ CAIRO_ENABLE(interpreter, cairo-script-interpreter, yes, [
 AC_CHECK_LIB(bfd, bfd_openr,
 	 [AC_CHECK_HEADER(bfd.h, [have_bfd=yes],
 	 [have_bfd=no])], [have_bfd=no])
-AC_CHECK_HEADER(libiberty.h,, [have_bfd=no])
+dnl bfd_section_flags is an inline func so we don't bother with linking the lib in
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+  #include <bfd.h>
+  asection *s;
+],[
+  return bfd_section_flags(s) == 0;
+])],[],[have_bfd=no])
 if test "x$have_bfd" = "xyes"; then
     AC_DEFINE([HAVE_BFD], [1], [Define to 1 if you have the binutils development files installed])
     BFD_LIBS=-lbfd

@@ -70,7 +70,7 @@ show_events_CFLAGS = $(gtk_CFLAGS)
 #show_events_LDADD = $(top_builddir)/src/libcairo.la $(gtk_LIBS)
 show_events_LDADD = $(gtk_LIBS)
 
-util: malloc-stats.so backtrace-symbols.so
+util: malloc-stats.so
 
 .la.so:
 	$(RM) $@
@@ -82,11 +82,7 @@ CLEANFILES += *.so
 # ie. with EXTRA_LTLIBRARIES
 AM_LDFLAGS = -module -avoid-version -export-dynamic -rpath /dev/null
 
-EXTRA_LTLIBRARIES += malloc-stats.la backtrace-symbols.la
-
-backtrace_symbols_la_LIBADD = -lbfd -liberty
-
-#malloc_stats_la_LIBADD  = $(backtrace_symbols_la_LIBADD) backtrace-symbols.lo
+EXTRA_LTLIBRARIES += malloc-stats.la
 
 if HAVE_GTK
 EXTRA_PROGRAMS += font-view

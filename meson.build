@@ -674,13 +674,11 @@ if zlib_dep.found() and png_dep.found()
 endif
 
 # Untested, libiberty.h is in a libiberty subfolder for me
-# FIXME: automagic
-bfd_dep = cc.find_library('bfd', required: false)
+# Also, the bfd API seems to have changed at some point
+bfd_dep = cc.find_library('bfd', has_headers: ['bfd.h', 'libiberty.h'], required: get_option('symbol-lookup'))
 if bfd_dep.found() and cc.has_function('bfd_openr', dependencies: [bfd_dep])
-  if cc.has_header('libiberty.h')
-    conf.set('HAVE_BFD', 1)
-    deps += [bfd_dep]
-  endif
+  conf.set('HAVE_BFD', 1)
+  deps += [bfd_dep]
 endif
 
 # Untested, see above

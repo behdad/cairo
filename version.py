@@ -14,7 +14,7 @@ if __name__ == '__main__':
     version_minor = None
     version_micro = None
 
-    f = open(os.path.join(srcroot, 'src', 'cairo-version.h'), 'r')
+    f = open(os.path.join(srcroot, 'src', 'cairo-version.h'), 'r', encoding='utf-8')
     for line in f:
         if line.startswith('#define CAIRO_VERSION_MAJOR '):
             version_major = line[28:].strip()

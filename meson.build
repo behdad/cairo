@@ -888,8 +888,7 @@ foreach feature: built_features
     description: feature['description'] + ' for cairo graphics library',
   )
   meson.override_dependency(feature['name'],
-    declare_dependency(link_with: libcairo,
-      dependencies: [feature_deps, feature_compile_deps],
+    declare_dependency(dependencies: [libcairo_dep, feature_deps, feature_compile_deps],
       link_args: feature_libs,
     )
   )

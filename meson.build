@@ -331,8 +331,7 @@ if xcb_dep.found() and xcb_render_dep.found()
 endif
 
 if feature_conf.get('CAIRO_HAS_XCB_SURFACE', 0) == 1 and feature_conf.get('CAIRO_HAS_XLIB_SURFACE', 0) == 1
-  # FIXME: automagic
-  x11xcb_dep = dependency('x11-xcb', required: false)
+  x11xcb_dep = dependency('x11-xcb', required: get_option('xlib-xcb'))
   if x11xcb_dep.found()
     deps += [x11xcb_dep]
     feature_conf.set('CAIRO_HAS_XLIB_XCB_FUNCTIONS', 1)

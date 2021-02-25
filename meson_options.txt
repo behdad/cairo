@@ -18,6 +18,7 @@ option('qt', type : 'feature', value : 'disabled')
 option('tee', type : 'feature', value : 'disabled')
 option('xcb', type : 'feature', value : 'auto')
 option('xlib', type : 'feature', value : 'auto')
+option('xlib-xcb', type : 'feature', value : 'disabled')
 #option('xml', type : 'feature', value : 'disabled')
 option('zlib', type : 'feature', value : 'auto') # script, ps, pdf, xml surfaces
 

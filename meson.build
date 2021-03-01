@@ -696,7 +696,7 @@ if feature_conf.get('CAIRO_HAS_PS_SURFACE', 0) == 1
 
   if libspectre_dep.found()
     conf.set('CAIRO_HAS_SPECTRE', 1)
-    deps += [libspectre_dep]
+    test_deps += [libspectre_dep]
   endif
 endif
 

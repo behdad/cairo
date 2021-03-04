@@ -104,6 +104,9 @@ fedora autotools build:
       - test/*.log
       - test/pdiff/*.log
       - test/output
+    exclude:
+      - "test/**/*.cs"
+      - "test/**/*.trace"
 
 fedora meson build:
   extends:

@@ -82,7 +82,7 @@
  */
 #define PS2_EXPECTED_SIZE 417510
 #define PS3_EXPECTED_SIZE 381554
-#define PDF_EXPECTED_SIZE 347182
+#define PDF_EXPECTED_SIZE 162923
 #define SIZE_TOLERANCE      5000
 
 static const char *png_filename = "romedalen.png";

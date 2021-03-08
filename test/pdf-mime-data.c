@@ -134,7 +134,7 @@ preamble (cairo_test_context_t *ctx)
     cairo_destroy (cr);
     cairo_surface_finish (surface);
     status2 = cairo_surface_status (surface);
-    if (status != CAIRO_STATUS_SUCCESS)
+    if (status == CAIRO_STATUS_SUCCESS)
 	status = status2;
     cairo_surface_destroy (surface);
     cairo_surface_destroy (image);

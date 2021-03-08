@@ -208,6 +208,9 @@ _cairo_test_runner_preamble (cairo_test_runner_t *runner,
     if (! runner->foreground) {
 	pid_t pid;
 
+	/* fork() duplicates output buffers, so clear them */
+	fflush (NULL);
+
 	switch ((pid = fork ())) {
 	case -1: /* error */
 	    return CAIRO_TEST_UNTESTED;
@@ -233,6 +236,9 @@ _cairo_test_runner_draw (cairo_test_runner_t *runner,
 #if SHOULD_FORK
     if (! runner->foreground) {
 	pid_t pid;
+
+	/* fork() duplicates output buffers, so clear them */
+	fflush (NULL);
 
 	switch ((pid = fork ())) {
 	case -1: /* error */

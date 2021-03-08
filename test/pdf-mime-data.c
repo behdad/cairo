@@ -112,7 +112,7 @@ preamble (cairo_test_context_t *ctx)
     if (! cairo_test_is_target_enabled (ctx, "pdf"))
 	return CAIRO_TEST_UNTESTED;
 
-    image = cairo_image_surface_create_from_png (IMAGE_FILE ".png");
+    image = cairo_test_create_surface_from_png (ctx, IMAGE_FILE ".png");
     test_status = read_file (ctx, IMAGE_FILE ".jpg", &data, &len);
     if (test_status) {
 	return test_status;

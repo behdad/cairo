@@ -31,4 +31,5 @@ configure_file(input: 'cairo-trace.in',
   configuration: trace_conf,
   install: true,
   install_dir: join_paths(get_option('prefix'), get_option('bindir')),
+  install_mode: 'rwxr-xr-x',
 )

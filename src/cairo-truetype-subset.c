@@ -628,8 +628,10 @@ cairo_truetype_font_write_glyf_table (cairo_truetype_font_t *font,
 
     status = font->backend->load_truetype_table (font->scaled_font_subset->scaled_font,
                                                  TT_TAG_loca, 0, u.bytes, &size);
-    if (unlikely (status))
+    if (unlikely (status)) {
+	free (u.bytes);
 	return _cairo_truetype_font_set_error (font, status);
+    }
 
     start_offset = _cairo_array_num_elements (&font->output);
     for (i = 0; i < font->num_glyphs; i++) {

@@ -11,7 +11,7 @@ variables:
   FDO_DISTRIBUTION_TAG: '2020-09-29.0'
 
   # TODO: should probably get its own image at some point instead of reusing the GStreamer one.
-  WINDOWS_IMAGE:             "registry.freedesktop.org/gstreamer/gst-ci/amd64/windows:v12-master"
+  WINDOWS_IMAGE:             "registry.freedesktop.org/gstreamer/gst-ci/amd64/windows:v16-master"
 
   DEFAULT_MESON_ARGS: >
     --default-library=both

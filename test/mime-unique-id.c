@@ -48,6 +48,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include <cairo.h>
 
@@ -81,11 +82,24 @@
  */
 #define PS2_EXPECTED_SIZE 417510
 #define PS3_EXPECTED_SIZE 381554
-#define PDF_EXPECTED_SIZE 347182
+#define PDF_EXPECTED_SIZE 162923
 #define SIZE_TOLERANCE      5000
 
 static const char *png_filename = "romedalen.png";
 static const char *jpeg_filename = "romedalen.jpg";
+
+static FILE *
+my_fopen (cairo_test_context_t *ctx, const char *pathname, const char *mode)
+{
+    FILE *f = fopen (pathname, mode);
+    if (f == NULL && errno == ENOENT && ctx->srcdir) {
+	char *srcdir_pathname;
+	xasprintf (&srcdir_pathname, "%s/%s", ctx->srcdir, pathname);
+	f = fopen (srcdir_pathname, mode);
+	free (srcdir_pathname);
+    }
+    return f;
+}
 
 static cairo_test_status_t
 create_image_surface (cairo_test_context_t *ctx, cairo_surface_t **surface)
@@ -117,7 +131,7 @@ create_recording_surface_with_mime_jpg (cairo_test_context_t *ctx, cairo_surface
     cairo_rectangle_t extents = { 0, 0, 1, 1 };
 
     *surface = cairo_recording_surface_create (CAIRO_CONTENT_COLOR_ALPHA, &extents);
-    f = fopen (jpeg_filename, "rb");
+    f = my_fopen (ctx, jpeg_filename, "rb");
     if (f == NULL) {
 	cairo_test_log (ctx, "Unable to open file %s\n", jpeg_filename);
 	return CAIRO_TEST_FAILURE;
@@ -372,7 +386,7 @@ check_file_size (cairo_test_context_t *ctx, const char *filename, long expected_
     FILE *f;
     long size;
 
-    f = fopen (filename, "rb");
+    f = my_fopen (ctx, filename, "rb");
     if (f == NULL) {
 	cairo_test_log (ctx, "Unable to open file %s\n", filename);
 	return CAIRO_TEST_FAILURE;

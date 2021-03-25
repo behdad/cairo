@@ -14,7 +14,7 @@ AC_CONFIG_HEADERS(config.h)
 AC_CHECK_HEADERS([unistd.h sys/ioctl.h])
 AC_C_TYPEOF
 
-AM_INIT_AUTOMAKE([1.11 foreign -Wall no-define no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([1.11 foreign -Wall no-define no-dist-gzip dist-xz serial-tests])
 AM_SILENT_RULES([yes])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR]) dnl Workaround for Automake 1.12
 

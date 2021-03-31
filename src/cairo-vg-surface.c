@@ -1373,7 +1373,7 @@ premultiply_argb (uint8_t   *data,
 		uint8_t r = multiply_alpha (alpha, (p >> 16) & 0xff);
 		uint8_t g = multiply_alpha (alpha, (p >>  8) & 0xff);
 		uint8_t b = multiply_alpha (alpha, (p >>  0) & 0xff);
-		row[i] = (alpha << 24) | (r << 16) | (g << 8) | (b << 0);
+		row[i] = ((uint32_t)alpha << 24) | (r << 16) | (g << 8) | (b << 0);
 	    }
 	}
 

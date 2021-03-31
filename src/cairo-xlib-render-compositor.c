@@ -1607,7 +1607,7 @@ composite_glyphs (void				*surface,
     op = _render_operator (op),
     _cairo_xlib_surface_ensure_picture (dst);
     for (i = 0; i < num_glyphs; i++) {
-        int xphase, yphase;
+        uint32_t xphase, yphase;
 	int this_x, this_y;
 	int old_width;
 

@@ -627,7 +627,7 @@ _solid_picture (cairo_xcb_surface_t *target,
 	    gc = _cairo_xcb_screen_get_gc (target->screen, pixmap, 32);
 
 	    /* XXX byte ordering? */
-	    pixel = ((color->alpha_short >> 8) << 24) |
+	    pixel = (((uint32_t)color->alpha_short >> 8) << 24) |
 		    ((color->red_short   >> 8) << 16) |
 		    ((color->green_short >> 8) << 8) |
 		    ((color->blue_short  >> 8) << 0);

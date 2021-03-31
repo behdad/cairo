@@ -284,7 +284,7 @@ premultiply_bgra (unsigned char* data,
 		    green = multiply_alpha (alpha, green);
 		    red   = multiply_alpha (alpha, red);
 		}
-		p = (alpha << 0) | (red << 8) | (green << 16) | (blue << 24);
+		p = (alpha << 0) | (red << 8) | (green << 16) | ((uint32_t)blue << 24);
 	    }
 	    memcpy (&out[4*i], &p, sizeof (uint32_t));
 	}

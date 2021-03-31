@@ -123,7 +123,7 @@ _cairo_gl_shader_cache_equal_gles2 (const void *key_a, const void *key_b)
 static unsigned long
 _cairo_gl_shader_cache_hash (const cairo_shader_cache_entry_t *entry)
 {
-    return ((entry->src << 24) | (entry->mask << 16) | (entry->dest << 8) | (entry->in << 1) | entry->use_coverage) ^ entry->vertex;
+    return (((uint32_t)entry->src << 24) | (entry->mask << 16) | (entry->dest << 8) | (entry->in << 1) | entry->use_coverage) ^ entry->vertex;
 }
 
 static void

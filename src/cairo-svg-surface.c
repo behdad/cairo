@@ -136,6 +136,11 @@ static const char * _cairo_svg_unit_strings[] =
     "%"
 };
 
+enum cairo_svg_filter {
+    CAIRO_SVG_FILTER_REMOVE_COLOR,
+    CAIRO_SVG_FILTER_LAST_FILTER,
+};
+
 struct cairo_svg_page {
     unsigned int surface_id;
     unsigned int clip_level;
@@ -154,15 +159,15 @@ struct cairo_svg_document {
 
     cairo_output_stream_t *xml_node_defs;
     cairo_output_stream_t *xml_node_glyphs;
+    cairo_output_stream_t *xml_node_filters;
 
     unsigned int linear_pattern_id;
     unsigned int radial_pattern_id;
     unsigned int pattern_id;
-    unsigned int filter_id;
     unsigned int clip_id;
     unsigned int mask_id;
 
-    cairo_bool_t alpha_filter;
+    cairo_bool_t filters_emitted[CAIRO_SVG_FILTER_LAST_FILTER];
 
     cairo_svg_version_t svg_version;
 
@@ -1202,23 +1207,35 @@ _cairo_svg_surface_finish (void *abstract_surface)
 }
 
 
-static void
-_cairo_svg_surface_emit_alpha_filter (cairo_svg_document_t *document)
+static char *
+_cairo_svg_surface_emit_filter (cairo_svg_document_t *document, enum cairo_svg_filter filter)
 {
-    if (document->alpha_filter)
-	return;
+    if (!document->filters_emitted[filter]) {
+	document->filters_emitted[filter] = TRUE;
+	switch (filter) {
+	    case CAIRO_SVG_FILTER_REMOVE_COLOR:
+	        // (r, g, b, a) -> (1, 1, 1, a)
+		_cairo_output_stream_printf (document->xml_node_filters,
+					     "<filter id=\"filter-remove-color\" "
+					     "filterUnits=\"objectBoundingBox\" "
+					     "x=\"0%%\" y=\"0%%\" "
+					     "width=\"100%%\" height=\"100%%\">\n"
+					     "<feColorMatrix type=\"matrix\" "
+					     "in=\"SourceGraphic\" "
+					     "values=\"0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0\"/>\n"
+					     "</filter>\n");
+		break;
+	    default:
+		ASSERT_NOT_REACHED;
+	}
+    }
 
-    _cairo_output_stream_printf (document->xml_node_defs,
-				 "<filter id=\"alpha\" "
-				 "filterUnits=\"objectBoundingBox\" "
-				 "x=\"0%%\" y=\"0%%\" "
-				 "width=\"100%%\" height=\"100%%\">\n"
-				 "  <feColorMatrix type=\"matrix\" "
-				 "in=\"SourceGraphic\" "
-				 "values=\"0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0\"/>\n"
-				 "</filter>\n");
-
-    document->alpha_filter = TRUE;
+    switch (filter) {
+	case CAIRO_SVG_FILTER_REMOVE_COLOR:
+	    return "filter-remove-color";
+	default:
+	    ASSERT_NOT_REACHED;
+    }
 }
 
 typedef struct {
@@ -1635,10 +1652,6 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t      *document,
 				     extents.height);
     }
 
-    if (source->base.content == CAIRO_CONTENT_ALPHA) {
-	_cairo_svg_surface_emit_alpha_filter (document);
-    }
-
     _cairo_output_stream_printf (document->xml_node_defs,
 				 "<g id=\"surface%d\"",
 				 source_id);
@@ -1651,7 +1664,8 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t      *document,
 
     if (source->base.content == CAIRO_CONTENT_ALPHA) {
 	_cairo_output_stream_printf (document->xml_node_defs,
-				     " filter=\"url(#alpha)\"");
+				     " filter=\"url(#%s)\"",
+				     _cairo_svg_surface_emit_filter (document, CAIRO_SVG_FILTER_REMOVE_COLOR));
     }
 
     _cairo_output_stream_printf (document->xml_node_defs,
@@ -2691,9 +2705,6 @@ _cairo_svg_surface_mask (void		    *abstract_surface,
 	    discard_filter = TRUE;
     }
 
-    if (!discard_filter)
-	_cairo_svg_surface_emit_alpha_filter (document);
-
     /* _cairo_svg_surface_emit_paint() will output a pattern definition to
      * document->xml_node_defs so we need to write the mask element to
      * a temporary stream and then copy that to xml_node_defs. */
@@ -2704,10 +2715,13 @@ _cairo_svg_surface_mask (void		    *abstract_surface,
     mask_id = _cairo_svg_document_allocate_mask_id (document);
 
     _cairo_output_stream_printf (mask_stream,
-				 "<mask id=\"mask%d\">\n"
-				 "%s",
-				 mask_id,
-				 discard_filter ? "" : "  <g filter=\"url(#alpha)\">\n");
+				 "<mask id=\"mask%d\">\n",
+				 mask_id);
+    if (!discard_filter) {
+	_cairo_output_stream_printf (mask_stream,
+				     "<g filter=\"url(#%s)\">\n",
+				     _cairo_svg_surface_emit_filter (document, CAIRO_SVG_FILTER_REMOVE_COLOR));
+    }
     status = _cairo_svg_surface_emit_paint (mask_stream, surface, CAIRO_OPERATOR_OVER, mask, source, NULL);
     if (unlikely (status)) {
 	cairo_status_t ignore = _cairo_output_stream_destroy (mask_stream);
@@ -3049,9 +3063,12 @@ _cairo_svg_document_create (cairo_output_stream_t	 *output_stream,
     document->linear_pattern_id = 0;
     document->radial_pattern_id = 0;
     document->pattern_id = 0;
-    document->filter_id = 0;
     document->clip_id = 0;
     document->mask_id = 0;
+
+    for (enum cairo_svg_filter filter = 0; filter < CAIRO_SVG_FILTER_LAST_FILTER; filter++) {
+	document->filters_emitted[filter] = FALSE;
+    }
 
     document->xml_node_defs = _cairo_memory_stream_create ();
     status = _cairo_output_stream_get_status (document->xml_node_defs);
@@ -3063,13 +3080,18 @@ _cairo_svg_document_create (cairo_output_stream_t	 *output_stream,
     if (unlikely (status))
 	goto CLEANUP_NODE_GLYPHS;
 
-    document->alpha_filter = FALSE;
+    document->xml_node_filters = _cairo_memory_stream_create ();
+    status = _cairo_output_stream_get_status (document->xml_node_filters);
+    if (unlikely (status))
+	goto CLEANUP_NODE_FILTERS;
 
     document->svg_version = version;
 
     *document_out = document;
     return CAIRO_STATUS_SUCCESS;
 
+  CLEANUP_NODE_FILTERS:
+    status_ignored = _cairo_output_stream_destroy (document->xml_node_filters);
   CLEANUP_NODE_GLYPHS:
     status_ignored = _cairo_output_stream_destroy (document->xml_node_glyphs);
   CLEANUP_NODE_DEFS:
@@ -3156,9 +3178,15 @@ _cairo_svg_document_finish (cairo_svg_document_t *document)
 
     status = _cairo_svg_document_emit_font_subsets (document);
 
-    if (_cairo_memory_stream_length (document->xml_node_glyphs) > 0 ||
+    if (_cairo_memory_stream_length (document->xml_node_filters) > 0 ||
+	_cairo_memory_stream_length (document->xml_node_glyphs) > 0 ||
 	_cairo_memory_stream_length (document->xml_node_defs) > 0) {
 	_cairo_output_stream_printf (output, "<defs>\n");
+	if (_cairo_memory_stream_length (document->xml_node_filters) > 0) {
+	    _cairo_output_stream_printf (output, "<g>\n");
+	    _cairo_memory_stream_copy (document->xml_node_filters, output);
+	    _cairo_output_stream_printf (output, "</g>\n");
+	}
 	if (_cairo_memory_stream_length (document->xml_node_glyphs) > 0) {
 	    _cairo_output_stream_printf (output, "<g>\n");
 	    _cairo_memory_stream_copy (document->xml_node_glyphs, output);
@@ -3204,6 +3232,10 @@ _cairo_svg_document_finish (cairo_svg_document_t *document)
     }
 
     _cairo_output_stream_printf (output, "</svg>\n");
+
+    status2 = _cairo_output_stream_destroy (document->xml_node_filters);
+    if (status == CAIRO_STATUS_SUCCESS)
+	status = status2;
 
     status2 = _cairo_output_stream_destroy (document->xml_node_glyphs);
     if (status == CAIRO_STATUS_SUCCESS)

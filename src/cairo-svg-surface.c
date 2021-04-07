@@ -201,6 +201,9 @@ _cairo_svg_surface_create_for_stream_internal (cairo_output_stream_t	*stream,
 					       double			 height,
 					       cairo_svg_version_t	 version);
 
+static cairo_status_t
+_cairo_svg_surface_emit_paint_black (cairo_svg_surface_t *surface);
+
 static const cairo_surface_backend_t cairo_svg_surface_backend;
 static const cairo_paginated_surface_backend_t cairo_svg_surface_paginated_backend;
 
@@ -579,22 +582,17 @@ _cairo_svg_surface_add_source_surface (cairo_svg_surface_t  *surface,
 }
 
 static cairo_bool_t
-_cliprect_covers_surface (cairo_svg_surface_t *surface,
-			  cairo_path_fixed_t *path)
+_cairo_svg_surface_cliprect_covers_surface (cairo_svg_surface_t *surface,
+					    cairo_path_fixed_t *path)
 {
     cairo_box_t box;
 
-    if (_cairo_path_fixed_is_box (path, &box)) {
-	if (box.p1.x <= 0 &&
-	    box.p1.y <= 0 &&
-	    _cairo_fixed_to_double (box.p2.x) >= surface->width &&
-	    _cairo_fixed_to_double (box.p2.y) >= surface->height)
-	{
-	    return TRUE;
-	}
-    }
-
-    return FALSE;
+    return surface->surface_bounded &&
+	   _cairo_path_fixed_is_box (path, &box) &&
+	   box.p1.x <= 0 &&
+	   box.p1.y <= 0 &&
+	   _cairo_fixed_to_double (box.p2.x) >= surface->width &&
+	   _cairo_fixed_to_double (box.p2.y) >= surface->height;
 }
 
 static cairo_status_t
@@ -619,7 +617,7 @@ _cairo_svg_surface_clipper_intersect_clip_path (cairo_surface_clipper_t *clipper
     }
 
     /* skip trivial whole-page clips */
-    if (surface->surface_bounded && _cliprect_covers_surface (surface, path))
+    if (_cairo_svg_surface_cliprect_covers_surface (surface, path))
 	return CAIRO_STATUS_SUCCESS;
 
     _cairo_output_stream_printf (document->xml_node_defs,
@@ -684,12 +682,7 @@ _cairo_svg_surface_create_for_document (cairo_svg_document_t	*document,
     _cairo_array_init (&surface->page_set, sizeof (cairo_svg_page_t));
 
     if (content == CAIRO_CONTENT_COLOR) {
-	_cairo_output_stream_printf (surface->xml_node,
-				     "<rect width=\"%f\" height=\"%f\" "
-				     "style=\"opacity:1;stroke:none;"
-				     "fill:rgb(0,0,0);\"/>\n",
-				     width, height);
-	status = _cairo_output_stream_get_status (surface->xml_node);
+	status = _cairo_svg_surface_emit_paint_black (surface);
 	if (unlikely (status))
 	    goto CLEANUP;
     }
@@ -1694,7 +1687,7 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t      *document,
 }
 
 static cairo_recording_surface_t *
-to_recording_surface (const cairo_surface_pattern_t *pattern)
+_cairo_svg_surface_to_recording_surface (const cairo_surface_pattern_t *pattern)
 {
     cairo_surface_t *surface = pattern->surface;
     if (_cairo_surface_is_paginated (surface))
@@ -1740,7 +1733,7 @@ _cairo_svg_surface_emit_composite_recording_pattern (cairo_output_stream_t	*outp
     if (unlikely (status))
 	return status;
 
-    recording_surface = to_recording_surface (pattern);
+    recording_surface = _cairo_svg_surface_to_recording_surface (pattern);
     if (is_new) {
 	status = _cairo_svg_surface_emit_recording_surface (document, recording_surface, source_id);
 	if (unlikely (status))
@@ -2970,6 +2963,19 @@ static const char **
 _cairo_svg_surface_get_supported_mime_types (void	   *abstract_surface)
 {
     return _cairo_svg_supported_mime_types;
+}
+
+static cairo_status_t
+_cairo_svg_surface_emit_paint_black (cairo_svg_surface_t *surface) {
+    cairo_pattern_t *black_pattern = cairo_pattern_create_rgb (0.0, 0.0, 0.0);
+    cairo_status_t status = _cairo_svg_surface_emit_paint (surface->xml_node,
+							   surface,
+							   CAIRO_OPERATOR_OVER,
+							   black_pattern,
+							   NULL,
+							   NULL);
+    cairo_pattern_destroy(black_pattern);
+    return status;
 }
 
 static const cairo_surface_backend_t cairo_svg_surface_backend = {

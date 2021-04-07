@@ -232,6 +232,7 @@ test_sources = [
   'operator-alpha-alpha.c',
   'operator-clear.c',
   'operator-source.c',
+  'operator-www.c',
   'outline-tolerance.c',
   'over-above-source.c',
   'over-around-source.c',

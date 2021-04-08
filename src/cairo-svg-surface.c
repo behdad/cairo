@@ -52,7 +52,6 @@
 #include "cairo-image-surface-private.h"
 #include "cairo-recording-surface-inline.h"
 #include "cairo-output-stream-private.h"
-#include "cairo-path-fixed-private.h"
 #include "cairo-paginated-private.h"
 #include "cairo-scaled-font-subsets-private.h"
 #include "cairo-surface-clipper-private.h"
@@ -528,7 +527,7 @@ _cairo_svg_source_surface_pluck (void *entry, void *closure)
 static cairo_status_t
 _cairo_svg_surface_add_source_surface (cairo_svg_surface_t  *surface,
 				       cairo_surface_t	    *source_surface,
-				       int                  *source_id,
+				       unsigned int         *source_id,
 				       cairo_bool_t         *is_new)
 {
     cairo_svg_source_surface_t source_key;
@@ -1484,7 +1483,7 @@ _cairo_svg_surface_emit_attr_value (cairo_output_stream_t *stream,
 static cairo_status_t
 _cairo_svg_surface_emit_surface (cairo_svg_document_t *document,
 				 cairo_surface_t *surface,
-				 int source_id)
+				 unsigned int source_id)
 {
     cairo_rectangle_int_t extents;
     cairo_bool_t is_bounded;
@@ -1525,13 +1524,13 @@ _cairo_svg_surface_emit_composite_surface_pattern (cairo_output_stream_t   *outp
 						   cairo_svg_surface_t	 *svg_surface,
 						   cairo_operator_t	  op,
 						   cairo_surface_pattern_t *pattern,
-						   int			  pattern_id,
+						   unsigned int		  pattern_id,
 						   const cairo_matrix_t	 *parent_matrix,
 						   const char		 *extra_attributes)
 {
     cairo_status_t status;
     cairo_matrix_t p2u;
-    int source_id;
+    unsigned int source_id;
     cairo_bool_t is_new;
 
     p2u = pattern->base.matrix;
@@ -1602,7 +1601,7 @@ _cairo_svg_surface_emit_composite_surface_pattern (cairo_output_stream_t   *outp
 static cairo_status_t
 _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t      *document,
 					   cairo_recording_surface_t *source,
-					   int                        source_id)
+					   unsigned int               source_id)
 {
     cairo_status_t status;
     cairo_surface_t *paginated_surface;
@@ -1724,7 +1723,7 @@ _cairo_svg_surface_emit_composite_recording_pattern (cairo_output_stream_t	*outp
 						     cairo_svg_surface_t	*surface,
 						     cairo_operator_t	         op,
 						     cairo_surface_pattern_t	*pattern,
-						     int			 pattern_id,
+						     unsigned int		 pattern_id,
 						     const cairo_matrix_t	*parent_matrix,
 						     const char			*extra_attributes)
 {
@@ -1732,7 +1731,7 @@ _cairo_svg_surface_emit_composite_recording_pattern (cairo_output_stream_t	*outp
     cairo_recording_surface_t *recording_surface;
     cairo_matrix_t p2u;
     cairo_status_t status;
-    int source_id;
+    unsigned int source_id;
     cairo_bool_t is_new;
 
     p2u = pattern->base.matrix;
@@ -1799,7 +1798,7 @@ _cairo_svg_surface_emit_composite_pattern (cairo_output_stream_t   *output,
 					   cairo_svg_surface_t	   *surface,
 					   cairo_operator_t	    op,
 					   cairo_surface_pattern_t *pattern,
-					   int			    pattern_id,
+					   unsigned int		    pattern_id,
 					   const cairo_matrix_t	   *parent_matrix,
 					   const char		   *extra_attributes)
 {
@@ -1848,7 +1847,7 @@ _cairo_svg_surface_emit_surface_pattern (cairo_svg_surface_t	 *surface,
 {
     cairo_svg_document_t *document = surface->document;
     cairo_status_t status;
-    int pattern_id;
+    unsigned int pattern_id;
 
     pattern_id = document->pattern_id++;
     status = _cairo_svg_surface_emit_composite_pattern (document->xml_node_defs,

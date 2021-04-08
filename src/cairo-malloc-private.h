@@ -60,7 +60,7 @@
  **/
 
 #define _cairo_malloc(size) \
-   ((size) > 0 ? malloc((unsigned) (size)) : NULL)
+   ((size) > 0 ? malloc((unsigned) (size)) : NULL) // NOLINT(bugprone-sizeof-expression)
 
 /**
  * _cairo_malloc_ab:

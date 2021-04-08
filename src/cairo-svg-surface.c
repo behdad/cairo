@@ -376,7 +376,7 @@ void
 cairo_svg_surface_restrict_to_version (cairo_surface_t		*abstract_surface,
 				       cairo_svg_version_t	 version)
 {
-    cairo_svg_surface_t *surface = NULL; /* hide compiler warning */
+    cairo_svg_surface_t *surface;
 
     if (! _extract_svg_surface (abstract_surface, &surface))
 	return;
@@ -454,7 +454,7 @@ void
 cairo_svg_surface_set_document_unit (cairo_surface_t	*abstract_surface,
 				     cairo_svg_unit_t	 unit)
 {
-    cairo_svg_surface_t *surface = NULL; /* hide compiler warning */
+    cairo_svg_surface_t *surface;
 
     if (! _extract_svg_surface (abstract_surface, &surface))
 	return;
@@ -480,7 +480,7 @@ cairo_svg_surface_set_document_unit (cairo_surface_t	*abstract_surface,
 cairo_svg_unit_t
 cairo_svg_surface_get_document_unit (cairo_surface_t	*abstract_surface)
 {
-    cairo_svg_surface_t *surface = NULL; /* hide compiler warning */
+    cairo_svg_surface_t *surface;
 
     if (! _extract_svg_surface (abstract_surface, &surface)) {
 	_cairo_error_throw (CAIRO_STATUS_SURFACE_TYPE_MISMATCH);
@@ -724,7 +724,7 @@ _cairo_svg_surface_create_for_stream_internal (cairo_output_stream_t	*stream,
 					       double			 height,
 					       cairo_svg_version_t	 version)
 {
-    cairo_svg_document_t *document = NULL; /* silence compiler */
+    cairo_svg_document_t *document;
     cairo_surface_t *surface;
     cairo_status_t status;
 

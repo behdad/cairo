@@ -679,9 +679,6 @@ _cairo_svg_surface_create_for_document (cairo_svg_document_t	*document,
 				 _cairo_svg_surface_clipper_intersect_clip_path);
 
     surface->xml_node = _cairo_memory_stream_create ();
-    status = _cairo_output_stream_get_status (surface->xml_node);
-    if (unlikely (status))
-	goto CLEANUP;
 
     _cairo_array_init (&surface->page_set, sizeof (cairo_svg_page_t));
 
@@ -765,10 +762,6 @@ _cairo_svg_surface_store_page (cairo_svg_surface_t *surface)
     unsigned int i;
 
     stream = _cairo_memory_stream_create ();
-    if (_cairo_output_stream_get_status (stream)) {
-	status = _cairo_output_stream_destroy (stream);
-	return NULL;
-    }
 
     page.surface_id = surface->base.unique_id;
     page.clip_level = surface->clip_level;
@@ -2614,7 +2607,6 @@ _cairo_svg_surface_paint (void		    *abstract_surface,
 	    ASSERT_NOT_REACHED;
 	case CAIRO_PAGINATED_MODE_ANALYZE:
 	    return CAIRO_STATUS_SUCCESS;
-
 	case CAIRO_PAGINATED_MODE_RENDER:
 	    status = _cairo_output_stream_destroy (surface->xml_node);
 	    if (unlikely (status)) {
@@ -2623,11 +2615,6 @@ _cairo_svg_surface_paint (void		    *abstract_surface,
 	    }
 
 	    surface->xml_node = _cairo_memory_stream_create ();
-	    if (_cairo_output_stream_get_status (surface->xml_node)) {
-		status = _cairo_output_stream_destroy (surface->xml_node);
-		surface->xml_node = NULL;
-		return status;
-	    }
 
 	    if (op == CAIRO_OPERATOR_CLEAR) {
 		if (surface->content == CAIRO_CONTENT_COLOR) {
@@ -2708,8 +2695,6 @@ _cairo_svg_surface_mask (void		    *abstract_surface,
      * document->xml_node_defs so we need to write the mask element to
      * a temporary stream and then copy that to xml_node_defs. */
     mask_stream = _cairo_memory_stream_create ();
-    if (_cairo_output_stream_get_status (mask_stream))
-	return _cairo_output_stream_destroy (mask_stream);
 
     mask_id = _cairo_svg_document_allocate_mask_id (document);
 
@@ -2739,8 +2724,6 @@ _cairo_svg_surface_mask (void		    *abstract_surface,
 	return status;
 
     cairo_output_stream_t *extra_attributes_stream = _cairo_memory_stream_create ();
-    if (_cairo_output_stream_get_status (extra_attributes_stream))
-	return _cairo_output_stream_destroy (extra_attributes_stream);
 
     _cairo_output_stream_printf (extra_attributes_stream,
 				 "mask=\"url(#mask%d)\"",
@@ -2832,8 +2815,6 @@ _cairo_svg_surface_stroke (void			*abstract_dst,
 				     "</mask>\n");
 
 	cairo_output_stream_t *extra_attributes_stream = _cairo_memory_stream_create ();
-	if (_cairo_output_stream_get_status (extra_attributes_stream))
-	    return _cairo_output_stream_destroy (extra_attributes_stream);
 
 	_cairo_output_stream_printf (extra_attributes_stream,
 				     "mask=\"url(#mask%d)\" style=\"",
@@ -3035,7 +3016,7 @@ _cairo_svg_document_create (cairo_output_stream_t	 *output_stream,
 			    cairo_svg_document_t	**document_out)
 {
     cairo_svg_document_t *document;
-    cairo_status_t status, status_ignored;
+    cairo_status_t status;
 
     if (output_stream->status)
 	return output_stream->status;
@@ -3070,32 +3051,14 @@ _cairo_svg_document_create (cairo_output_stream_t	 *output_stream,
     }
 
     document->xml_node_defs = _cairo_memory_stream_create ();
-    status = _cairo_output_stream_get_status (document->xml_node_defs);
-    if (unlikely (status))
-	goto CLEANUP_NODE_DEFS;
-
     document->xml_node_glyphs = _cairo_memory_stream_create ();
-    status = _cairo_output_stream_get_status (document->xml_node_glyphs);
-    if (unlikely (status))
-	goto CLEANUP_NODE_GLYPHS;
-
     document->xml_node_filters = _cairo_memory_stream_create ();
-    status = _cairo_output_stream_get_status (document->xml_node_filters);
-    if (unlikely (status))
-	goto CLEANUP_NODE_FILTERS;
 
     document->svg_version = version;
 
     *document_out = document;
     return CAIRO_STATUS_SUCCESS;
 
-  CLEANUP_NODE_FILTERS:
-    status_ignored = _cairo_output_stream_destroy (document->xml_node_filters);
-  CLEANUP_NODE_GLYPHS:
-    status_ignored = _cairo_output_stream_destroy (document->xml_node_glyphs);
-  CLEANUP_NODE_DEFS:
-    status_ignored = _cairo_output_stream_destroy (document->xml_node_defs);
-    _cairo_scaled_font_subsets_destroy (document->font_subsets);
   CLEANUP_DOCUMENT:
     free (document);
     return status;

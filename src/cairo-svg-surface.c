@@ -1711,6 +1711,11 @@ _cairo_svg_surface_svg_pattern_should_be_used (const cairo_pattern_t *pattern) {
 	   _cairo_surface_get_extents (((cairo_surface_pattern_t *) pattern)->surface, &extents);
 }
 
+static cairo_bool_t
+_cairo_svg_surface_svg_clip_or_svg_mask_should_be_used (const cairo_pattern_t *pattern) {
+    return pattern->type == CAIRO_PATTERN_TYPE_SURFACE && !_cairo_svg_surface_svg_pattern_should_be_used (pattern);
+}
+
 static cairo_status_t
 _cairo_svg_surface_emit_composite_recording_pattern (cairo_output_stream_t	*output,
 						     cairo_svg_surface_t	*surface,
@@ -2411,8 +2416,8 @@ _cairo_svg_surface_fill_stroke (void			*abstract_surface,
     cairo_svg_surface_t *surface = abstract_surface;
     cairo_status_t status;
 
-    if (_cairo_svg_surface_svg_pattern_should_be_used (fill_source) ||
-	_cairo_svg_surface_svg_pattern_should_be_used (stroke_source)) {
+    if (_cairo_svg_surface_svg_clip_or_svg_mask_should_be_used (fill_source) ||
+	_cairo_svg_surface_svg_clip_or_svg_mask_should_be_used (stroke_source)) {
 	status = _cairo_surface_fill (&surface->base, fill_op, fill_source, path,
 				      fill_rule, fill_tolerance, fill_antialias,
 				      clip);
@@ -2474,7 +2479,7 @@ _cairo_svg_surface_fill (void			*abstract_surface,
     if (unlikely (status))
 	return status;
 
-    if (source->type == CAIRO_PATTERN_TYPE_SURFACE && !_cairo_svg_surface_svg_pattern_should_be_used (source)) {
+    if (_cairo_svg_surface_svg_clip_or_svg_mask_should_be_used (source)) {
 	_cairo_output_stream_printf (surface->document->xml_node_defs,
 				     "<clipPath id=\"clip%d\">\n"
 				     "  <path ",
@@ -2558,7 +2563,7 @@ _cairo_svg_surface_emit_paint (cairo_output_stream_t *output,
 {
     cairo_status_t status;
 
-    if (source->type == CAIRO_PATTERN_TYPE_SURFACE && !_cairo_svg_surface_svg_pattern_should_be_used(source))
+    if (_cairo_svg_surface_svg_clip_or_svg_mask_should_be_used(source))
 	return _cairo_svg_surface_emit_composite_pattern (output,
 							  surface,
 							  op,
@@ -2599,12 +2604,8 @@ _cairo_svg_surface_paint (void		    *abstract_surface,
      * is defined. We just delete existing content of surface root node,
      * and exit early if operator is clear.
      */
-    if ((op == CAIRO_OPERATOR_CLEAR || op == CAIRO_OPERATOR_SOURCE) &&
-	clip == NULL)
-    {
+    if ((op == CAIRO_OPERATOR_CLEAR || op == CAIRO_OPERATOR_SOURCE) && clip == NULL) {
 	switch (surface->paginated_mode) {
-	case CAIRO_PAGINATED_MODE_FALLBACK:
-	    ASSERT_NOT_REACHED;
 	case CAIRO_PAGINATED_MODE_ANALYZE:
 	    return CAIRO_STATUS_SUCCESS;
 	case CAIRO_PAGINATED_MODE_RENDER:
@@ -2618,16 +2619,13 @@ _cairo_svg_surface_paint (void		    *abstract_surface,
 
 	    if (op == CAIRO_OPERATOR_CLEAR) {
 		if (surface->content == CAIRO_CONTENT_COLOR) {
-		    _cairo_output_stream_printf (surface->xml_node,
-						 "<rect x=\"-1000000%%\" y=\"-1000000%%\" "
-						 "width=\"2000000%%\" height=\"2000000%%\" "
-						 "style=\"opacity:1;"
-						 "stroke:none;"
-						 "fill:rgb(0,0,0);\"/>\n");
+		    return _cairo_svg_surface_emit_paint_black (surface);
 		}
 		return CAIRO_STATUS_SUCCESS;
 	    }
 	    break;
+	case CAIRO_PAGINATED_MODE_FALLBACK:
+	    ASSERT_NOT_REACHED;
 	}
     } else {
 	if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE)
@@ -2772,12 +2770,11 @@ _cairo_svg_surface_stroke (void			*abstract_dst,
     if (unlikely (status))
 	return status;
 
-    cairo_bool_t svg_pattern_should_not_be_used = source->type == CAIRO_PATTERN_TYPE_SURFACE &&
-						  !_cairo_svg_surface_svg_pattern_should_be_used (source);
+    cairo_bool_t svg_clip_or_svg_mask_should_be_used = _cairo_svg_surface_svg_clip_or_svg_mask_should_be_used (source);
     unsigned int mask_id;
     cairo_output_stream_t *output_stream = surface->xml_node;
     cairo_pattern_t *white_pattern;
-    if (svg_pattern_should_not_be_used) {
+    if (svg_clip_or_svg_mask_should_be_used) {
 	mask_id = _cairo_svg_document_allocate_mask_id (surface->document);
 
 	output_stream = surface->document->xml_node_defs;
@@ -2792,8 +2789,8 @@ _cairo_svg_surface_stroke (void			*abstract_dst,
     _cairo_output_stream_printf (output_stream, "<path style=\"fill:none;");
     status = _cairo_svg_surface_emit_stroke_style (output_stream,
 						   surface,
-						   svg_pattern_should_not_be_used ? CAIRO_OPERATOR_OVER : op,
-						   svg_pattern_should_not_be_used ? white_pattern : source,
+						   svg_clip_or_svg_mask_should_be_used ? CAIRO_OPERATOR_OVER : op,
+						   svg_clip_or_svg_mask_should_be_used ? white_pattern : source,
 						   stroke_style,
 						   ctm_inverse);
 
@@ -2808,7 +2805,7 @@ _cairo_svg_surface_stroke (void			*abstract_dst,
 				       " transform", ctm, NULL);
     _cairo_output_stream_printf (output_stream, "/>\n");
 
-    if (svg_pattern_should_not_be_used) {
+    if (svg_clip_or_svg_mask_should_be_used) {
         cairo_pattern_destroy(white_pattern);
 
 	_cairo_output_stream_printf (output_stream,

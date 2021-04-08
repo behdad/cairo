@@ -137,6 +137,7 @@ static const char * _cairo_svg_unit_strings[] =
 
 enum cairo_svg_filter {
     CAIRO_SVG_FILTER_REMOVE_COLOR,
+    CAIRO_SVG_FILTER_COLOR_TO_ALPHA,
     CAIRO_SVG_FILTER_LAST_FILTER,
 };
 
@@ -943,7 +944,7 @@ _cairo_svg_document_emit_outline_glyph_data (cairo_svg_document_t	*document,
 	return status;
 
     _cairo_output_stream_printf (document->xml_node_glyphs,
-				 "<path style=\"stroke:none;\" ");
+				 "<path ");
 
     _cairo_svg_surface_emit_path (document->xml_node_glyphs,
 				  scaled_glyph->path, NULL);
@@ -1214,7 +1215,25 @@ _cairo_svg_surface_emit_filter (cairo_svg_document_t *document, enum cairo_svg_f
 					     "width=\"100%%\" height=\"100%%\">\n"
 					     "<feColorMatrix type=\"matrix\" "
 					     "in=\"SourceGraphic\" "
-					     "values=\"0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0\"/>\n"
+					     "values=\"0 0 0 0 1 "
+					     /*    */ "0 0 0 0 1 "
+					     /*    */ "0 0 0 0 1 "
+					     /*    */ "0 0 0 1 0\"/>\n"
+					     "</filter>\n");
+		break;
+	    case CAIRO_SVG_FILTER_COLOR_TO_ALPHA:
+	        // (r, g, b, a) -> (1, 1, 1, 0.2126 * r + 0.7152 * g + 0.0722 * b)
+		_cairo_output_stream_printf (document->xml_node_filters,
+					     "<filter id=\"filter-color-to-alpha\" "
+					     "filterUnits=\"objectBoundingBox\" "
+					     "x=\"0%%\" y=\"0%%\" "
+					     "width=\"100%%\" height=\"100%%\">\n"
+					     "<feColorMatrix type=\"matrix\" "
+					     "in=\"SourceGraphic\" "
+					     "values=\"0 0 0 0 1 "
+					     /*    */ "0 0 0 0 1 "
+					     /*    */ "0 0 0 0 1 "
+					     /*    */ "0.2126 0.7152 0.0722 0 0\"/>\n"
 					     "</filter>\n");
 		break;
 	    default:
@@ -1225,6 +1244,8 @@ _cairo_svg_surface_emit_filter (cairo_svg_document_t *document, enum cairo_svg_f
     switch (filter) {
 	case CAIRO_SVG_FILTER_REMOVE_COLOR:
 	    return "filter-remove-color";
+	case CAIRO_SVG_FILTER_COLOR_TO_ALPHA:
+	    return "filter-color-to-alpha";
 	default:
 	    ASSERT_NOT_REACHED;
     }
@@ -1570,9 +1591,17 @@ _cairo_svg_surface_emit_composite_surface_pattern (cairo_output_stream_t   *outp
 	_cairo_output_stream_printf (output, ">\n  ");
     }
 
+    if (pattern->surface->content == CAIRO_CONTENT_ALPHA) {
+	_cairo_output_stream_printf (output,
+				     "<g filter=\"url(#%s)\">\n",
+				     _cairo_svg_surface_emit_filter (svg_surface->document,
+								     CAIRO_SVG_FILTER_COLOR_TO_ALPHA));
+    }
+
     _cairo_output_stream_printf (output,
 				 "<use xlink:href=\"#image%d\"",
 				 source_id);
+
     if (extra_attributes)
 	_cairo_output_stream_printf (output, " %s", extra_attributes);
 
@@ -1584,6 +1613,9 @@ _cairo_svg_surface_emit_composite_surface_pattern (cairo_output_stream_t   *outp
     }
     _cairo_output_stream_printf (output, "/>\n");
 
+    if (pattern->surface->content == CAIRO_CONTENT_ALPHA) {
+	_cairo_output_stream_printf (output, "</g>\n");
+    }
 
     if (pattern_id != invalid_pattern_id)
 	_cairo_output_stream_printf (output, "</pattern>\n");
@@ -2482,7 +2514,7 @@ _cairo_svg_surface_fill (void			*abstract_surface,
     if (_cairo_svg_surface_svg_clip_or_svg_mask_should_be_used (source)) {
 	_cairo_output_stream_printf (surface->document->xml_node_defs,
 				     "<clipPath id=\"clip%d\">\n"
-				     "  <path ",
+				     "<path ",
 				     surface->document->clip_id);
 
 	_cairo_svg_surface_emit_path (surface->document->xml_node_defs, path, NULL);
@@ -2496,15 +2528,13 @@ _cairo_svg_surface_fill (void			*abstract_surface,
 				     "clip-rule=\"%s\" "
 				     "style=\"",
 				     surface->document->clip_id,
-				     fill_rule == CAIRO_FILL_RULE_EVEN_ODD ?
-				     "evenodd" : "nonzero");
+				     fill_rule == CAIRO_FILL_RULE_EVEN_ODD ? "evenodd" : "nonzero");
 
 	surface->document->clip_id++;
 
 	_cairo_svg_surface_emit_operator_for_style (surface->xml_node, surface, op);
 
-	_cairo_output_stream_printf (surface->xml_node,
-				     "\">\n");
+	_cairo_output_stream_printf (surface->xml_node, "\">\n");
 
 	status = _cairo_svg_surface_emit_composite_pattern (surface->xml_node,
 							    surface,
@@ -2516,10 +2546,9 @@ _cairo_svg_surface_fill (void			*abstract_surface,
 	if (unlikely (status))
 	    return status;
 
-	_cairo_output_stream_printf (surface->xml_node,
-				     "</g>");
+	_cairo_output_stream_printf (surface->xml_node, "</g>");
     } else {
-	_cairo_output_stream_printf (surface->xml_node, "<path style=\"stroke:none;");
+	_cairo_output_stream_printf (surface->xml_node, "<path style=\"");
 	status = _cairo_svg_surface_emit_fill_style (surface->xml_node, surface, op, source, fill_rule, NULL);
 	if (unlikely (status))
 	    return status;
@@ -2581,7 +2610,7 @@ _cairo_svg_surface_emit_paint (cairo_output_stream_t *output,
     if (unlikely (status))
 	return status;
 
-    _cairo_output_stream_printf (output, "stroke:none;\"");
+    _cairo_output_stream_printf (output, "\"");
 
     if (extra_attributes)
 	_cairo_output_stream_printf (output, " %s", extra_attributes);
@@ -2653,7 +2682,6 @@ _cairo_svg_surface_mask (void		    *abstract_surface,
     cairo_svg_surface_t *surface = abstract_surface;
     cairo_svg_document_t *document = surface->document;
     cairo_output_stream_t *mask_stream;
-    cairo_bool_t discard_filter = FALSE;
     unsigned int mask_id;
 
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
@@ -2682,13 +2710,6 @@ _cairo_svg_surface_mask (void		    *abstract_surface,
     if (unlikely (status))
 	return status;
 
-    if (mask->type == CAIRO_PATTERN_TYPE_SURFACE) {
-	const cairo_surface_pattern_t *surface_pattern = (const cairo_surface_pattern_t*) mask;
-	cairo_content_t content = surface_pattern->surface->content;
-	if (content == CAIRO_CONTENT_ALPHA)
-	    discard_filter = TRUE;
-    }
-
     /* _cairo_svg_surface_emit_paint() will output a pattern definition to
      * document->xml_node_defs so we need to write the mask element to
      * a temporary stream and then copy that to xml_node_defs. */
@@ -2699,11 +2720,9 @@ _cairo_svg_surface_mask (void		    *abstract_surface,
     _cairo_output_stream_printf (mask_stream,
 				 "<mask id=\"mask%d\">\n",
 				 mask_id);
-    if (!discard_filter) {
-	_cairo_output_stream_printf (mask_stream,
-				     "<g filter=\"url(#%s)\">\n",
-				     _cairo_svg_surface_emit_filter (document, CAIRO_SVG_FILTER_REMOVE_COLOR));
-    }
+    _cairo_output_stream_printf (mask_stream,
+				 "<g filter=\"url(#%s)\">\n",
+				 _cairo_svg_surface_emit_filter (document, CAIRO_SVG_FILTER_REMOVE_COLOR));
     status = _cairo_svg_surface_emit_paint (mask_stream, surface, CAIRO_OPERATOR_OVER, mask, source, NULL);
     if (unlikely (status)) {
 	cairo_status_t ignore = _cairo_output_stream_destroy (mask_stream);
@@ -2712,9 +2731,8 @@ _cairo_svg_surface_mask (void		    *abstract_surface,
     }
 
     _cairo_output_stream_printf (mask_stream,
-				 "%s"
-				 "</mask>\n",
-				 discard_filter ? "" : "  </g>\n");
+				 "</g>\n"
+				 "</mask>\n");
     _cairo_memory_stream_copy (mask_stream, document->xml_node_defs);
 
     status = _cairo_output_stream_destroy (mask_stream);

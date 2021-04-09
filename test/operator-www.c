@@ -32,6 +32,7 @@ void
 example (cairo_t *cr, char *name)
 {
     cairo_save (cr);
+    cairo_push_group (cr);
 
     cairo_rectangle (cr, 0, 0, WIDTH, HEIGHT);
     cairo_clip (cr);
@@ -106,6 +107,8 @@ example (cairo_t *cr, char *name)
     cairo_set_source_rgba (cr, 0, 0, 0.9, 0.4);
     cairo_fill (cr);
 
+    cairo_pop_group_to_source (cr);
+    cairo_paint (cr);
     cairo_restore (cr);
 
     cairo_select_font_face (cr, CAIRO_TEST_FONT_FAMILY " Sans",

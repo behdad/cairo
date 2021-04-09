@@ -139,6 +139,21 @@ enum cairo_svg_filter {
     CAIRO_SVG_FILTER_ATOP,
     CAIRO_SVG_FILTER_XOR,
     CAIRO_SVG_FILTER_ADD,
+    CAIRO_SVG_FILTER_MULTIPLY,
+    CAIRO_SVG_FILTER_SCREEN,
+    CAIRO_SVG_FILTER_OVERLAY,
+    CAIRO_SVG_FILTER_DARKEN,
+    CAIRO_SVG_FILTER_LIGHTEN,
+    CAIRO_SVG_FILTER_COLOR_DODGE,
+    CAIRO_SVG_FILTER_COLOR_BURN,
+    CAIRO_SVG_FILTER_HARD_LIGHT,
+    CAIRO_SVG_FILTER_SOFT_LIGHT,
+    CAIRO_SVG_FILTER_DIFFERENCE,
+    CAIRO_SVG_FILTER_EXCLUSION,
+    CAIRO_SVG_FILTER_HUE,
+    CAIRO_SVG_FILTER_SATURATION,
+    CAIRO_SVG_FILTER_COLOR,
+    CAIRO_SVG_FILTER_LUMINOSITY,
 };
 
 struct cairo_svg_page {
@@ -1096,11 +1111,16 @@ _cairo_svg_document_emit_font_subsets (cairo_svg_document_t *document)
 }
 
 static cairo_bool_t
-_cairo_svg_surface_is_pattern_supported (cairo_svg_surface_t *surface,
-					 const cairo_pattern_t *pattern)
+_cairo_svg_surface_are_operation_and_pattern_supported (cairo_svg_surface_t *surface,
+							cairo_operator_t op,
+							const cairo_pattern_t *pattern)
 {
     if (surface->force_fallbacks) {
 	return FALSE;
+    }
+
+    if (op == CAIRO_OPERATOR_SATURATE) {
+        return FALSE;
     }
 
     if (pattern->type == CAIRO_PATTERN_TYPE_MESH) {
@@ -1217,6 +1237,34 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
     }
 }
 
+#define _CAIRO_SVG_SURFACE_OUTPUT_FE_COMPOSITE_FILTER(operation) \
+    _cairo_output_stream_printf (document->xml_node_filters, \
+				 "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" " \
+				 "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n" \
+				 "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n" \
+				 "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n" \
+				 "<feComposite in=\"source\" in2=\"destination\" " \
+				 "operator=\"" operation "\" " \
+				 "color-interpolation-filters=\"sRGB\"/>\n" \
+				 "</filter>\n", \
+				 filter_id, \
+				 source_composing_group_id, \
+				 destination_composing_group_id)
+
+#define _CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER(mode) \
+    _cairo_output_stream_printf (document->xml_node_filters, \
+				 "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" " \
+				 "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n" \
+				 "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n" \
+				 "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n" \
+				 "<feBlend in=\"source\" in2=\"destination\" " \
+				 "mode=\"" mode "\" " \
+				 "color-interpolation-filters=\"sRGB\"/>\n" \
+				 "</filter>\n", \
+				 filter_id, \
+				 source_composing_group_id, \
+				 destination_composing_group_id)
+
 static unsigned int
 _cairo_svg_surface_emit_parametric_filter (cairo_svg_document_t *document,
 					   enum cairo_svg_filter filter,
@@ -1226,74 +1274,19 @@ _cairo_svg_surface_emit_parametric_filter (cairo_svg_document_t *document,
     unsigned int filter_id = document->filter_id++;
     switch (filter) {
     case CAIRO_SVG_FILTER_OVER:
-	_cairo_output_stream_printf (document->xml_node_filters,
-				     "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" "
-				     "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n"
-				     "<feComposite in=\"source\" in2=\"destination\" "
-				     "operator=\"over\" "
-				     "color-interpolation-filters=\"sRGB\"/>\n"
-				     "</filter>\n",
-				     filter_id,
-				     source_composing_group_id,
-				     destination_composing_group_id);
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_COMPOSITE_FILTER ("over");
 	break;
     case CAIRO_SVG_FILTER_IN:
-	_cairo_output_stream_printf (document->xml_node_filters,
-				     "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" "
-				     "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n"
-				     "<feComposite in=\"source\" in2=\"destination\" "
-				     "operator=\"in\" "
-				     "color-interpolation-filters=\"sRGB\"/>\n"
-				     "</filter>\n",
-				     filter_id,
-				     source_composing_group_id,
-				     destination_composing_group_id);
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_COMPOSITE_FILTER ("in");
 	break;
     case CAIRO_SVG_FILTER_OUT:
-	_cairo_output_stream_printf (document->xml_node_filters,
-				     "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" "
-				     "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n"
-				     "<feComposite in=\"source\" in2=\"destination\" "
-				     "operator=\"out\" "
-				     "color-interpolation-filters=\"sRGB\"/>\n"
-				     "</filter>\n",
-				     filter_id,
-				     source_composing_group_id,
-				     destination_composing_group_id);
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_COMPOSITE_FILTER ("out");
 	break;
     case CAIRO_SVG_FILTER_ATOP:
-	_cairo_output_stream_printf (document->xml_node_filters,
-				     "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" "
-				     "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n"
-				     "<feComposite in=\"source\" in2=\"destination\" "
-				     "operator=\"atop\" "
-				     "color-interpolation-filters=\"sRGB\"/>\n"
-				     "</filter>\n",
-				     filter_id,
-				     source_composing_group_id,
-				     destination_composing_group_id);
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_COMPOSITE_FILTER ("atop");
 	break;
     case CAIRO_SVG_FILTER_XOR:
-	_cairo_output_stream_printf (document->xml_node_filters,
-				     "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" "
-				     "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n"
-				     "<feComposite in=\"source\" in2=\"destination\" "
-				     "operator=\"xor\" "
-				     "color-interpolation-filters=\"sRGB\"/>\n"
-				     "</filter>\n",
-				     filter_id,
-				     source_composing_group_id,
-				     destination_composing_group_id);
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_COMPOSITE_FILTER ("xor");
 	break;
     case CAIRO_SVG_FILTER_ADD:
         // This can also be done with <feComposite operator="lighter"/>, but it is not from SVG 1.1
@@ -1310,7 +1303,53 @@ _cairo_svg_surface_emit_parametric_filter (cairo_svg_document_t *document,
 				     source_composing_group_id,
 				     destination_composing_group_id);
 	break;
+    case CAIRO_SVG_FILTER_MULTIPLY:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("multiply");
+	break;
+    case CAIRO_SVG_FILTER_SCREEN:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("screen");
+	break;
+    case CAIRO_SVG_FILTER_OVERLAY:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("overlay");
+	break;
+    case CAIRO_SVG_FILTER_DARKEN:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("darken");
+	break;
+    case CAIRO_SVG_FILTER_LIGHTEN:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("lighten");
+	break;
+    case CAIRO_SVG_FILTER_COLOR_DODGE:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("color-dodge");
+	break;
+    case CAIRO_SVG_FILTER_COLOR_BURN:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("color-burn");
+	break;
+    case CAIRO_SVG_FILTER_HARD_LIGHT:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("hard-light");
+	break;
+    case CAIRO_SVG_FILTER_SOFT_LIGHT:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("soft-light");
+	break;
+    case CAIRO_SVG_FILTER_DIFFERENCE:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("difference");
+	break;
+    case CAIRO_SVG_FILTER_EXCLUSION:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("exclusion");
+	break;
+    case CAIRO_SVG_FILTER_HUE:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("hue");
+	break;
+    case CAIRO_SVG_FILTER_SATURATION:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("saturation");
+	break;
+    case CAIRO_SVG_FILTER_COLOR:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("color");
+	break;
+    case CAIRO_SVG_FILTER_LUMINOSITY:
+	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("luminosity");
+	break;
     default:
+        printf("%d\n", filter);
 	ASSERT_NOT_REACHED;
     }
     return filter_id;
@@ -2478,8 +2517,8 @@ _cairo_svg_surface_emit_paint (cairo_output_stream_t *output,
 							  mask_source ? &mask_source->matrix : NULL);
 
     _cairo_output_stream_printf (output,
-				 "<rect x=\"-1000%%\" y=\"-1000%%\" "
-				 "width=\"2000%%\" height=\"2000%%\" "
+				 "<rect x=\"-50%%\" y=\"-50%%\" "
+				 "width=\"200%%\" height=\"200%%\" "
 				 "style=\"");
     status = _cairo_svg_surface_emit_pattern (surface, source, output, FALSE, NULL);
     if (unlikely (status))
@@ -2648,7 +2687,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     }
     cairo_pattern_t *white_pattern = cairo_pattern_create_rgb (1.0, 1.0, 1.0);
     status = _cairo_svg_surface_emit_paint (document->xml_node_defs, surface, white_pattern, NULL);
-    cairo_pattern_destroy(white_pattern);
+    cairo_pattern_destroy (white_pattern);
     if (unlikely (status)) {
 	cairo_status_t ignore1 = _cairo_output_stream_destroy (destination_stream);
 	cairo_status_t ignore2 = _cairo_output_stream_destroy (source_stream);
@@ -2739,121 +2778,169 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     _cairo_output_stream_printf (document->xml_node_defs,
 				 "<g id=\"composing-group-%d\" ",
 				 operation_composing_group_id);
+    unsigned int filer_id;
     switch (op) {
     case CAIRO_OPERATOR_CLEAR:
     case CAIRO_OPERATOR_SOURCE:
     case CAIRO_OPERATOR_OVER:
-        ASSERT_NOT_REACHED;
+	ASSERT_NOT_REACHED;
     case CAIRO_OPERATOR_IN:
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "filter=\"url(#filter-%d)\">\n",
-				     _cairo_svg_surface_emit_parametric_filter (document,
-										CAIRO_SVG_FILTER_IN,
-										source_composing_group_id,
-										raw_destination_composing_group_id));
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_IN,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_OUT:
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "filter=\"url(#filter-%d)\">\n",
-				     _cairo_svg_surface_emit_parametric_filter (document,
-										CAIRO_SVG_FILTER_OUT,
-										source_composing_group_id,
-										raw_destination_composing_group_id));
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_OUT,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_ATOP:
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "filter=\"url(#filter-%d)\">\n",
-				     _cairo_svg_surface_emit_parametric_filter (document,
-										CAIRO_SVG_FILTER_ATOP,
-										source_composing_group_id,
-										raw_destination_composing_group_id));
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_ATOP,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_DEST:
 	ASSERT_NOT_REACHED;
     case CAIRO_OPERATOR_DEST_OVER:
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "filter=\"url(#filter-%d)\">\n",
-				     _cairo_svg_surface_emit_parametric_filter (document,
-										CAIRO_SVG_FILTER_OVER,
-										raw_destination_composing_group_id,
-										source_composing_group_id));
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_OVER,
+							      raw_destination_composing_group_id,
+							      source_composing_group_id);
 	break;
     case CAIRO_OPERATOR_DEST_IN:
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "filter=\"url(#filter-%d)\">\n",
-				     _cairo_svg_surface_emit_parametric_filter (document,
-										CAIRO_SVG_FILTER_IN,
-										raw_destination_composing_group_id,
-										source_composing_group_id));
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_IN,
+							      raw_destination_composing_group_id,
+							      source_composing_group_id);
 	break;
     case CAIRO_OPERATOR_DEST_OUT:
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "filter=\"url(#filter-%d)\">\n",
-				     _cairo_svg_surface_emit_parametric_filter (document,
-										CAIRO_SVG_FILTER_OUT,
-										raw_destination_composing_group_id,
-										source_composing_group_id));
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_OUT,
+							      raw_destination_composing_group_id,
+							      source_composing_group_id);
 	break;
     case CAIRO_OPERATOR_DEST_ATOP:
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "filter=\"url(#filter-%d)\">\n",
-				     _cairo_svg_surface_emit_parametric_filter (document,
-										CAIRO_SVG_FILTER_ATOP,
-										raw_destination_composing_group_id,
-										source_composing_group_id));
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_ATOP,
+							      raw_destination_composing_group_id,
+							      source_composing_group_id);
 	break;
     case CAIRO_OPERATOR_XOR:
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "filter=\"url(#filter-%d)\">\n",
-				     _cairo_svg_surface_emit_parametric_filter (document,
-										CAIRO_SVG_FILTER_XOR,
-										source_composing_group_id,
-										raw_destination_composing_group_id));
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_XOR,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_ADD:
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "filter=\"url(#filter-%d)\">\n",
-				     _cairo_svg_surface_emit_parametric_filter (document,
-										CAIRO_SVG_FILTER_ADD,
-										source_composing_group_id,
-										raw_destination_composing_group_id));
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_ADD,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_SATURATE:
-	break;
+	ASSERT_NOT_REACHED;
     case CAIRO_OPERATOR_MULTIPLY:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_MULTIPLY,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_SCREEN:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_SCREEN,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_OVERLAY:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_OVERLAY,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_DARKEN:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_DARKEN,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_LIGHTEN:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_LIGHTEN,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_COLOR_DODGE:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_COLOR_DODGE,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_COLOR_BURN:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_COLOR_BURN,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_HARD_LIGHT:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_HARD_LIGHT,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_SOFT_LIGHT:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_SOFT_LIGHT,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_DIFFERENCE:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_DIFFERENCE,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_EXCLUSION:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_EXCLUSION,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_HSL_HUE:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_HUE,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_HSL_SATURATION:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_SATURATION,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_HSL_COLOR:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_COLOR,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
     case CAIRO_OPERATOR_HSL_LUMINOSITY:
+	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
+							      CAIRO_SVG_FILTER_LUMINOSITY,
+							      source_composing_group_id,
+							      raw_destination_composing_group_id);
 	break;
+    default:
+	ASSERT_NOT_REACHED;
     }
+    _cairo_output_stream_printf (document->xml_node_defs,
+				 "filter=\"url(#filter-%d)\">\n",
+				 filer_id);
     cairo_pattern_t *black_pattern = cairo_pattern_create_rgb (0.0, 0.0, 0.0);
     status = _cairo_svg_surface_emit_paint (document->xml_node_defs, surface, black_pattern, NULL);
-    cairo_pattern_destroy(black_pattern);
+    cairo_pattern_destroy (black_pattern);
     if (unlikely (status)) {
 	return status;
     }
@@ -2874,13 +2961,13 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     return CAIRO_STATUS_SUCCESS;
 }
 
-#define _CAIRO_SVG_SURFACE_CALL_OPERATOR_IMPL(OPERATOR_IMPL, source, ...) \
+#define _CAIRO_SVG_SURFACE_CALL_OPERATOR_IMPL(OPERATOR_IMPL, SOURCE, ...) \
     if (op == CAIRO_OPERATOR_OVER) { \
         status = _cairo_svg_surface_set_clip (surface, surface->xml_node, clip); \
         if (unlikely (status)) { \
             return status; \
         } \
-        return OPERATOR_IMPL (surface->xml_node, surface, source, ## __VA_ARGS__); \
+        return OPERATOR_IMPL (surface->xml_node, surface, SOURCE, ## __VA_ARGS__); \
     } else { \
         _cairo_svg_surface_reset_clip (surface); \
         cairo_output_stream_t *mask_stream = _cairo_memory_stream_create (); \
@@ -2895,7 +2982,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
         cairo_output_stream_t *source_stream = _cairo_memory_stream_create (); \
         status = _cairo_svg_surface_emit_paint (source_stream, \
                                                 surface, \
-                                                source, \
+                                                SOURCE, \
                                                 NULL); \
         if (unlikely (status)) { \
             cairo_status_t ignore1 = _cairo_output_stream_destroy (source_stream); \
@@ -2959,7 +3046,7 @@ _cairo_svg_surface_paint (void *abstract_surface,
 	    ASSERT_NOT_REACHED;
 	}
     } else if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
-	return _cairo_svg_surface_is_pattern_supported (surface, source)
+	return _cairo_svg_surface_are_operation_and_pattern_supported (surface, op, source)
 	       ? CAIRO_STATUS_SUCCESS
 	       : CAIRO_INT_STATUS_UNSUPPORTED;
     }
@@ -3034,8 +3121,8 @@ _cairo_svg_surface_mask (void *abstract_surface,
     cairo_svg_surface_t *surface = abstract_surface;
 
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
-	return _cairo_svg_surface_is_pattern_supported (surface, source) &&
-	       _cairo_svg_surface_is_pattern_supported (surface, mask)
+	return _cairo_svg_surface_are_operation_and_pattern_supported (surface, op, source) &&
+	       _cairo_svg_surface_are_operation_and_pattern_supported (surface, op, mask)
 	       ? CAIRO_STATUS_SUCCESS
 	       : CAIRO_INT_STATUS_UNSUPPORTED;
     }
@@ -3132,7 +3219,7 @@ _cairo_svg_surface_stroke (void *abstract_dst,
     cairo_status_t status;
 
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
-	return _cairo_svg_surface_is_pattern_supported (surface, source)
+	return _cairo_svg_surface_are_operation_and_pattern_supported (surface, op, source)
 	       ? CAIRO_STATUS_SUCCESS
 	       : CAIRO_INT_STATUS_UNSUPPORTED;
     }
@@ -3213,7 +3300,7 @@ _cairo_svg_surface_fill (void *abstract_surface,
     cairo_status_t status;
 
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
-	return _cairo_svg_surface_is_pattern_supported (surface, source)
+	return _cairo_svg_surface_are_operation_and_pattern_supported (surface, op, source)
 	       ? CAIRO_STATUS_SUCCESS
 	       : CAIRO_INT_STATUS_UNSUPPORTED;
     }
@@ -3267,8 +3354,8 @@ _cairo_svg_surface_fill_stroke (void *abstract_surface,
     }
 
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
-	return _cairo_svg_surface_is_pattern_supported (surface, fill_source)
-	       && _cairo_svg_surface_is_pattern_supported (surface, stroke_source)
+	return _cairo_svg_surface_are_operation_and_pattern_supported (surface, fill_op, fill_source)
+	       && _cairo_svg_surface_are_operation_and_pattern_supported (surface, stroke_op, stroke_source)
 	       ? CAIRO_STATUS_SUCCESS
 	       : CAIRO_INT_STATUS_UNSUPPORTED;
     }
@@ -3402,7 +3489,7 @@ _cairo_svg_surface_show_glyphs (void *abstract_surface,
     cairo_int_status_t status;
 
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {
-	return _cairo_svg_surface_is_pattern_supported (surface, source)
+	return _cairo_svg_surface_are_operation_and_pattern_supported (surface, op, source)
 	       ? CAIRO_STATUS_SUCCESS
 	       : CAIRO_INT_STATUS_UNSUPPORTED;
     }

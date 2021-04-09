@@ -71,6 +71,7 @@ typedef struct cairo_svg_surface {
     cairo_hash_table_t    *source_surfaces;
 
     cairo_surface_clipper_t clipper;
+    cairo_output_stream_t *current_clipper_output_stream;
     unsigned int clip_level;
 
     cairo_paginated_mode_t paginated_mode;

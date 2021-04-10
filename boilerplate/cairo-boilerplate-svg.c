@@ -127,24 +127,6 @@ _cairo_boilerplate_svg11_create_surface (const char		   *name,
 						  closure);
 }
 
-static cairo_surface_t *
-_cairo_boilerplate_svg12_create_surface (const char		   *name,
-					 cairo_content_t	    content,
-					 double 		    width,
-					 double 		    height,
-					 double 		    max_width,
-					 double 		    max_height,
-					 cairo_boilerplate_mode_t   mode,
-					 void			  **closure)
-{
-    return _cairo_boilerplate_svg_create_surface (name, content,
-						  CAIRO_SVG_VERSION_1_2,
-						  width, height,
-						  max_width, max_height,
-						  mode,
-						  closure);
-}
-
 static cairo_status_t
 _cairo_boilerplate_svg_finish_surface (cairo_surface_t *surface)
 {
@@ -307,45 +289,6 @@ static const cairo_boilerplate_target_t targets[] = {
 	CAIRO_SURFACE_TYPE_SVG, CAIRO_CONTENT_COLOR_ALPHA, 1,
 	"cairo_svg_surface_create",
 	_cairo_boilerplate_svg11_create_surface,
-	cairo_surface_create_similar,
-	_cairo_boilerplate_svg_force_fallbacks,
-	_cairo_boilerplate_svg_finish_surface,
-	_cairo_boilerplate_svg_get_image_surface,
-	_cairo_boilerplate_svg_surface_write_to_png,
-	_cairo_boilerplate_svg_cleanup,
-	NULL, NULL, FALSE, TRUE, TRUE
-    },
-    {
-	"svg11", "svg", ".svg", NULL,
-	CAIRO_SURFACE_TYPE_RECORDING, CAIRO_CONTENT_COLOR, 1,
-	"cairo_svg_surface_create",
-	_cairo_boilerplate_svg11_create_surface,
-	cairo_surface_create_similar,
-	_cairo_boilerplate_svg_force_fallbacks,
-	_cairo_boilerplate_svg_finish_surface,
-	_cairo_boilerplate_svg_get_image_surface,
-	_cairo_boilerplate_svg_surface_write_to_png,
-	_cairo_boilerplate_svg_cleanup,
-	NULL, NULL, FALSE, TRUE, TRUE
-    },
-    {
-	"svg12", "svg", ".svg", NULL,
-	CAIRO_SURFACE_TYPE_SVG, CAIRO_CONTENT_COLOR_ALPHA, 1,
-	"cairo_svg_surface_create",
-	_cairo_boilerplate_svg12_create_surface,
-	cairo_surface_create_similar,
-	_cairo_boilerplate_svg_force_fallbacks,
-	_cairo_boilerplate_svg_finish_surface,
-	_cairo_boilerplate_svg_get_image_surface,
-	_cairo_boilerplate_svg_surface_write_to_png,
-	_cairo_boilerplate_svg_cleanup,
-	NULL, NULL, FALSE, TRUE, TRUE
-    },
-    {
-	"svg12", "svg", ".svg", NULL,
-	CAIRO_SURFACE_TYPE_RECORDING, CAIRO_CONTENT_COLOR, 1,
-	"cairo_svg_surface_create",
-	_cairo_boilerplate_svg12_create_surface,
 	cairo_surface_create_similar,
 	_cairo_boilerplate_svg_force_fallbacks,
 	_cairo_boilerplate_svg_finish_surface,

@@ -179,7 +179,7 @@ struct cairo_svg_document {
     unsigned int pattern_id;
     unsigned int clip_id;
     unsigned int mask_id;
-    unsigned int composing_group_id;
+    unsigned int compositing_group_id;
     unsigned int filter_id;
 
     cairo_bool_t filters_emitted[CAIRO_SVG_FILTER_LAST_STATIC_FILTER];
@@ -1250,35 +1250,35 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
     _cairo_output_stream_printf (document->xml_node_filters, \
 				 "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" " \
 				 "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n" \
-				 "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n" \
-				 "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n" \
+				 "<feImage xlink:href=\"#compositing-group-%d\" result=\"source\"/>\n" \
+				 "<feImage xlink:href=\"#compositing-group-%d\" result=\"destination\"/>\n" \
 				 "<feComposite in=\"source\" in2=\"destination\" " \
 				 "operator=\"" operation "\" " \
 				 "color-interpolation-filters=\"sRGB\"/>\n" \
 				 "</filter>\n", \
 				 filter_id, \
-				 source_composing_group_id, \
-				 destination_composing_group_id)
+				 source_compositing_group_id, \
+				 destination_compositing_group_id)
 
 #define _CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER(mode) \
     _cairo_output_stream_printf (document->xml_node_filters, \
 				 "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" " \
 				 "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n" \
-				 "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n" \
-				 "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n" \
+				 "<feImage xlink:href=\"#compositing-group-%d\" result=\"source\"/>\n" \
+				 "<feImage xlink:href=\"#compositing-group-%d\" result=\"destination\"/>\n" \
 				 "<feBlend in=\"source\" in2=\"destination\" " \
 				 "mode=\"" mode "\" " \
 				 "color-interpolation-filters=\"sRGB\"/>\n" \
 				 "</filter>\n", \
 				 filter_id, \
-				 source_composing_group_id, \
-				 destination_composing_group_id)
+				 source_compositing_group_id, \
+				 destination_compositing_group_id)
 
 static unsigned int
 _cairo_svg_surface_emit_parametric_filter (cairo_svg_document_t *document,
 					   enum cairo_svg_filter filter,
-					   unsigned int source_composing_group_id,
-					   unsigned int destination_composing_group_id)
+					   unsigned int source_compositing_group_id,
+					   unsigned int destination_compositing_group_id)
 {
     unsigned int filter_id = document->filter_id++;
     switch (filter) {
@@ -1302,15 +1302,15 @@ _cairo_svg_surface_emit_parametric_filter (cairo_svg_document_t *document,
 	_cairo_output_stream_printf (document->xml_node_filters,
 				     "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" "
 				     "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"source\"/>\n"
-				     "<feImage xlink:href=\"#composing-group-%d\" result=\"destination\"/>\n"
+				     "<feImage xlink:href=\"#compositing-group-%d\" result=\"source\"/>\n"
+				     "<feImage xlink:href=\"#compositing-group-%d\" result=\"destination\"/>\n"
 				     "<feComposite in=\"source\" in2=\"destination\" "
 				     "operator=\"arithmetic\" k1=\"0\" k2=\"1\" k3=\"1\" k4=\"0\" "
 				     "color-interpolation-filters=\"sRGB\"/>\n"
 				     "</filter>\n",
 				     filter_id,
-				     source_composing_group_id,
-				     destination_composing_group_id);
+				     source_compositing_group_id,
+				     destination_compositing_group_id);
 	break;
     case CAIRO_SVG_FILTER_MULTIPLY:
 	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("multiply");
@@ -2504,9 +2504,18 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     cairo_svg_document_t *document = surface->document;
 
     if (op == CAIRO_OPERATOR_CLEAR) {
+        /*
+         * The result is the same as one of the SOURCE operation application with the same arguments,
+         * but with an empty source.
+         */
+
 	status = _cairo_output_stream_destroy (source_stream);
 	if (unlikely (status)) {
+	    cairo_status_t ignore1 = _cairo_output_stream_destroy (destination_stream);
+	    cairo_status_t ignore2 = _cairo_output_stream_destroy (mask_stream);
 	    return status;
+	    (void) ignore1;
+	    (void) ignore2;
 	}
 	return _cairo_svg_surface_do_operator (output,
 					       surface,
@@ -2518,10 +2527,27 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     }
 
     if (op == CAIRO_OPERATOR_SOURCE) {
-	unsigned int lerp_composing_group_id = document->composing_group_id++;
+	/*
+	 * Below we use the "Bounded" equation with SOURCE as the operation from the "Clipping and masking" section
+	 * of https://cairographics.org/operators/:
+	 * result = source LEPR_(clip IN mask) destination
+	 *
+	 * It is equivalent to:
+	 * result = (source IN (clip IN mask)) ADD (destination IN (NOT (clip IN mask)))
+	 *
+	 * 1. We put the clip masked with the mask into the SVG group `lerp_compositing_group`.
+	 * 2. `positive_lerp_mask` is an SVG mask with `lerp_compositing_group`.
+	 * 3. `negative_lerp_mask` is an SVG mask with inverted `lerp_compositing_group`.
+	 * 5. We put the source masked with `positive_lerp_mask` into the SVG group `lerped_source_compositing_group`.
+	 * 6. We put the destination masked with `negative_lerp_mask` into
+	 *    the SVG group `lerped_destination_compositing_group`.
+	 * 7. The result is addition of `lerped_source_compositing_group` and `lerped_destination_compositing_group`.
+	 */
+
+	unsigned int lerp_compositing_group_id = document->compositing_group_id++;
 	_cairo_output_stream_printf (document->xml_node_defs,
-				     "<g id=\"composing-group-%d\">\n",
-				     lerp_composing_group_id);
+				     "<g id=\"compositing-group-%d\">\n",
+				     lerp_compositing_group_id);
 	status = _cairo_svg_surface_set_clip (surface, document->xml_node_defs, clip);
 	if (unlikely (status)) {
 	    cairo_status_t ignore1 = _cairo_output_stream_destroy (destination_stream);
@@ -2544,20 +2570,31 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 	_cairo_svg_surface_reset_clip (surface);
 	_cairo_output_stream_printf (document->xml_node_defs, "</g>\n");
 
-	unsigned int source_mask_id = document->mask_id++;
+	unsigned int positive_lerp_mask_id = document->mask_id++;
 	_cairo_output_stream_printf (document->xml_node_defs,
 				     "<mask id=\"mask-%d\">\n",
-				     source_mask_id);
+				     positive_lerp_mask_id);
 	_cairo_output_stream_printf (document->xml_node_defs,
-				     "<use xlink:href=\"#composing-group-%d\"/>\n",
-				     lerp_composing_group_id);
+				     "<use xlink:href=\"#compositing-group-%d\"/>\n",
+				     lerp_compositing_group_id);
 	_cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
 
-	unsigned int source_composing_group_id = document->composing_group_id++;
+	unsigned int negative_lerp_mask_id = document->mask_id++;
 	_cairo_output_stream_printf (document->xml_node_defs,
-				     "<g id=\"composing-group-%d\" mask=\"url(#mask-%d)\">\n",
-				     source_composing_group_id,
-				     source_mask_id);
+				     "<mask id=\"mask-%d\">\n",
+				     negative_lerp_mask_id);
+	_cairo_output_stream_printf (document->xml_node_defs,
+				     "<use xlink:href=\"#compositing-group-%d\" filter=\"url(#filter-%s)\"/>\n",
+				     lerp_compositing_group_id,
+				     _cairo_svg_surface_emit_static_filter (document,
+									    CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA));
+	_cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
+
+	unsigned int lerped_source_compositing_group_id = document->compositing_group_id++;
+	_cairo_output_stream_printf (document->xml_node_defs,
+				     "<g id=\"compositing-group-%d\" mask=\"url(#mask-%d)\">\n",
+				     lerped_source_compositing_group_id,
+				     positive_lerp_mask_id);
 	_cairo_memory_stream_copy (source_stream, document->xml_node_defs);
 	status = _cairo_output_stream_destroy (source_stream);
 	if (unlikely (status)) {
@@ -2567,22 +2604,11 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 	}
 	_cairo_output_stream_printf (document->xml_node_defs, "</g>\n");
 
-	unsigned int destination_mask_id = document->mask_id++;
+	unsigned int lerped_destination_compositing_group_id = document->compositing_group_id++;
 	_cairo_output_stream_printf (document->xml_node_defs,
-				     "<mask id=\"mask-%d\">\n",
-				     destination_mask_id);
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "<use xlink:href=\"#composing-group-%d\" filter=\"url(#filter-%s)\"/>\n",
-				     lerp_composing_group_id,
-				     _cairo_svg_surface_emit_static_filter (document,
-									    CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA));
-	_cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
-
-	unsigned int destination_composing_group_id = document->composing_group_id++;
-	_cairo_output_stream_printf (document->xml_node_defs,
-				     "<g id=\"composing-group-%d\" mask=\"url(#mask-%d)\">\n",
-				     destination_composing_group_id,
-				     destination_mask_id);
+				     "<g id=\"compositing-group-%d\" mask=\"url(#mask-%d)\">\n",
+				     lerped_destination_compositing_group_id,
+				     negative_lerp_mask_id);
 	_cairo_memory_stream_copy (destination_stream, document->xml_node_defs);
 	status = _cairo_output_stream_destroy (destination_stream);
 	if (unlikely (status)) {
@@ -2594,8 +2620,8 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 				     "<g filter=\"url(#filter-%d)\">\n",
 				     _cairo_svg_surface_emit_parametric_filter (document,
 										CAIRO_SVG_FILTER_ADD,
-										source_composing_group_id,
-										destination_composing_group_id));
+										lerped_source_compositing_group_id,
+										lerped_destination_compositing_group_id));
 	status = _cairo_svg_surface_emit_paint (surface->xml_node, surface, &_cairo_pattern_black.base, NULL);
 	if (unlikely (status)) {
 	    return status;
@@ -2606,6 +2632,10 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     }
 
     if (op == CAIRO_OPERATOR_DEST) {
+        /*
+         * The result is the destination.
+         */
+
 	_cairo_memory_stream_copy (destination_stream, surface->xml_node);
 	status = _cairo_output_stream_destroy (destination_stream);
 	if (unlikely (status)) {
@@ -2628,10 +2658,31 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 	return CAIRO_STATUS_SUCCESS;
     }
 
-    unsigned int lerp_composing_group_id = document->composing_group_id++;
+    /*
+     * Below we use the "XRender" equation from the "Clipping and masking" section
+     * of https://cairographics.org/operators/:
+     *
+     * It is equivalent to:
+     * result = (((source IN mask) OP destination) IN clip) ADD (destination IN (NOT clip))
+     *
+     * 1. We put the clip into the SVG group `lerp_compositing_group`.
+     * 2. `positive_lerp_mask` is an SVG mask with `lerp_compositing_group`.
+     * 3. `negative_lerp_mask` is an SVG mask with inverted `lerp_compositing_group`.
+     * 4. We put the mask into the SVG mask `mask_mask`.
+     * 5. We put the source masked with `mask_mask` into the SVG group `masked_source_compositing_group`.
+     * 6. We put the destination into the SVG group `destination_compositing_group`.
+     * 7. `lerped_operation_compositing_group` is an SVG group of operation applied to
+     *    (`masked_source_compositing_group`, `destination_compositing_group`)
+     *    masked with `positive_lerp_mask`.
+     * 8. `lerped_destination_compositing_group` is an SVG group of `destination_compositing_group`
+     *    masked with `negative_lerp_mask`.
+     * 9. The result is addition of `lerped_operation_compositing_group` and `lerped_destination_compositing_group`.
+     */
+
+    unsigned int lerp_compositing_group_id = document->compositing_group_id++;
     _cairo_output_stream_printf (document->xml_node_defs,
-				 "<g id=\"composing-group-%d\">\n",
-				 lerp_composing_group_id);
+				 "<g id=\"compositing-group-%d\">\n",
+				 lerp_compositing_group_id);
     status = _cairo_svg_surface_set_clip (surface, document->xml_node_defs, clip);
     if (unlikely (status)) {
 	cairo_status_t ignore1 = _cairo_output_stream_destroy (destination_stream);
@@ -2655,6 +2706,26 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     _cairo_svg_surface_reset_clip (surface);
     _cairo_output_stream_printf (document->xml_node_defs, "</g>\n");
 
+    unsigned int positive_lerp_mask_id = document->mask_id++;
+    _cairo_output_stream_printf (document->xml_node_defs,
+				 "<mask id=\"mask-%d\">\n",
+				 positive_lerp_mask_id);
+    _cairo_output_stream_printf (document->xml_node_defs,
+				 "<use xlink:href=\"#compositing-group-%d\"/>\n",
+				 lerp_compositing_group_id);
+    _cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
+
+    unsigned int negative_lerp_mask_id = document->mask_id++;
+    _cairo_output_stream_printf (document->xml_node_defs,
+				 "<mask id=\"mask-%d\">\n",
+				 negative_lerp_mask_id);
+    _cairo_output_stream_printf (document->xml_node_defs,
+				 "<use xlink:href=\"#compositing-group-%d\" filter=\"url(#filter-%s)\"/>\n",
+				 lerp_compositing_group_id,
+				 _cairo_svg_surface_emit_static_filter (document,
+									CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA));
+    _cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
+
     unsigned int mask_mask_id = document->mask_id++;
     _cairo_output_stream_printf (document->xml_node_defs,
 				 "<mask id=\"mask-%d\">\n",
@@ -2670,22 +2741,10 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     }
     _cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
 
-    unsigned int source_mask_id = document->mask_id++;
+    unsigned int masked_source_compositing_group_id = document->compositing_group_id++;
     _cairo_output_stream_printf (document->xml_node_defs,
-				 "<mask id=\"mask-%d\">\n",
-				 source_mask_id);
-    _cairo_output_stream_printf (document->xml_node_defs,
-				 "<use xlink:href=\"#composing-group-%d\"/>\n",
-				 lerp_composing_group_id);
-    _cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
-
-    unsigned int source_composing_group_id = document->composing_group_id++;
-    _cairo_output_stream_printf (document->xml_node_defs,
-				 "<g id=\"composing-group-%d\" mask=\"url(#mask-%d)\">\n",
-				 source_composing_group_id,
-				 source_mask_id);
-    _cairo_output_stream_printf (document->xml_node_defs,
-				 "<g mask=\"url(#mask-%d)\">\n",
+				 "<g id=\"compositing-group-%d\" mask=\"url(#mask-%d)\">\n",
+				 masked_source_compositing_group_id,
 				 mask_mask_id);
     _cairo_memory_stream_copy (source_stream, document->xml_node_defs);
     status = _cairo_output_stream_destroy (source_stream);
@@ -2695,23 +2754,11 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 	(void) ignore;
     }
     _cairo_output_stream_printf (document->xml_node_defs, "</g>\n");
-    _cairo_output_stream_printf (document->xml_node_defs, "</g>\n");
 
-    unsigned int destination_mask_id = document->mask_id++;
+    unsigned int destination_compositing_group_id = document->compositing_group_id++;
     _cairo_output_stream_printf (document->xml_node_defs,
-				 "<mask id=\"mask-%d\">\n",
-				 destination_mask_id);
-    _cairo_output_stream_printf (document->xml_node_defs,
-				 "<use xlink:href=\"#composing-group-%d\" filter=\"url(#filter-%s)\"/>\n",
-				 lerp_composing_group_id,
-				 _cairo_svg_surface_emit_static_filter (document,
-									CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA));
-    _cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
-
-    unsigned int raw_destination_composing_group_id = document->composing_group_id++;
-    _cairo_output_stream_printf (document->xml_node_defs,
-				 "<g id=\"composing-group-%d\">\n",
-				 raw_destination_composing_group_id);
+				 "<g id=\"compositing-group-%d\">\n",
+				 destination_compositing_group_id);
     _cairo_memory_stream_copy (destination_stream, document->xml_node_defs);
     status = _cairo_output_stream_destroy (destination_stream);
     if (unlikely (status)) {
@@ -2719,192 +2766,193 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     }
     _cairo_output_stream_printf (document->xml_node_defs, "</g>\n");
 
-    unsigned int destination_composing_group_id = document->composing_group_id++;
+    unsigned int lerped_operation_compositing_group_id = document->compositing_group_id++;
     _cairo_output_stream_printf (document->xml_node_defs,
-				 "<g id=\"composing-group-%d\" mask=\"url(#mask-%d)\">\n",
-				 destination_composing_group_id,
-				 destination_mask_id);
-    _cairo_output_stream_printf (document->xml_node_defs,
-				 "<use xlink:href=\"#composing-group-%d\"/>\n",
-				 raw_destination_composing_group_id);
-    _cairo_output_stream_printf (document->xml_node_defs, "</g>\n");
-
-    unsigned int operation_composing_group_id = document->composing_group_id++;
-    _cairo_output_stream_printf (document->xml_node_defs,
-				 "<g id=\"composing-group-%d\" ",
-				 operation_composing_group_id);
-    unsigned int filer_id;
+				 "<g id=\"compositing-group-%d\" ",
+				 lerped_operation_compositing_group_id);
+    unsigned int filter_id;
     switch (op) {
     case CAIRO_OPERATOR_CLEAR:
     case CAIRO_OPERATOR_SOURCE:
     case CAIRO_OPERATOR_OVER:
 	ASSERT_NOT_REACHED;
     case CAIRO_OPERATOR_IN:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_IN,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_IN,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_OUT:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_OUT,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_OUT,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_ATOP:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_ATOP,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_ATOP,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_DEST:
 	ASSERT_NOT_REACHED;
     case CAIRO_OPERATOR_DEST_OVER:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_OVER,
-							      raw_destination_composing_group_id,
-							      source_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_OVER,
+							       destination_compositing_group_id,
+							       masked_source_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_DEST_IN:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_IN,
-							      raw_destination_composing_group_id,
-							      source_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_IN,
+							       destination_compositing_group_id,
+							       masked_source_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_DEST_OUT:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_OUT,
-							      raw_destination_composing_group_id,
-							      source_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_OUT,
+							       destination_compositing_group_id,
+							       masked_source_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_DEST_ATOP:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_ATOP,
-							      raw_destination_composing_group_id,
-							      source_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_ATOP,
+							       destination_compositing_group_id,
+							       masked_source_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_XOR:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_XOR,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_XOR,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_ADD:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_ADD,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_ADD,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_SATURATE:
 	ASSERT_NOT_REACHED;
     case CAIRO_OPERATOR_MULTIPLY:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_MULTIPLY,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_MULTIPLY,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_SCREEN:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_SCREEN,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_SCREEN,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_OVERLAY:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_OVERLAY,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_OVERLAY,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_DARKEN:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_DARKEN,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_DARKEN,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_LIGHTEN:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_LIGHTEN,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_LIGHTEN,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_COLOR_DODGE:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_COLOR_DODGE,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_COLOR_DODGE,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_COLOR_BURN:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_COLOR_BURN,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_COLOR_BURN,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_HARD_LIGHT:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_HARD_LIGHT,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_HARD_LIGHT,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_SOFT_LIGHT:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_SOFT_LIGHT,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_SOFT_LIGHT,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_DIFFERENCE:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_DIFFERENCE,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_DIFFERENCE,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_EXCLUSION:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_EXCLUSION,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_EXCLUSION,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_HSL_HUE:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_HUE,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_HUE,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_HSL_SATURATION:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_SATURATION,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_SATURATION,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_HSL_COLOR:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_COLOR,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_COLOR,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     case CAIRO_OPERATOR_HSL_LUMINOSITY:
-	filer_id = _cairo_svg_surface_emit_parametric_filter (document,
-							      CAIRO_SVG_FILTER_LUMINOSITY,
-							      source_composing_group_id,
-							      raw_destination_composing_group_id);
+	filter_id = _cairo_svg_surface_emit_parametric_filter (document,
+							       CAIRO_SVG_FILTER_LUMINOSITY,
+							       masked_source_compositing_group_id,
+							       destination_compositing_group_id);
 	break;
     default:
 	ASSERT_NOT_REACHED;
     }
     _cairo_output_stream_printf (document->xml_node_defs,
-				 "filter=\"url(#filter-%d)\">\n",
-				 filer_id);
+				 "filter=\"url(#filter-%d)\" mask=\"url(#mask-%d)\">\n",
+				 filter_id,
+				 positive_lerp_mask_id);
     status = _cairo_svg_surface_emit_paint (document->xml_node_defs, surface, &_cairo_pattern_black.base, NULL);
     if (unlikely (status)) {
 	return status;
     }
     _cairo_output_stream_printf (document->xml_node_defs, "</g>\n");
 
+    unsigned int lerped_destination_compositing_group_id = document->compositing_group_id++;
+    _cairo_output_stream_printf (document->xml_node_defs,
+				 "<g id=\"compositing-group-%d\" mask=\"url(#mask-%d)\">\n",
+				 lerped_destination_compositing_group_id,
+				 negative_lerp_mask_id);
+    _cairo_output_stream_printf (document->xml_node_defs,
+				 "<use xlink:href=\"#compositing-group-%d\"/>\n",
+				 destination_compositing_group_id);
+    _cairo_output_stream_printf (document->xml_node_defs, "</g>\n");
+
     _cairo_output_stream_printf (surface->xml_node,
 				 "<g filter=\"url(#filter-%d)\">\n",
 				 _cairo_svg_surface_emit_parametric_filter (document,
 									    CAIRO_SVG_FILTER_ADD,
-									    operation_composing_group_id,
-									    destination_composing_group_id));
+									    lerped_operation_compositing_group_id,
+									    lerped_destination_compositing_group_id));
     status = _cairo_svg_surface_emit_paint (surface->xml_node, surface, &_cairo_pattern_black.base, NULL);
     if (unlikely (status)) {
 	return status;
@@ -3534,7 +3582,7 @@ _cairo_svg_document_create (cairo_output_stream_t *output_stream,
     document->pattern_id = 0;
     document->clip_id = 0;
     document->mask_id = 0;
-    document->composing_group_id = 0;
+    document->compositing_group_id = 0;
     document->filter_id = 0;
 
     for (enum cairo_svg_filter filter = 0; filter < CAIRO_SVG_FILTER_LAST_STATIC_FILTER; filter++) {
@@ -3628,11 +3676,7 @@ _cairo_svg_document_finish (cairo_svg_document_t *document)
 	_cairo_memory_stream_length (document->xml_node_glyphs) > 0 ||
 	_cairo_memory_stream_length (document->xml_node_defs) > 0) {
 	_cairo_output_stream_printf (output, "<defs>\n");
-	if (_cairo_memory_stream_length (document->xml_node_filters) > 0) {
-	    _cairo_output_stream_printf (output, "<g>\n");
-	    _cairo_memory_stream_copy (document->xml_node_filters, output);
-	    _cairo_output_stream_printf (output, "</g>\n");
-	}
+	_cairo_memory_stream_copy (document->xml_node_filters, output);
 	if (_cairo_memory_stream_length (document->xml_node_glyphs) > 0) {
 	    _cairo_output_stream_printf (output, "<g>\n");
 	    _cairo_memory_stream_copy (document->xml_node_glyphs, output);

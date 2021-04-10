@@ -218,9 +218,6 @@ _cairo_svg_surface_create_for_stream_internal (cairo_output_stream_t	*stream,
 					       double			 height,
 					       cairo_svg_version_t	 version);
 
-static cairo_status_t
-_cairo_svg_surface_emit_paint_black (cairo_svg_surface_t *surface);
-
 static const cairo_surface_backend_t cairo_svg_surface_backend;
 static const cairo_paginated_surface_backend_t cairo_svg_surface_paginated_backend;
 
@@ -718,12 +715,6 @@ _cairo_svg_surface_create_for_document (cairo_svg_document_t	*document,
     surface->xml_node = _cairo_memory_stream_create ();
 
     _cairo_array_init (&surface->page_set, sizeof (cairo_svg_page_t));
-
-    if (content == CAIRO_CONTENT_COLOR) {
-	status = _cairo_svg_surface_emit_paint_black (surface);
-	if (unlikely (status))
-	    goto CLEANUP;
-    }
 
     surface->paginated_mode = CAIRO_PAGINATED_MODE_ANALYZE;
     surface->force_fallbacks = FALSE;
@@ -2517,16 +2508,13 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 	if (unlikely (status)) {
 	    return status;
 	}
-	cairo_pattern_t *transparent_pattern = cairo_pattern_create_rgba (0.0, 0.0, 0.0, 0.0);
-	status = _cairo_svg_surface_do_operator (output,
-						 surface,
-						 CAIRO_OPERATOR_SOURCE,
-						 clip,
-						 mask_stream,
-						 _cairo_memory_stream_create (),
-						 destination_stream);
-	cairo_pattern_destroy (transparent_pattern);
-	return status;
+	return _cairo_svg_surface_do_operator (output,
+					       surface,
+					       CAIRO_OPERATOR_SOURCE,
+					       clip,
+					       mask_stream,
+					       _cairo_memory_stream_create (),
+					       destination_stream);
     }
 
     if (op == CAIRO_OPERATOR_SOURCE) {
@@ -2608,7 +2596,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 										CAIRO_SVG_FILTER_ADD,
 										source_composing_group_id,
 										destination_composing_group_id));
-	status = _cairo_svg_surface_emit_paint_black (surface);
+	status = _cairo_svg_surface_emit_paint (surface->xml_node, surface, &_cairo_pattern_black.base, NULL);
 	if (unlikely (status)) {
 	    return status;
 	}
@@ -2654,9 +2642,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 	(void) ignore2;
 	(void) ignore3;
     }
-    cairo_pattern_t *white_pattern = cairo_pattern_create_rgb (1.0, 1.0, 1.0);
-    status = _cairo_svg_surface_emit_paint (document->xml_node_defs, surface, white_pattern, NULL);
-    cairo_pattern_destroy (white_pattern);
+    status = _cairo_svg_surface_emit_paint (document->xml_node_defs, surface, &_cairo_pattern_white.base, NULL);
     if (unlikely (status)) {
 	cairo_status_t ignore1 = _cairo_output_stream_destroy (destination_stream);
 	cairo_status_t ignore2 = _cairo_output_stream_destroy (source_stream);
@@ -2907,9 +2893,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     _cairo_output_stream_printf (document->xml_node_defs,
 				 "filter=\"url(#filter-%d)\">\n",
 				 filer_id);
-    cairo_pattern_t *black_pattern = cairo_pattern_create_rgb (0.0, 0.0, 0.0);
-    status = _cairo_svg_surface_emit_paint (document->xml_node_defs, surface, black_pattern, NULL);
-    cairo_pattern_destroy (black_pattern);
+    status = _cairo_svg_surface_emit_paint (document->xml_node_defs, surface, &_cairo_pattern_black.base, NULL);
     if (unlikely (status)) {
 	return status;
     }
@@ -2921,7 +2905,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 									    CAIRO_SVG_FILTER_ADD,
 									    operation_composing_group_id,
 									    destination_composing_group_id));
-    status = _cairo_svg_surface_emit_paint_black (surface);
+    status = _cairo_svg_surface_emit_paint (surface->xml_node, surface, &_cairo_pattern_black.base, NULL);
     if (unlikely (status)) {
 	return status;
     }
@@ -2940,9 +2924,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     } else { \
         _cairo_svg_surface_reset_clip (surface); \
         cairo_output_stream_t *mask_stream = _cairo_memory_stream_create (); \
-        cairo_pattern_t *white_pattern = cairo_pattern_create_rgb (1.0, 1.0, 1.0); \
-        status = OPERATOR_IMPL (mask_stream, surface, white_pattern, ## __VA_ARGS__); \
-        cairo_pattern_destroy (white_pattern); \
+        status = OPERATOR_IMPL (mask_stream, surface, &_cairo_pattern_white.base, ## __VA_ARGS__); \
         if (unlikely (status)) { \
             cairo_status_t ignore = _cairo_output_stream_destroy (mask_stream); \
             return status; \
@@ -3005,9 +2987,6 @@ _cairo_svg_surface_paint (void *abstract_surface,
 	    surface->xml_node = _cairo_memory_stream_create ();
 
 	    if (op == CAIRO_OPERATOR_CLEAR) {
-		if (surface->content == CAIRO_CONTENT_COLOR) {
-		    return _cairo_svg_surface_emit_paint_black (surface);
-		}
 		return CAIRO_STATUS_SUCCESS;
 	    }
 	    break;
@@ -3117,7 +3096,6 @@ _cairo_svg_surface_stroke_impl (cairo_output_stream_t *output,
     cairo_bool_t svg_clip_or_svg_mask_should_be_used = _cairo_svg_surface_svg_clip_or_svg_mask_should_be_used (source);
     unsigned int mask_id;
     cairo_output_stream_t *output_stream = output;
-    cairo_pattern_t *white_pattern;
     if (svg_clip_or_svg_mask_should_be_used) {
 	mask_id = surface->document->mask_id++;
 
@@ -3126,14 +3104,13 @@ _cairo_svg_surface_stroke_impl (cairo_output_stream_t *output,
 	_cairo_output_stream_printf (output_stream,
 				     "<mask id=\"mask-%d\">\n",
 				     mask_id);
-
-	white_pattern = cairo_pattern_create_rgb (1.0, 1.0, 1.0);
     }
 
     _cairo_output_stream_printf (output_stream, "<path fill=\"none\"");
     status = _cairo_svg_surface_emit_stroke_style (output_stream,
 						   surface,
-						   svg_clip_or_svg_mask_should_be_used ? white_pattern : source,
+						   svg_clip_or_svg_mask_should_be_used ? &_cairo_pattern_white.base
+										       : source,
 						   stroke_style,
 						   ctm_inverse);
 
@@ -3147,8 +3124,6 @@ _cairo_svg_surface_stroke_impl (cairo_output_stream_t *output,
     _cairo_output_stream_printf (output_stream, "/>\n");
 
     if (svg_clip_or_svg_mask_should_be_used) {
-	cairo_pattern_destroy (white_pattern);
-
 	_cairo_output_stream_printf (output_stream, "</mask>\n");
 
 	_cairo_output_stream_printf (output,
@@ -3483,14 +3458,6 @@ static const char **
 _cairo_svg_surface_get_supported_mime_types (void	   *abstract_surface)
 {
     return _cairo_svg_supported_mime_types;
-}
-
-static cairo_status_t
-_cairo_svg_surface_emit_paint_black (cairo_svg_surface_t *surface) {
-    cairo_pattern_t *black_pattern = cairo_pattern_create_rgb (0.0, 0.0, 0.0);
-    cairo_status_t status = _cairo_svg_surface_emit_paint (surface->xml_node, surface, black_pattern, NULL);
-    cairo_pattern_destroy(black_pattern);
-    return status;
 }
 
 static const cairo_surface_backend_t cairo_svg_surface_backend = {

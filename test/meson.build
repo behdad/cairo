@@ -281,6 +281,7 @@ test_sources = [
   'record-neg-extents.c',
   'record-mesh.c',
   'record-replay-extend.c',
+  'record-transform-paint.c',
   'recording-ink-extents.c',
   'recording-surface-pattern.c',
   'recording-surface-extend.c',

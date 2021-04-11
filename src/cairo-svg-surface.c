@@ -213,6 +213,7 @@ typedef struct _cairo_svg_surface {
     cairo_surface_t base;
 
     unsigned int source_id;
+    unsigned int depth;
 
     cairo_content_t content;
 
@@ -843,6 +844,7 @@ _cairo_svg_surface_create_for_document (cairo_svg_document_t *document,
 			 TRUE); /* is_vector */
 
     surface->source_id = surface->base.unique_id;
+    surface->depth = 0;
 
     surface->content = content;
 
@@ -1253,8 +1255,16 @@ _cairo_svg_surface_are_operation_and_pattern_supported (cairo_svg_surface_t *sur
         return FALSE;
     }
 
-    if (pattern->type == CAIRO_PATTERN_TYPE_MESH) {
-	return FALSE;
+    if (pattern->type == CAIRO_PATTERN_TYPE_SURFACE) {
+        /* Do not cause stack overflow because of too deep or infinite recording surfaces. */
+	if (((cairo_surface_pattern_t *) pattern)->surface->type == CAIRO_SURFACE_TYPE_RECORDING &&
+	    surface->depth > 1000) {
+	    return FALSE;
+	}
+	/* SVG doesn't support extends reflect and pad for surface pattern. */
+        if (pattern->extend != CAIRO_EXTEND_NONE && pattern->extend != CAIRO_EXTEND_REPEAT) {
+	    return FALSE;
+	}
     }
 
     /* SVG 1.1 does not support the focal point (fx, fy) that is outside of the circle defined by (cx, cy) and r. */
@@ -1273,9 +1283,11 @@ _cairo_svg_surface_are_operation_and_pattern_supported (cairo_svg_surface_t *sur
 	}
     }
 
-    /* SVG doesn't support extends reflect and pad for surface pattern */
-    if (pattern->type == CAIRO_PATTERN_TYPE_SURFACE && (pattern->extend != CAIRO_EXTEND_NONE &&
-							pattern->extend != CAIRO_EXTEND_REPEAT)) {
+    if (pattern->type == CAIRO_PATTERN_TYPE_MESH) {
+	return FALSE;
+    }
+
+    if (pattern->type == CAIRO_PATTERN_TYPE_RASTER_SOURCE) {
 	return FALSE;
     }
 
@@ -1837,13 +1849,14 @@ _cairo_svg_surface_emit_composite_surface_pattern (cairo_output_stream_t *output
 }
 
 static cairo_status_t
-_cairo_svg_surface_emit_recording_surface (cairo_svg_document_t *document,
+_cairo_svg_surface_emit_recording_surface (cairo_svg_surface_t *surface,
 					   cairo_recording_surface_t *source,
 					   unsigned int source_id,
 					   cairo_bool_t *paint_used,
 					   cairo_bool_t *transitive_paint_used)
 {
     cairo_status_t status;
+    cairo_svg_document_t *document = surface->document;
 
     cairo_surface_t *paginated_surface = _cairo_svg_surface_create_for_document (document,
 										 source->base.content,
@@ -1856,6 +1869,7 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_document_t *document,
     }
 
     svg_surface->source_id = source_id;
+    svg_surface->depth = surface->depth + 1;
 
     cairo_rectangle_int_t extents;
     cairo_bool_t bounded = _cairo_surface_get_extents (&source->base, &extents);
@@ -1990,7 +2004,7 @@ _cairo_svg_surface_emit_composite_recording_pattern (cairo_output_stream_t *outp
     if (is_new) {
         cairo_bool_t paint_used;
 
-	status = _cairo_svg_surface_emit_recording_surface (document,
+	status = _cairo_svg_surface_emit_recording_surface (surface,
 							    recording_surface,
 							    source_id,
 							    &paint_used,

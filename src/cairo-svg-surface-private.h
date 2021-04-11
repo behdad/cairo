@@ -41,41 +41,8 @@
 #ifndef CAIRO_SVG_SURFACE_PRIVATE_H
 #define CAIRO_SVG_SURFACE_PRIVATE_H
 
-#include "cairo-svg.h"
-
-#include "cairo-surface-private.h"
-#include "cairo-surface-clipper-private.h"
-
-typedef struct cairo_svg_document cairo_svg_document_t;
-
-typedef struct cairo_svg_surface {
-    cairo_surface_t base;
-
-    unsigned int source_id;
-
-    cairo_content_t content;
-
-    double width;
-    double height;
-    cairo_bool_t surface_bounded;
-
-    cairo_svg_document_t *document;
-
-    cairo_output_stream_t *xml_node;
-    cairo_array_t page_set;
-
-    cairo_hash_table_t *source_surfaces;
-
-    cairo_surface_clipper_t clipper;
-    cairo_output_stream_t *current_clipper_output_stream;
-    unsigned int clip_level;
-
-    cairo_bool_t paint_used;
-    cairo_bool_t transitive_paint_used;
-
-    cairo_paginated_mode_t paginated_mode;
-
-    cairo_bool_t force_fallbacks;
-} cairo_svg_surface_t;
+void
+_cairo_svg_surface_set_force_fallbacks (void *abstract_surface,
+					cairo_bool_t force_fallbacks);
 
 #endif /* CAIRO_SVG_SURFACE_PRIVATE_H */

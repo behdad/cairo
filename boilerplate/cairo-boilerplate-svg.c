@@ -264,15 +264,11 @@ _cairo_boilerplate_svg_force_fallbacks (cairo_surface_t *abstract_surface,
     svg_target_closure_t *ptc = cairo_surface_get_user_data (abstract_surface,
 							     &svg_closure_key);
 
-    cairo_paginated_surface_t *paginated;
-    cairo_svg_surface_t *surface;
-
     if (ptc->target)
 	abstract_surface = ptc->target;
 
-    paginated = (cairo_paginated_surface_t*) abstract_surface;
-    surface = (cairo_svg_surface_t*) paginated->target;
-    surface->force_fallbacks = TRUE;
+    cairo_paginated_surface_t *paginated = (cairo_paginated_surface_t*) abstract_surface;
+    _cairo_svg_surface_set_force_fallbacks (paginated->target, TRUE);
     cairo_surface_set_fallback_resolution (&paginated->base,
 					   x_pixels_per_inch,
 					   y_pixels_per_inch);

@@ -172,11 +172,11 @@ typedef struct _cairo_svg_paint {
     cairo_box_double_t box;
 } cairo_svg_paint_t;
 
-typedef struct cairo_svg_page {
+typedef struct _cairo_svg_page {
     cairo_output_stream_t *xml_node;
 } cairo_svg_page_t;
 
-struct cairo_svg_document {
+typedef struct _cairo_svg_document {
     cairo_output_stream_t *output_stream;
     unsigned long refcount;
     cairo_surface_t *owner;
@@ -205,7 +205,37 @@ struct cairo_svg_document {
     cairo_scaled_font_subsets_t *font_subsets;
 
     cairo_hash_table_t *paints;
-};
+} cairo_svg_document_t;
+
+typedef struct _cairo_svg_surface {
+    cairo_surface_t base;
+
+    unsigned int source_id;
+
+    cairo_content_t content;
+
+    double width;
+    double height;
+    cairo_bool_t surface_bounded;
+
+    cairo_svg_document_t *document;
+
+    cairo_output_stream_t *xml_node;
+    cairo_array_t page_set;
+
+    cairo_hash_table_t *source_surfaces;
+
+    cairo_surface_clipper_t clipper;
+    cairo_output_stream_t *current_clipper_output_stream;
+    unsigned int clip_level;
+
+    cairo_bool_t paint_used;
+    cairo_bool_t transitive_paint_used;
+
+    cairo_paginated_mode_t paginated_mode;
+
+    cairo_bool_t force_fallbacks;
+} cairo_svg_surface_t;
 
 static cairo_status_t
 _cairo_svg_document_create (cairo_output_stream_t	 *stream,
@@ -377,6 +407,15 @@ _extract_svg_surface (cairo_surface_t *surface,
 
     *svg_surface = (cairo_svg_surface_t *) target;
     return TRUE;
+}
+
+void
+_cairo_svg_surface_set_force_fallbacks (void *abstract_surface,
+					cairo_bool_t force_fallbacks)
+{
+    cairo_svg_surface_t *surface = (cairo_svg_surface_t *) abstract_surface;
+
+    surface->force_fallbacks = force_fallbacks;
 }
 
 /**
@@ -3923,5 +3962,4 @@ static const cairo_paginated_surface_backend_t cairo_svg_surface_paginated_backe
     NULL, /* _cairo_svg_surface_set_bounding_box */
     NULL, /* _cairo_svg_surface_set_fallback_images_required */
     _cairo_svg_surface_supports_fine_grained_fallbacks,
-
 };

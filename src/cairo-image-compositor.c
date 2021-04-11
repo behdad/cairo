@@ -891,7 +891,7 @@ composite_glyphs (void				*_dst,
     for (i = 0; i < info->num_glyphs; i++) {
 	unsigned long index = info->glyphs[i].index;
 	const void *glyph;
-        uint32_t xphase, yphase;
+        unsigned long xphase, yphase;
 
         xphase = PHASE(info->glyphs[i].x);
         yphase = PHASE(info->glyphs[i].y);

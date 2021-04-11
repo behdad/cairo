@@ -36,5 +36,3 @@ stamp-h.in
 *-uninstalled.pc
 .vimrc
 gtk-doc.m4
-.kdev4/
-cairo.kdev4

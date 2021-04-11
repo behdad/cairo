@@ -4,6 +4,7 @@
  * Copyright © 2004 Red Hat, Inc
  * Copyright © 2005-2007 Emmanuel Pacaud <emmanuel.pacaud@free.fr>
  * Copyright © 2006 Red Hat, Inc
+ * Copyright © 2020-2021 Anton Danilkin <afdw@yandex.ru>
  *
  * This library is free software; you can redistribute it and/or
  * modify it either under the terms of the GNU Lesser General Public
@@ -37,6 +38,7 @@
  *	Kristian Høgsberg <krh@redhat.com>
  *	Emmanuel Pacaud <emmanuel.pacaud@free.fr>
  *	Carl Worth <cworth@cworth.org>
+ *	Anton Danilkin <afdw@yandex.ru>
  */
 
 #include "cairoint.h"

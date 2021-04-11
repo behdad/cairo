@@ -121,15 +121,15 @@ typedef struct _cairo_type1_font_subset {
     char *type1_end;
 
     char *header_segment;
-    int header_segment_size;
+    unsigned int header_segment_size;
     char *eexec_segment;
-    int eexec_segment_size;
+    unsigned int eexec_segment_size;
     cairo_bool_t eexec_segment_is_ascii;
 
     char *cleartext;
     char *cleartext_end;
 
-    int header_size;
+    unsigned int header_size;
 
     unsigned short eexec_key;
     cairo_bool_t hex_encode;
@@ -216,25 +216,31 @@ cairo_type1_font_subset_find_segments (cairo_type1_font_subset_t *font)
 {
     unsigned char *p;
     const char *eexec_token;
-    int size, i;
+    unsigned int size, i;
 
     p = (unsigned char *) font->type1_data;
     font->type1_end = font->type1_data + font->type1_length;
-    if (p[0] == 0x80 && p[1] == 0x01) {
+    if (font->type1_length >= 2 && p[0] == 0x80 && p[1] == 0x01) {
+	if (font->type1_end < (char *)(p + 6))
+	    return CAIRO_INT_STATUS_UNSUPPORTED;
 	font->header_segment_size =
-	    p[2] | (p[3] << 8) | (p[4] << 16) | ((uint32_t)p[5] << 24);
+	    p[2] | (p[3] << 8) | (p[4] << 16) | ((unsigned int) p[5] << 24);
 	font->header_segment = (char *) p + 6;
 
 	p += 6 + font->header_segment_size;
+	if (font->type1_end < (char *)(p + 6))
+	    return CAIRO_INT_STATUS_UNSUPPORTED;
 	font->eexec_segment_size =
-	    p[2] | (p[3] << 8) | (p[4] << 16) | ((uint32_t)p[5] << 24);
+	    p[2] | (p[3] << 8) | (p[4] << 16) | ((unsigned int) p[5] << 24);
 	font->eexec_segment = (char *) p + 6;
 	font->eexec_segment_is_ascii = (p[1] == 1);
 
         p += 6 + font->eexec_segment_size;
-        while (p < (unsigned char *) (font->type1_end) && p[1] != 0x03) {
-            size = p[2] | (p[3] << 8) | (p[4] << 16) | ((uint32_t)p[5] << 24);
-            p += 6 + size;
+	while (font->type1_end >= (char *)(p + 6) && p[1] != 0x03) {
+	    size = p[2] | (p[3] << 8) | (p[4] << 16) | ((unsigned int) p[5] << 24);
+	    if (font->type1_end < (char *)(p + 6 + size))
+		return CAIRO_INT_STATUS_UNSUPPORTED;
+	    p += 6 + size;
         }
         font->type1_end = (char *) p;
     } else {

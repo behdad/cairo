@@ -130,7 +130,7 @@ static inline uint32_t
 color_to_uint32 (const cairo_color_t *color)
 {
     return
-        (color->alpha_short >> 8 << 24) |
+        ((uint32_t)color->alpha_short >> 8 << 24) |
         (color->red_short >> 8 << 16)   |
         (color->green_short & 0xff00)   |
         (color->blue_short >> 8);
@@ -891,7 +891,7 @@ composite_glyphs (void				*_dst,
     for (i = 0; i < info->num_glyphs; i++) {
 	unsigned long index = info->glyphs[i].index;
 	const void *glyph;
-        int xphase, yphase;
+        unsigned long xphase, yphase;
 
         xphase = PHASE(info->glyphs[i].x);
         yphase = PHASE(info->glyphs[i].y);

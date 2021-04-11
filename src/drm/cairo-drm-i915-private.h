@@ -147,7 +147,7 @@
 #define SRC_ZERO     4
 #define SRC_ONE      5
 
-#define A1_SRC0_CHANNEL_X_NEGATE         (1<<31)
+#define A1_SRC0_CHANNEL_X_NEGATE         ((int)(1u<<31))
 #define A1_SRC0_CHANNEL_X_SHIFT          28
 #define A1_SRC0_CHANNEL_Y_NEGATE         (1<<27)
 #define A1_SRC0_CHANNEL_Y_SHIFT          24
@@ -162,7 +162,7 @@
 #define A1_SRC1_CHANNEL_Y_NEGATE         (1<<3)
 #define A1_SRC1_CHANNEL_Y_SHIFT          0
 
-#define A2_SRC1_CHANNEL_Z_NEGATE         (1<<31)
+#define A2_SRC1_CHANNEL_Z_NEGATE         ((int)(1u<<31))
 #define A2_SRC1_CHANNEL_Z_SHIFT          28
 #define A2_SRC1_CHANNEL_W_NEGATE         (1<<27)
 #define A2_SRC1_CHANNEL_W_SHIFT          24

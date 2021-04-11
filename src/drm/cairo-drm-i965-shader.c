@@ -1370,7 +1370,7 @@ i965_wm_kernel_hash (const i965_shader_t *shader)
 	(shader->mask.type.fragment & 0xff) << 8 |
 	(shader->clip.type.fragment & 0xff) << 16;
     if (shader->need_combine)
-	hash |= (1 + shader->op) << 24;
+	hash |= (1u + shader->op) << 24;
 
     return hash;
 }

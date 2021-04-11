@@ -2239,7 +2239,7 @@ i915_set_shader_constants (i915_device_t *device,
 	uint32_t diffuse;
 
 	diffuse =
-	    ((shader->source.solid.color.alpha_short >> 8) << 24) |
+	    ((uint32_t)(shader->source.solid.color.alpha_short >> 8) << 24) |
 	    ((shader->source.solid.color.red_short   >> 8) << 16) |
 	    ((shader->source.solid.color.green_short >> 8) << 8) |
 	    ((shader->source.solid.color.blue_short  >> 8) << 0);
@@ -2364,7 +2364,7 @@ i915_shader_needs_update (const i915_shader_t *shader,
 	uint32_t diffuse;
 
 	diffuse =
-	    ((shader->source.solid.color.alpha_short >> 8) << 24) |
+	    ((uint32_t)(shader->source.solid.color.alpha_short >> 8) << 24) |
 	    ((shader->source.solid.color.red_short   >> 8) << 16) |
 	    ((shader->source.solid.color.green_short >> 8) << 8) |
 	    ((shader->source.solid.color.blue_short  >> 8) << 0);

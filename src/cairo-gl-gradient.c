@@ -39,7 +39,7 @@
  */
 
 #include "cairoint.h"
-
+#include <stdint.h>
 #include "cairo-error-private.h"
 #include "cairo-gl-gradient-private.h"
 #include "cairo-gl-private.h"
@@ -99,9 +99,9 @@ static uint32_t color_stop_to_pixel(const cairo_gradient_stop_t *stop)
     b = premultiply(stop->color.blue,  stop->color.alpha);
 
     if (_cairo_is_little_endian ())
-	return a << 24 | r << 16 | g << 8 | b << 0;
+	return (uint32_t)a << 24 | r << 16 | g << 8 | b << 0;
     else
-	return a << 0 | r << 8 | g << 16 | b << 24;
+	return a << 0 | r << 8 | g << 16 | (uint32_t)b << 24;
 }
 
 static cairo_status_t

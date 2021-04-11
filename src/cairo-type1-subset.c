@@ -222,18 +222,18 @@ cairo_type1_font_subset_find_segments (cairo_type1_font_subset_t *font)
     font->type1_end = font->type1_data + font->type1_length;
     if (p[0] == 0x80 && p[1] == 0x01) {
 	font->header_segment_size =
-	    p[2] | (p[3] << 8) | (p[4] << 16) | (p[5] << 24);
+	    p[2] | (p[3] << 8) | (p[4] << 16) | ((uint32_t)p[5] << 24);
 	font->header_segment = (char *) p + 6;
 
 	p += 6 + font->header_segment_size;
 	font->eexec_segment_size =
-	    p[2] | (p[3] << 8) | (p[4] << 16) | (p[5] << 24);
+	    p[2] | (p[3] << 8) | (p[4] << 16) | ((uint32_t)p[5] << 24);
 	font->eexec_segment = (char *) p + 6;
 	font->eexec_segment_is_ascii = (p[1] == 1);
 
         p += 6 + font->eexec_segment_size;
         while (p < (unsigned char *) (font->type1_end) && p[1] != 0x03) {
-            size = p[2] | (p[3] << 8) | (p[4] << 16) | (p[5] << 24);
+            size = p[2] | (p[3] << 8) | (p[4] << 16) | ((uint32_t)p[5] << 24);
             p += 6 + size;
         }
         font->type1_end = (char *) p;
@@ -714,7 +714,7 @@ cairo_type1_font_subset_decode_integer (const unsigned char *p, int *integer)
         *integer = -(p[0] - 251) * 256 - p[1] - 108;
         p += 2;
     } else {
-        *integer = (p[1] << 24) | (p[2] << 16) | (p[3] << 8) | p[4];
+        *integer = ((uint32_t)p[1] << 24) | (p[2] << 16) | (p[3] << 8) | p[4];
         p += 5;
     }
 

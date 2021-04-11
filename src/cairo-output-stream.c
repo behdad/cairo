@@ -787,16 +787,6 @@ _cairo_memory_stream_length (cairo_output_stream_t *base)
     return _cairo_array_num_elements (&stream->array);
 }
 
-char *
-_cairo_memory_stream_to_string (cairo_output_stream_t *base)
-{
-    memory_stream_t *stream = (memory_stream_t *) base;
-
-    char zero = 0;
-    _cairo_array_append(&stream->array, &zero);
-    return _cairo_array_index (&stream->array, 0);
-}
-
 static cairo_status_t
 null_write (cairo_output_stream_t *base,
 	    const unsigned char *data, unsigned int length)

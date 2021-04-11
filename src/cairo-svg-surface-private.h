@@ -41,6 +41,8 @@
 #ifndef CAIRO_SVG_SURFACE_PRIVATE_H
 #define CAIRO_SVG_SURFACE_PRIVATE_H
 
+#include <cairo.h>
+
 void
 _cairo_svg_surface_set_force_fallbacks (void *abstract_surface,
 					cairo_bool_t force_fallbacks);

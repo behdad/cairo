@@ -778,16 +778,17 @@ _cairo_svg_surface_clipper_intersect_clip_path (cairo_surface_clipper_t *clipper
 				 "<clipPath id=\"clip-%d\">\n",
 				 document->clip_id);
 
-    _cairo_output_stream_printf (document->xml_node_defs, "<path");
+    _cairo_output_stream_printf (document->xml_node_defs,
+				 "<path clip-rule=\"%s\"",
+				 fill_rule == CAIRO_FILL_RULE_EVEN_ODD ? "evenodd" : "nonzero");
     _cairo_svg_surface_emit_path (document->xml_node_defs, path, NULL);
     _cairo_output_stream_printf (document->xml_node_defs, "/>\n");
 
     _cairo_output_stream_printf (document->xml_node_defs, "</clipPath>\n");
 
     _cairo_output_stream_printf (surface->current_clipper_output_stream,
-				 "<g clip-path=\"url(#clip-%d)\" clip-rule=\"%s\">\n",
-				 document->clip_id,
-				 fill_rule == CAIRO_FILL_RULE_EVEN_ODD ? "evenodd" : "nonzero");
+				 "<g clip-path=\"url(#clip-%d)\">\n",
+				 document->clip_id);
 
     document->clip_id++;
     surface->clip_level++;
@@ -3401,17 +3402,17 @@ _cairo_svg_surface_fill_impl (cairo_output_stream_t *output,
 				     "<clipPath id=\"clip-%d\">\n",
 				     surface->document->clip_id);
 
-	_cairo_output_stream_printf (surface->document->xml_node_defs, "<path");
+	_cairo_output_stream_printf (surface->document->xml_node_defs,
+				     "<path clip-rule=\"%s\"",
+				     fill_rule == CAIRO_FILL_RULE_EVEN_ODD ? "evenodd" : "nonzero");
 	_cairo_svg_surface_emit_path (surface->document->xml_node_defs, path, NULL);
 	_cairo_output_stream_printf (surface->document->xml_node_defs, "/>\n");
 
 	_cairo_output_stream_printf (surface->document->xml_node_defs, "</clipPath>\n");
 
 	_cairo_output_stream_printf (output,
-				     "<g clip-path=\"url(#clip-%d)\" "
-				     "clip-rule=\"%s\">\n",
-				     surface->document->clip_id++,
-				     fill_rule == CAIRO_FILL_RULE_EVEN_ODD ? "evenodd" : "nonzero");
+				     "<g clip-path=\"url(#clip-%d)\">\n",
+				     surface->document->clip_id++);
 
 	status = _cairo_svg_surface_emit_composite_pattern (output,
 							    surface,

@@ -1106,15 +1106,17 @@ _cairo_svg_document_emit_outline_glyph_data (cairo_svg_document_t *document,
 	return status;
     }
 
-    _cairo_output_stream_printf (document->xml_node_glyphs,
-				 "<path");
+    if (_cairo_path_fixed_size (scaled_glyph->path) != 0) {
+	_cairo_output_stream_printf (document->xml_node_glyphs,
+				     "<path");
 
-    _cairo_svg_surface_emit_path (document->xml_node_glyphs,
-				  scaled_glyph->path,
-				  NULL);
+	_cairo_svg_surface_emit_path (document->xml_node_glyphs,
+				      scaled_glyph->path,
+				      NULL);
 
-    _cairo_output_stream_printf (document->xml_node_glyphs,
-				 "/>\n");
+	_cairo_output_stream_printf (document->xml_node_glyphs,
+				     "/>\n");
+    }
 
     return status;
 }

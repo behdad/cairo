@@ -1824,15 +1824,16 @@ _cairo_svg_surface_emit_composite_surface_pattern (cairo_output_stream_t *output
 	_cairo_output_stream_printf (output, ">\n");
     }
 
-    _cairo_output_stream_printf (output,
-				 "<use xlink:href=\"#source-%d\"",
-				 source_id);
     if (pattern->surface->content == CAIRO_CONTENT_ALPHA) {
 	_cairo_output_stream_printf (output,
-				     " filter=\"url(#filter-%s)\"",
+				     "<g filter=\"url(#filter-%s)\">\n",
 				     _cairo_svg_surface_emit_static_filter (surface->document,
 									    CAIRO_SVG_FILTER_COLOR_TO_ALPHA));
     }
+
+    _cairo_output_stream_printf (output,
+				 "<use xlink:href=\"#source-%d\"",
+				 source_id);
     if (pattern_id == invalid_pattern_id) {
 	_cairo_svg_surface_emit_transform (output,
 					   "transform",
@@ -1840,6 +1841,10 @@ _cairo_svg_surface_emit_composite_surface_pattern (cairo_output_stream_t *output
 					   parent_matrix);
     }
     _cairo_output_stream_printf (output, "/>\n");
+
+    if (pattern->surface->content == CAIRO_CONTENT_ALPHA) {
+	_cairo_output_stream_printf (output, "</g>\n");
+    }
 
     if (pattern_id != invalid_pattern_id) {
 	_cairo_output_stream_printf (output, "</pattern>\n");

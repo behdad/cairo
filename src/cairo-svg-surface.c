@@ -77,7 +77,7 @@
  * Since: 1.2
  **/
 
-static const int invalid_pattern_id = -1;
+static const unsigned int invalid_pattern_id = -1;
 
 static const cairo_svg_version_t _cairo_svg_versions[] =
 {
@@ -209,8 +209,11 @@ typedef struct _cairo_svg_document {
     cairo_hash_table_t *paints;
 } cairo_svg_document_t;
 
+// Must be compatible with the struct _cairo_svg_surface_start.
 typedef struct _cairo_svg_surface {
     cairo_surface_t base;
+
+    cairo_bool_t force_fallbacks;
 
     unsigned int source_id;
     unsigned int depth;
@@ -236,8 +239,6 @@ typedef struct _cairo_svg_surface {
     cairo_bool_t transitive_paint_used;
 
     cairo_paginated_mode_t paginated_mode;
-
-    cairo_bool_t force_fallbacks;
 } cairo_svg_surface_t;
 
 static cairo_status_t
@@ -417,15 +418,6 @@ _extract_svg_surface (cairo_surface_t *surface,
 
     *svg_surface = (cairo_svg_surface_t *) target;
     return TRUE;
-}
-
-void
-_cairo_svg_surface_set_force_fallbacks (void *abstract_surface,
-					cairo_bool_t force_fallbacks)
-{
-    cairo_svg_surface_t *surface = (cairo_svg_surface_t *) abstract_surface;
-
-    surface->force_fallbacks = force_fallbacks;
 }
 
 /**
@@ -1397,7 +1389,7 @@ _cairo_svg_surface_finish (void *abstract_surface)
     return status;
 }
 
-static char *
+static const char *
 _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cairo_svg_filter filter)
 {
     if (!document->filters_emitted[filter]) {

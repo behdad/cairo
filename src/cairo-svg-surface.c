@@ -616,6 +616,18 @@ _cairo_svg_paint_pluck (void *entry, void *closure)
 }
 
 static void
+_cairo_svg_paint_box_add_padding (cairo_box_double_t *box)
+{
+    double width = box->p2.x - box->p1.x;
+    double height = box->p2.y - box->p1.y;
+
+    box->p1.x -= width / 10;
+    box->p1.y -= height / 10;
+    box->p2.x += width / 10;
+    box->p2.y += height / 10;
+}
+
+static void
 _cairo_svg_paint_compute (cairo_svg_document_t *document, cairo_svg_paint_t *paint) {
     for (unsigned int i = 0; i < paint->paint_elements.num_elements; i++) {
 	cairo_svg_paint_element_t *paint_element = _cairo_array_index (&paint->paint_elements, i);
@@ -635,6 +647,7 @@ _cairo_svg_paint_compute (cairo_svg_document_t *document, cairo_svg_paint_t *pai
 					      &box.p1.x, &box.p1.y,
 					      &box.p2.x, &box.p2.y,
 					      NULL);
+	_cairo_svg_paint_box_add_padding (&box);
 
 	if (i == 0) {
 	    paint->box = box;
@@ -1247,6 +1260,7 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
 					      &paint_entry->box.p2.x, &paint_entry->box.p2.y,
 					      NULL);
     }
+    _cairo_svg_paint_box_add_padding (&paint_entry->box);
     _cairo_array_init (&paint_entry->paint_elements, sizeof (cairo_svg_paint_element_t));
     _cairo_svg_paint_init_key (paint_entry);
     status = _cairo_hash_table_insert (document->paints, &paint_entry->base);
@@ -3988,6 +4002,7 @@ _cairo_svg_document_finish (cairo_svg_document_t *document)
 	    paint_entry->box.p1.y = 0;
 	    paint_entry->box.p2.x = document->width;
 	    paint_entry->box.p2.y = document->height;
+	    _cairo_svg_paint_box_add_padding (&paint_entry->box);
 	    _cairo_array_init (&paint_entry->paint_elements, sizeof (cairo_svg_paint_element_t));
 	    _cairo_svg_paint_init_key (paint_entry);
 	    status = _cairo_hash_table_insert (document->paints, &paint_entry->base);

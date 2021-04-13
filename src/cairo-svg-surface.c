@@ -1137,6 +1137,40 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
     }
 
     cairo_bool_t use_recording_surface = (scaled_glyph->has_info & CAIRO_SCALED_GLYPH_INFO_RECORDING_SURFACE) != 0;
+    cairo_matrix_t glyph_matrix = scaled_glyph->surface->base.device_transform_inverse;
+    cairo_image_surface_t *glyph_image_surface = scaled_glyph->surface;
+
+    // Attempt to recognize a common pattern for a bitmap font and extract the original glyph image from it
+    cairo_surface_t *extracted_surface;
+    cairo_image_surface_t *extracted_image = NULL;
+    void *extracted_image_extra;
+    if (use_recording_surface) {
+	cairo_recording_surface_t *recording_surface = (cairo_recording_surface_t *) scaled_glyph->recording_surface;
+	if (recording_surface->commands.num_elements == 1) {
+	    cairo_command_t *command = *((cairo_command_t **) _cairo_array_index (&recording_surface->commands, 0));
+	    if (command->header.type == CAIRO_COMMAND_MASK &&
+		command->header.op == CAIRO_OPERATOR_OVER &&
+		command->header.clip == NULL &&
+		command->mask.source.base.type == CAIRO_PATTERN_TYPE_SOLID &&
+		_cairo_color_equal (&command->mask.source.solid.color, _cairo_stock_color (CAIRO_STOCK_BLACK)) &&
+		command->mask.mask.base.extend == CAIRO_EXTEND_NONE &&
+		command->mask.mask.base.type == CAIRO_PATTERN_TYPE_SURFACE &&
+		command->mask.mask.surface.surface->type == CAIRO_SURFACE_TYPE_IMAGE) {
+		extracted_surface = command->mask.mask.surface.surface;
+		if (_cairo_surface_acquire_source_image (extracted_surface,
+							 &extracted_image,
+							 &extracted_image_extra) == CAIRO_STATUS_SUCCESS) {
+		    if (extracted_image->format == CAIRO_FORMAT_A1 || extracted_image->format == CAIRO_FORMAT_A8) {
+			use_recording_surface = FALSE;
+			glyph_image_surface = extracted_image;
+			glyph_matrix = command->mask.mask.base.matrix;
+			status = cairo_matrix_invert (&glyph_matrix);
+			assert (status == CAIRO_STATUS_SUCCESS);
+		    }
+		}
+	    }
+	}
+    }
 
     cairo_surface_t *paginated_surface = _cairo_svg_surface_create_for_document (document,
 										 CAIRO_CONTENT_COLOR_ALPHA,
@@ -1144,8 +1178,9 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
 										 0,
 										 FALSE);
     cairo_svg_surface_t *svg_surface = (cairo_svg_surface_t *) _cairo_paginated_surface_get_target (paginated_surface);
-    if (unlikely (paginated_surface->status)) {
-	return paginated_surface->status;
+    status = paginated_surface->status;
+    if (unlikely (status)) {
+	goto cleanup;
     }
 
     unsigned int source_id = svg_surface->base.unique_id;
@@ -1163,7 +1198,7 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
 				 mask_id);
 
     cairo_pattern_t *pattern = cairo_pattern_create_for_surface (use_recording_surface ? scaled_glyph->recording_surface
-										       : &scaled_glyph->surface->base);
+										       : &glyph_image_surface->base);
     _cairo_svg_surface_emit_composite_pattern (temporary_stream,
 					       svg_surface,
 					       (cairo_surface_pattern_t *) pattern,
@@ -1177,7 +1212,7 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
 
     status = _cairo_output_stream_destroy (temporary_stream);
     if (unlikely (status)) {
-	return status;
+	goto cleanup;
     }
 
     svg_surface->paint_used = TRUE;
@@ -1190,23 +1225,24 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
     if (!use_recording_surface) {
 	_cairo_svg_surface_emit_transform (document->xml_node_glyphs,
 					   "transform",
-					   &scaled_glyph->surface->base.device_transform_inverse,
+					   &glyph_matrix,
 					   NULL);
     }
     _cairo_output_stream_printf (document->xml_node_glyphs, "/>\n");
 
     cairo_svg_paint_t *paint_entry = malloc (sizeof (cairo_svg_paint_t));
     if (paint_entry == NULL) {
-	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
+	goto cleanup;
     }
     paint_entry->source_id = source_id;
     paint_entry->paint_used = svg_surface->paint_used;
     paint_entry->box.p1.x = 0;
     paint_entry->box.p1.y = 0;
-    paint_entry->box.p2.x = scaled_glyph->surface->width;
-    paint_entry->box.p2.y = scaled_glyph->surface->height;
+    paint_entry->box.p2.x = glyph_image_surface->width;
+    paint_entry->box.p2.y = glyph_image_surface->height;
     if (use_recording_surface) {
-	_cairo_matrix_transform_bounding_box (&scaled_glyph->surface->base.device_transform_inverse,
+	_cairo_matrix_transform_bounding_box (&glyph_matrix,
 					      &paint_entry->box.p1.x, &paint_entry->box.p1.y,
 					      &paint_entry->box.p2.x, &paint_entry->box.p2.y,
 					      NULL);
@@ -1215,11 +1251,18 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
     _cairo_svg_paint_init_key (paint_entry);
     status = _cairo_hash_table_insert (document->paints, &paint_entry->base);
     if (unlikely (status)) {
-	return status;
+	goto cleanup;
     }
 
-    status = cairo_surface_status (paginated_surface);
+    cleanup:
+    if (status == CAIRO_STATUS_SUCCESS) {
+	status = cairo_surface_status (paginated_surface);
+    }
     cairo_surface_destroy (paginated_surface);
+
+    if (extracted_image != NULL) {
+	_cairo_surface_release_source_image (extracted_surface, extracted_image, extracted_image_extra);
+    }
 
     return status;
 }
@@ -2904,6 +2947,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     /*
      * Below we use the "XRender" equation from the "Clipping and masking" section
      * of https://cairographics.org/operators/:
+     * result = ((source IN mask) OP destination) LERP_clip destination
      *
      * It is equivalent to:
      * result = (((source IN mask) OP destination) IN clip) ADD (destination IN (NOT clip))

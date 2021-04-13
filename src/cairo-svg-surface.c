@@ -1144,6 +1144,8 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
 	return status;
     }
 
+    cairo_bool_t use_recording_surface = (scaled_glyph->has_info & CAIRO_SCALED_GLYPH_INFO_RECORDING_SURFACE) != 0;
+
     cairo_surface_t *paginated_surface = _cairo_svg_surface_create_for_document (document,
 										 CAIRO_CONTENT_COLOR_ALPHA,
 										 0,
@@ -1154,29 +1156,75 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
 	return paginated_surface->status;
     }
 
+    unsigned int source_id = svg_surface->base.unique_id;
+
+    cairo_surface_set_fallback_resolution (paginated_surface,
+					   document->owner->x_fallback_resolution,
+					   document->owner->y_fallback_resolution);
+
+    cairo_output_stream_t *temporary_stream = _cairo_memory_stream_create ();
+
     unsigned int mask_id = document->mask_id++;
 
-    _cairo_output_stream_printf (document->xml_node_defs,
+    _cairo_output_stream_printf (temporary_stream,
 				 "<mask id=\"mask-%d\">\n",
 				 mask_id);
 
-    cairo_pattern_t *pattern = cairo_pattern_create_for_surface (&scaled_glyph->surface->base);
-    _cairo_svg_surface_emit_composite_pattern (document->xml_node_glyphs,
+    cairo_pattern_t *pattern = cairo_pattern_create_for_surface (use_recording_surface ? scaled_glyph->recording_surface
+										       : &scaled_glyph->surface->base);
+    _cairo_svg_surface_emit_composite_pattern (temporary_stream,
 					       svg_surface,
 					       (cairo_surface_pattern_t *) pattern,
 					       invalid_pattern_id,
 					       NULL);
     cairo_pattern_destroy (pattern);
 
-    _cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
+    _cairo_output_stream_printf (temporary_stream, "</mask>\n");
+
+    _cairo_memory_stream_copy (temporary_stream, document->xml_node_defs);
+
+    status = _cairo_output_stream_destroy (temporary_stream);
+    if (unlikely (status)) {
+	return status;
+    }
+
+    svg_surface->paint_used = TRUE;
+    svg_surface->transitive_paint_used = TRUE;
 
     _cairo_output_stream_printf (document->xml_node_glyphs,
-				 "<rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" mask=\"url(#mask-%d)\"",
-				 scaled_glyph->surface->width, scaled_glyph->surface->height,
+				 "<use xlink:href=\"#paint-%d\" mask=\"url(#mask-%d)\"",
+				 source_id,
 				 mask_id);
-    _cairo_svg_surface_emit_transform (document->xml_node_glyphs, "transform",
-				       &scaled_glyph->surface->base.device_transform_inverse, NULL);
+    if (!use_recording_surface) {
+	_cairo_svg_surface_emit_transform (document->xml_node_glyphs,
+					   "transform",
+					   &scaled_glyph->surface->base.device_transform_inverse,
+					   NULL);
+    }
     _cairo_output_stream_printf (document->xml_node_glyphs, "/>\n");
+
+    cairo_svg_paint_t *paint_entry = malloc (sizeof (cairo_svg_paint_t));
+    if (paint_entry == NULL) {
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+    }
+    paint_entry->source_id = source_id;
+    paint_entry->paint_used = svg_surface->paint_used;
+    paint_entry->box.p1.x = 0;
+    paint_entry->box.p1.y = 0;
+    paint_entry->box.p2.x = scaled_glyph->surface->width;
+    paint_entry->box.p2.y = scaled_glyph->surface->height;
+    if (use_recording_surface) {
+	_cairo_matrix_transform_bounding_box (&scaled_glyph->surface->base.device_transform_inverse,
+					      &paint_entry->box.p1.x, &paint_entry->box.p1.y,
+					      &paint_entry->box.p2.x, &paint_entry->box.p2.y,
+					      NULL);
+    }
+    _cairo_array_init (&paint_entry->paint_elements, sizeof (cairo_svg_paint_element_t));
+    _cairo_svg_paint_init_key (paint_entry);
+    status = _cairo_hash_table_insert (document->paints, &paint_entry->base);
+    if (unlikely (status)) {
+	return status;
+    }
 
     status = cairo_surface_status (paginated_surface);
     cairo_surface_destroy (paginated_surface);
@@ -1359,7 +1407,6 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 	    // (r, g, b, a) -> (1, 1, 1, a)
 	    _cairo_output_stream_printf (document->xml_node_filters,
 					 "<filter id=\"filter-remove-color\" "
-					 "filterUnits=\"userSpaceOnUse\" "
 					 "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
 					 "<feColorMatrix values=\"0 0 0 0 1 "
 					 /*                   */ "0 0 0 0 1 "
@@ -1371,7 +1418,6 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 	    // (r, g, b, a) -> (1, 1, 1, 1 - a)
 	    _cairo_output_stream_printf (document->xml_node_filters,
 					 "<filter id=\"filter-remove-color-and-invert-alpha\" "
-					 "filterUnits=\"userSpaceOnUse\" "
 					 "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
 					 "<feColorMatrix values=\"0 0 0 0 1 "
 					 /*                   */ "0 0 0 0 1 "
@@ -1383,7 +1429,6 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 	    // (r, g, b, a) -> (1, 1, 1, 0.2126 * r + 0.7152 * g + 0.0722 * b)
 	    _cairo_output_stream_printf (document->xml_node_filters,
 					 "<filter id=\"filter-color-to-alpha\" "
-					 "filterUnits=\"userSpaceOnUse\" "
 					 "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
 					 "<feColorMatrix values=\"0 0 0 0 1 "
 					 /*                   */ "0 0 0 0 1 "
@@ -1410,7 +1455,7 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 
 #define _CAIRO_SVG_SURFACE_OUTPUT_FE_COMPOSITE_FILTER(operation) \
     _cairo_output_stream_printf (document->xml_node_filters, \
-                                 "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" " \
+                                 "<filter id=\"filter-%d\" " \
                                  "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n" \
                                  "<feImage xlink:href=\"#compositing-group-%d\" result=\"source\"/>\n" \
                                  "<feImage xlink:href=\"#compositing-group-%d\" result=\"destination\"/>\n" \
@@ -1424,7 +1469,7 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 
 #define _CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER(mode) \
     _cairo_output_stream_printf (document->xml_node_filters, \
-                                 "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" " \
+                                 "<filter id=\"filter-%d\" " \
                                  "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n" \
                                  "<feImage xlink:href=\"#compositing-group-%d\" result=\"source\"/>\n" \
                                  "<feImage xlink:href=\"#compositing-group-%d\" result=\"destination\"/>\n" \
@@ -1462,7 +1507,7 @@ _cairo_svg_surface_emit_parametric_filter (cairo_svg_document_t *document,
     case CAIRO_SVG_FILTER_ADD:
 	// This can also be done with <feComposite operator="lighter"/>, but it is not from SVG 1.1
 	_cairo_output_stream_printf (document->xml_node_filters,
-				     "<filter id=\"filter-%d\" filterUnits=\"userSpaceOnUse\" "
+				     "<filter id=\"filter-%d\" "
 				     "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
 				     "<feImage xlink:href=\"#compositing-group-%d\" result=\"source\"/>\n"
 				     "<feImage xlink:href=\"#compositing-group-%d\" result=\"destination\"/>\n"

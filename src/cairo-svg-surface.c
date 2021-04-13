@@ -269,6 +269,13 @@ _cairo_svg_surface_create_for_stream_internal (cairo_output_stream_t	*stream,
 					       double			 height,
 					       cairo_svg_version_t	 version);
 
+static cairo_status_t
+_cairo_svg_surface_emit_composite_pattern (cairo_output_stream_t *output,
+					   cairo_svg_surface_t *surface,
+					   cairo_surface_pattern_t *pattern,
+					   unsigned int pattern_id,
+					   const cairo_matrix_t *parent_matrix);
+
 static const cairo_surface_backend_t cairo_svg_surface_backend;
 static const cairo_paginated_surface_backend_t cairo_svg_surface_paginated_backend;
 
@@ -1122,53 +1129,59 @@ _cairo_svg_document_emit_outline_glyph_data (cairo_svg_document_t *document,
 }
 
 static cairo_int_status_t
-_cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t	*document,
-					    cairo_scaled_font_t		*scaled_font,
-					    unsigned long		 glyph_index)
+_cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
+					    cairo_scaled_font_t *scaled_font,
+					    unsigned long glyph_index)
 {
-    cairo_scaled_glyph_t *scaled_glyph;
-    cairo_image_surface_t *image;
     cairo_status_t status;
-    uint8_t *row, *byte;
-    int rows, cols;
-    int x, y, bit;
 
+    cairo_scaled_glyph_t *scaled_glyph;
     status = _cairo_scaled_glyph_lookup (scaled_font,
 					 glyph_index,
-					 CAIRO_SCALED_GLYPH_INFO_METRICS |
-					 CAIRO_SCALED_GLYPH_INFO_SURFACE,
+					 CAIRO_SCALED_GLYPH_INFO_METRICS | CAIRO_SCALED_GLYPH_INFO_SURFACE,
 					 &scaled_glyph);
-    if (unlikely (status))
+    if (unlikely (status)) {
 	return status;
-
-    image = _cairo_image_surface_coerce_to_format (scaled_glyph->surface,
-					           CAIRO_FORMAT_A1);
-    status = image->base.status;
-    if (unlikely (status))
-	return status;
-
-    _cairo_output_stream_printf (document->xml_node_glyphs, "<g");
-    _cairo_svg_surface_emit_transform (document->xml_node_glyphs, "transform",
-				       &image->base.device_transform_inverse, NULL);
-    _cairo_output_stream_printf (document->xml_node_glyphs, ">\n");
-
-    for (y = 0, row = image->data, rows = image->height; rows; row += image->stride, rows--, y++) {
-	for (x = 0, byte = row, cols = (image->width + 7) / 8; cols; byte++, cols--) {
-	    uint8_t output_byte = CAIRO_BITSWAP8_IF_LITTLE_ENDIAN (*byte);
-	    for (bit = 7; bit >= 0 && x < image->width; bit--, x++) {
-		if (output_byte & (1 << bit)) {
-		    _cairo_output_stream_printf (document->xml_node_glyphs,
-						 "<rect x=\"%d\" y=\"%d\" width=\"1\" height=\"1\"/>\n",
-						 x, y);
-		}
-	    }
-	}
     }
-    _cairo_output_stream_printf (document->xml_node_glyphs, "</g>\n");
 
-    cairo_surface_destroy (&image->base);
+    cairo_surface_t *paginated_surface = _cairo_svg_surface_create_for_document (document,
+										 CAIRO_CONTENT_COLOR_ALPHA,
+										 0,
+										 0,
+										 FALSE);
+    cairo_svg_surface_t *svg_surface = (cairo_svg_surface_t *) _cairo_paginated_surface_get_target (paginated_surface);
+    if (unlikely (paginated_surface->status)) {
+	return paginated_surface->status;
+    }
 
-    return CAIRO_STATUS_SUCCESS;
+    unsigned int mask_id = document->mask_id++;
+
+    _cairo_output_stream_printf (document->xml_node_defs,
+				 "<mask id=\"mask-%d\">\n",
+				 mask_id);
+
+    cairo_pattern_t *pattern = cairo_pattern_create_for_surface (&scaled_glyph->surface->base);
+    _cairo_svg_surface_emit_composite_pattern (document->xml_node_glyphs,
+					       svg_surface,
+					       (cairo_surface_pattern_t *) pattern,
+					       invalid_pattern_id,
+					       NULL);
+    cairo_pattern_destroy (pattern);
+
+    _cairo_output_stream_printf (document->xml_node_defs, "</mask>\n");
+
+    _cairo_output_stream_printf (document->xml_node_glyphs,
+				 "<rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" mask=\"url(#mask-%d)\"",
+				 scaled_glyph->surface->width, scaled_glyph->surface->height,
+				 mask_id);
+    _cairo_svg_surface_emit_transform (document->xml_node_glyphs, "transform",
+				       &scaled_glyph->surface->base.device_transform_inverse, NULL);
+    _cairo_output_stream_printf (document->xml_node_glyphs, "/>\n");
+
+    status = cairo_surface_status (paginated_surface);
+    cairo_surface_destroy (paginated_surface);
+
+    return status;
 }
 
 static cairo_int_status_t
@@ -3639,7 +3652,7 @@ _cairo_svg_surface_show_glyphs_impl (cairo_output_stream_t *output,
 					   &path,
 					   CAIRO_FILL_RULE_WINDING,
 					   0.0,
-					   CAIRO_ANTIALIAS_SUBPIXEL);
+					   CAIRO_ANTIALIAS_DEFAULT);
 
     _cairo_path_fixed_fini (&path);
 

@@ -1923,10 +1923,19 @@ _cairo_svg_surface_emit_composite_surface_pattern (cairo_output_stream_t *output
 				 "<use xlink:href=\"#source-%d\"",
 				 source_id);
     if (pattern->surface->content == CAIRO_CONTENT_ALPHA) {
-	_cairo_output_stream_printf (output,
-				     " filter=\"url(#filter-%s)\"",
-				     _cairo_svg_surface_emit_static_filter (surface->document,
-									    CAIRO_SVG_FILTER_COLOR_TO_ALPHA));
+	cairo_bool_t can_skip_filter = FALSE;
+	if (pattern->surface->backend &&
+	    pattern->surface->backend->type == CAIRO_SURFACE_TYPE_IMAGE &&
+	    (((cairo_image_surface_t *) pattern->surface)->format == CAIRO_FORMAT_A1 ||
+	     ((cairo_image_surface_t *) pattern->surface)->format == CAIRO_FORMAT_A8)) {
+	    can_skip_filter = TRUE;
+	}
+	if (!can_skip_filter) {
+	    _cairo_output_stream_printf (output,
+					 " filter=\"url(#filter-%s)\"",
+					 _cairo_svg_surface_emit_static_filter (surface->document,
+										CAIRO_SVG_FILTER_COLOR_TO_ALPHA));
+	}
     }
     if (pattern_id == invalid_pattern_id) {
 	_cairo_svg_surface_emit_transform (output,

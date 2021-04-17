@@ -72,6 +72,8 @@ typedef struct _cairo_test_runner {
     int num_error;
     int num_crashed;
 
+    unsigned int num_ignored_via_env;
+
     cairo_test_list_t *crashes_preamble;
     cairo_test_list_t *errors_preamble;
     cairo_test_list_t *fails_preamble;
@@ -439,6 +441,11 @@ _runner_print_summary (cairo_test_runner_t *runner)
 	  runner->num_xfailed,
 
 	  runner->num_skipped);
+    if (runner->num_ignored_via_env) {
+	_log (&runner->base,
+	      "%d expected failure due to special request via environment variables!\n",
+	      runner->num_ignored_via_env);
+    }
 }
 
 static void
@@ -595,6 +602,61 @@ _runner_fini (cairo_test_runner_t *runner)
 	runner->num_passed + runner->num_xfailed ?
 	CAIRO_TEST_SUCCESS : CAIRO_TEST_UNTESTED;
 }
+
+static cairo_bool_t
+expect_fail_due_to_env_var (cairo_test_context_t *ctx,
+                            const cairo_boilerplate_target_t *target)
+{
+    const char *prefix = "CAIRO_TEST_IGNORE_";
+    const char *content = cairo_boilerplate_content_name (target->content);
+    char *env_name;
+    const char *env;
+    cairo_bool_t result = FALSE;
+
+    /* Construct the name of the env var */
+    env_name = malloc (strlen (prefix) + strlen (target->name) + 1 + strlen (content) + 1);
+    if (env_name == NULL) {
+	fprintf(stderr, "Malloc failed, cannot check $%s%s_%s\n", prefix, target->name, content);
+	cairo_test_log(ctx, "Malloc failed, cannot check $%s%s_%s\n", prefix, target->name, content);
+	return FALSE;
+    }
+    strcpy (env_name, prefix);
+    strcat (env_name, target->name);
+    strcat (env_name, "_");
+    strcat (env_name, content);
+
+    env = getenv (env_name);
+
+    /* Look for the test name in the env var (comma separated) */
+    if (env) {
+	while (1) {
+	   char *match = strstr (env, ctx->test_name);
+	   if (!match)
+	       break;
+
+	   /* Make sure that "foo" does not match in "barfoo,foobaz"
+	    * There must be commas around the test name (or string begin/end)
+	    */
+	   if (env == match || match[-1] == ',') {
+	       char *end = match + strlen (ctx->test_name);
+	       if (*end == '\0' || *end == ',') {
+		   result = TRUE;
+		   break;
+	       }
+	   }
+	   env = match + strlen (ctx->test_name);
+	}
+    }
+    if (result)
+       cairo_test_log (ctx,
+                       "Expecting '%s' to fail because it appears in $%s\n",
+                       ctx->test_name, env_name);
+
+    free (env_name);
+
+    return result;
+}
+
 
 static cairo_bool_t
 _version_compare (int a, cairo_test_compare_op_t op, int b)
@@ -872,6 +934,18 @@ main (int argc, char **argv)
 
 	if (ctx.test->preamble != NULL) {
 	    status = _cairo_test_runner_preamble (&runner, &ctx);
+	    if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_FALLBACK_RESOLUTION") && strcmp (ctx.test_name, "fallback-resolution") == 0) {
+		if (status == CAIRO_TEST_FAILURE) {
+		    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
+		    fprintf (stderr, "Turning FAIL into XFAIL due to env\n");
+		    runner.num_ignored_via_env++;
+		    status = CAIRO_TEST_XFAILURE;
+		} else {
+		    fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
+		    fprintf (stderr, "Please remove the hack to ignore fallback-resolution failures.\n");
+		    status = CAIRO_TEST_ERROR;
+		}
+	    }
 	    switch (status) {
 	    case CAIRO_TEST_SUCCESS:
 		in_preamble = TRUE;
@@ -937,6 +1011,33 @@ main (int argc, char **argv)
 		    for (similar = DIRECT; similar <= has_similar; similar++) {
 			status = _cairo_test_runner_draw (&runner, &ctx, target,
 							  similar, dev_offset, dev_scale);
+
+			if (expect_fail_due_to_env_var (&ctx, target)) {
+			    if (status == CAIRO_TEST_FAILURE) {
+				cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
+				fprintf (stderr, "Turning FAIL into XFAIL due to env\n");
+				runner.num_ignored_via_env++;
+				status = CAIRO_TEST_XFAILURE;
+			    } else {
+				fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
+				fprintf (stderr, "Please update the corresponding CAIRO_TEST_IGNORE_* variable.\n");
+				status = CAIRO_TEST_ERROR;
+			    }
+			}
+			if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_SCRIPT_XCB_HUGE_IMAGE_SHM")) {
+			    if (strcmp (target->name, "script") == 0 && strcmp (ctx.test_name, "xcb-huge-image-shm") == 0) {
+				if (status == CAIRO_TEST_FAILURE) {
+				    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
+				    fprintf (stderr, "Turning FAIL into XFAIL due to env\n");
+				    runner.num_ignored_via_env++;
+				    status = CAIRO_TEST_XFAILURE;
+				} else {
+				    fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
+				    fprintf (stderr, "Please remove the hack to ignore xcb-huge-image-shm errors for the script backend.\n");
+				    status = CAIRO_TEST_ERROR;
+				}
+			    }
+			}
 			switch (status) {
 			case CAIRO_TEST_SUCCESS:
 			    target_skipped = FALSE;

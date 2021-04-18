@@ -27,6 +27,9 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+
+/* Disable deprecation warnings coming from librsvg */
+#define RSVG_DISABLE_DEPRECATION_WARNINGS
 #include <librsvg/rsvg.h>
 
 #define FAIL(msg)							\

@@ -69,6 +69,7 @@
 #endif
 
 #if CAIRO_CAN_TEST_SVG_SURFACE
+#define RSVG_DISABLE_DEPRECATION_WARNINGS
 #include <librsvg/rsvg.h>
 #ifndef RSVG_CAIRO_H
 #include <librsvg/rsvg-cairo.h>

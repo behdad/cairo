@@ -1138,7 +1138,7 @@ _cairo_svg_surface_analyze_operation (cairo_svg_surface_t   *surface,
 	return CAIRO_INT_STATUS_UNSUPPORTED;
     }
 
-    if (pattern->type == CAIRO_PATTERN_TYPE_MESH)
+    if (pattern->type == CAIRO_PATTERN_TYPE_MESH || pattern->type == CAIRO_PATTERN_TYPE_RASTER_SOURCE)
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
     /* SVG doesn't support extend reflect for image pattern */

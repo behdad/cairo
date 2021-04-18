@@ -112,6 +112,7 @@ fedora autotools build:
     when: 'always'
     expire_in: "7 days"
     paths:
+      - config.log
       - test/*.log
       - test/pdiff/*.log
       - test/output

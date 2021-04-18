@@ -43,6 +43,8 @@ if cc.get_id() == 'msvc'
                         language : 'c')
 endif
 
+add_project_arguments('-D_GNU_SOURCE', language: 'c')
+
 # Make sure source directory hasn't been configured with autotools
 if meson.version().version_compare('>= 0.53')
   fs = import('fs')

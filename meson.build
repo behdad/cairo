@@ -198,8 +198,15 @@ if png_dep.found()
   endif
 endif
 
+# Don't build fontconfig as a subproject on Windows unless
+# explicitly requested
+fontconfig_option = get_option('fontconfig')
+if host_machine.system() == 'windows' and not fontconfig_option.enabled()
+  fontconfig_option = false
+endif
+
 fontconfig_dep = dependency('fontconfig',
-  required: get_option('fontconfig'),
+  required: fontconfig_option,
   version: fontconfig_required_version,
   fallback: ['fontconfig', 'fontconfig_dep'],
 )

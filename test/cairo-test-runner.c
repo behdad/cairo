@@ -934,6 +934,18 @@ main (int argc, char **argv)
 
 	if (ctx.test->preamble != NULL) {
 	    status = _cairo_test_runner_preamble (&runner, &ctx);
+	    if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_CREATE_FOR_STREAM") && strcmp (ctx.test_name, "create-for-stream") == 0) {
+		if (status == CAIRO_TEST_FAILURE) {
+		    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
+		    fprintf (stderr, "Turning FAIL into XFAIL due to env\n");
+		    runner.num_ignored_via_env++;
+		    status = CAIRO_TEST_XFAILURE;
+		} else {
+		    fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
+		    fprintf (stderr, "Please remove the hack to ignore fallback-resolution failures.\n");
+		    status = CAIRO_TEST_ERROR;
+		}
+	    }
 	    if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_FALLBACK_RESOLUTION") && strcmp (ctx.test_name, "fallback-resolution") == 0) {
 		if (status == CAIRO_TEST_FAILURE) {
 		    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
@@ -1022,6 +1034,22 @@ main (int argc, char **argv)
 				fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
 				fprintf (stderr, "Please update the corresponding CAIRO_TEST_IGNORE_* variable.\n");
 				status = CAIRO_TEST_ERROR;
+			    }
+			}
+			if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_SVG_ARGB32_SELF_COPIES")) {
+			    if ((strcmp (target->name, "svg11") == 0 || strcmp (target->name, "svg12") == 0) &&
+					target->content == CAIRO_CONTENT_COLOR_ALPHA &&
+					(strcmp (ctx.test_name, "self-copy") == 0 || strcmp (ctx.test_name, "self-copy-overlap") == 0)) {
+				if (status == CAIRO_TEST_CRASHED) {
+				    cairo_test_log (&ctx, "Turning CRASH into XFAIL due to env\n");
+				    fprintf (stderr, "Turning CRASH into XFAIL due to env\n");
+				    runner.num_ignored_via_env++;
+				    status = CAIRO_TEST_XFAILURE;
+				} else {
+				    fprintf (stderr, "Test was expected to crash due to an environment variable, but did not!\n");
+				    fprintf (stderr, "Please remove the hack to ignore self-copy* crashes for the svg backend.\n");
+				    status = CAIRO_TEST_ERROR;
+				}
 			    }
 			}
 			if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_SCRIPT_XCB_HUGE_IMAGE_SHM")) {

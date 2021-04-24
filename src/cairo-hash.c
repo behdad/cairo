@@ -588,12 +588,5 @@ _cairo_hash_table_foreach (cairo_hash_table_t	      *hash_table,
 unsigned long
 _cairo_hash_table_size (cairo_hash_table_t *hash_table)
 {
-    unsigned long size = 0;
-    for (unsigned long i = 0; i < *hash_table->table_size; i++) {
-	cairo_hash_entry_t *entry = hash_table->entries[i];
-	if (ENTRY_IS_LIVE(entry)) {
-	    size++;
-	}
-    }
-    return size;
+    return hash_table->live_entries;
 }

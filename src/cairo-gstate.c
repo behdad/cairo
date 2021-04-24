@@ -937,9 +937,22 @@ _cairo_gstate_copy_transformed_pattern (cairo_gstate_t  *gstate,
 					const cairo_pattern_t *original,
 					const cairo_matrix_t  *ctm_inverse)
 {
+    /*
+     * What calculations below do can be described in pseudo-code (so using nonexistent fields) as (using column vectors):
+     * pattern->matrix = surface->device_transform *
+     * 			 pattern->matrix *
+     * 			 ctm_inverse *
+     * 			 gstate->target->device_transform_inverse
+     *
+     * The inverse of which is:
+     * pattern->matrix_inverse = gstate->target->device_transform *
+     * 				 ctm *
+     * 				 pattern->matrix_inverse *
+     * 				 surface->device_transform_inverse
+     */
+
     _cairo_gstate_copy_pattern (pattern, original);
 
-    /* apply device_transform first so that it is transformed by ctm_inverse */
     if (original->type == CAIRO_PATTERN_TYPE_SURFACE) {
 	cairo_surface_pattern_t *surface_pattern;
 	cairo_surface_t *surface;

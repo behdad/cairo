@@ -612,6 +612,7 @@ expect_fail_due_to_env_var (cairo_test_context_t *ctx,
     char *env_name;
     const char *env;
     cairo_bool_t result = FALSE;
+    char *to_replace;
 
     /* Construct the name of the env var */
     env_name = malloc (strlen (prefix) + strlen (target->name) + 1 + strlen (content) + 1);
@@ -624,6 +625,14 @@ expect_fail_due_to_env_var (cairo_test_context_t *ctx,
     strcat (env_name, target->name);
     strcat (env_name, "_");
     strcat (env_name, content);
+
+    /* Deal with some invalid characters: Replace '-' and '&' with '_' */
+    while ((to_replace = strchr(env_name, '-')) != NULL) {
+	*to_replace = '_';
+    }
+    while ((to_replace = strchr(env_name, '&')) != NULL) {
+	*to_replace = '_';
+    }
 
     env = getenv (env_name);
 

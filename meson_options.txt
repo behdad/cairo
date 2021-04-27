@@ -34,6 +34,10 @@ option('spectre', type : 'feature', value : 'auto')
 option('symbol-lookup', type: 'feature', value : 'auto',
        description: 'Symbol lookup in debug utils via binutils/bfd')
 
+# Documentation
+option('gtk_doc', type : 'boolean', value : false,
+       description: 'Build the Cairo API reference (depends on gtk-doc)')
+
 # FIXME: implement these to avoid automagic
 #option('egl', type : 'feature', value : 'auto')
 #option('glx', type : 'feature', value : 'auto')

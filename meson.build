@@ -971,6 +971,14 @@ if not get_option('tests').disabled() and feature_conf.get('CAIRO_HAS_PNG_FUNCTI
   subdir('perf')
 endif
 
+if get_option('gtk_doc')
+  if not meson.version().version_compare('>=0.52.0')
+    error('Building documentation requires Meson >= 0.52.0.')
+  endif
+  doc_srcdir = include_directories('src')
+  subdir('doc/public')
+endif
+
 configure_file(output: 'config.h', configuration: conf)
 
 foreach feature: built_features
@@ -1039,5 +1047,6 @@ if meson.version().version_compare('>= 0.53')
   summary({
           'cairo-trace:': conf.get('CAIRO_HAS_TRACE', 0) == 1,
           'cairo-script-interpreter': conf.get('CAIRO_HAS_INTERPRETER', 0) == 1,
+          'API reference': get_option('gtk_doc'),
           }, section: 'Features and Utilities', bool_yn: true)
 endif

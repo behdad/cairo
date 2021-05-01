@@ -938,7 +938,7 @@ _cairo_gstate_copy_transformed_pattern (cairo_gstate_t  *gstate,
 					const cairo_matrix_t  *ctm_inverse)
 {
     /*
-     * What calculations bellow do can described in pseudo-code (so using nonexistent fields) as (using column vectors):
+     * What calculations below do can be described in pseudo-code (so using nonexistent fields) as (using column vectors):
      * pattern->matrix = surface->device_transform *
      * 			 pattern->matrix *
      * 			 ctm_inverse *

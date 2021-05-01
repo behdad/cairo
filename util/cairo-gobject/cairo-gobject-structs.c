@@ -44,7 +44,7 @@
 GType \
 underscore_name ## _get_type (void) \
 { \
-   static volatile gsize type_volatile = 0; \
+   static gsize type_volatile = 0; \
    if (g_once_init_enter (&type_volatile)) { \
       GType type = g_boxed_type_register_static (g_intern_static_string (Name), \
                                                  (GBoxedCopyFunc)copy_func, \
@@ -71,12 +71,19 @@ CAIRO_DEFINE_BOXED ("CairoFontOptions", cairo_gobject_font_options,
 CAIRO_DEFINE_BOXED ("CairoRegion", cairo_gobject_region, 
                     cairo_region_reference, cairo_region_destroy);
 
+#if GLIB_CHECK_VERSION(2, 68, 0)
 #define COPY_FUNC(name) \
 static gpointer \
-cairo_gobject_cairo_ ## name ## _copy (gpointer src) \
-{ \
-    return g_memdup (src, sizeof (cairo_ ## name ## _t)); \
+cairo_gobject_cairo_ ## name ## _copy (gpointer src) { \
+  return g_memdup2 (src, sizeof (cairo_ ## name ## _t)); \
 }
+#else
+#define COPY_FUNC(name) \
+static gpointer \
+cairo_gobject_cairo_ ## name ## _copy (gpointer src) { \
+  return g_memdup (src, sizeof (cairo_ ## name ## _t)); \
+}
+#endif
 
 COPY_FUNC (matrix)
 CAIRO_DEFINE_BOXED ("CairoMatrix", cairo_gobject_matrix, 

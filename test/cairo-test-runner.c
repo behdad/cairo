@@ -612,6 +612,7 @@ expect_fail_due_to_env_var (cairo_test_context_t *ctx,
     char *env_name;
     const char *env;
     cairo_bool_t result = FALSE;
+    char *to_replace;
 
     /* Construct the name of the env var */
     env_name = malloc (strlen (prefix) + strlen (target->name) + 1 + strlen (content) + 1);
@@ -624,6 +625,14 @@ expect_fail_due_to_env_var (cairo_test_context_t *ctx,
     strcat (env_name, target->name);
     strcat (env_name, "_");
     strcat (env_name, content);
+
+    /* Deal with some invalid characters: Replace '-' and '&' with '_' */
+    while ((to_replace = strchr(env_name, '-')) != NULL) {
+	*to_replace = '_';
+    }
+    while ((to_replace = strchr(env_name, '&')) != NULL) {
+	*to_replace = '_';
+    }
 
     env = getenv (env_name);
 
@@ -1054,6 +1063,20 @@ main (int argc, char **argv)
 			}
 			if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_SCRIPT_XCB_HUGE_IMAGE_SHM")) {
 			    if (strcmp (target->name, "script") == 0 && strcmp (ctx.test_name, "xcb-huge-image-shm") == 0) {
+				if (status == CAIRO_TEST_FAILURE) {
+				    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
+				    fprintf (stderr, "Turning FAIL into XFAIL due to env\n");
+				    runner.num_ignored_via_env++;
+				    status = CAIRO_TEST_XFAILURE;
+				} else {
+				    fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
+				    fprintf (stderr, "Please remove the hack to ignore xcb-huge-image-shm errors for the script backend.\n");
+				    status = CAIRO_TEST_ERROR;
+				}
+			    }
+			}
+			if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_QUARTZ_COVERAGE_COLUMN_TRIANGLES")) {
+			    if (strcmp (target->name, "quartz") == 0 && target->content == CAIRO_CONTENT_COLOR_ALPHA && strcmp (ctx.test_name, "coverage-column-triangles") == 0) {
 				if (status == CAIRO_TEST_FAILURE) {
 				    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
 				    fprintf (stderr, "Turning FAIL into XFAIL due to env\n");

@@ -858,6 +858,8 @@ matches_reference (struct slave *slave)
 
 	case CAIRO_FORMAT_RGB30:
 	case CAIRO_FORMAT_RGB16_565:
+        case CAIRO_FORMAT_RGB96F:
+        case CAIRO_FORMAT_RGBA128F:
 	case CAIRO_FORMAT_INVALID:
 	    assert (0);
 	}

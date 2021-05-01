@@ -218,8 +218,6 @@ typedef struct _cairo_svg_surface {
     unsigned int source_id;
     unsigned int depth;
 
-    cairo_content_t content;
-
     double width;
     double height;
     cairo_bool_t surface_bounded;
@@ -276,6 +274,11 @@ _cairo_svg_surface_emit_composite_pattern (cairo_output_stream_t *output,
 					   cairo_surface_pattern_t *pattern,
 					   unsigned int pattern_id,
 					   const cairo_matrix_t *parent_matrix);
+
+static cairo_status_t
+_cairo_svg_surface_emit_paint (cairo_output_stream_t *output,
+			       cairo_svg_surface_t *surface,
+			       const cairo_pattern_t *source);
 
 static const cairo_surface_backend_t cairo_svg_surface_backend;
 static const cairo_paginated_surface_backend_t cairo_svg_surface_paginated_backend;
@@ -621,10 +624,10 @@ _cairo_svg_paint_box_add_padding (cairo_box_double_t *box)
     double width = box->p2.x - box->p1.x;
     double height = box->p2.y - box->p1.y;
 
-    box->p1.x -= width / 10;
-    box->p1.y -= height / 10;
-    box->p2.x += width / 10;
-    box->p2.y += height / 10;
+    box->p1.x -= width / 10.0;
+    box->p1.y -= height / 10.0;
+    box->p2.x += width / 10.0;
+    box->p2.y += height / 10.0;
 }
 
 static void
@@ -858,8 +861,6 @@ _cairo_svg_surface_create_for_document (cairo_svg_document_t *document,
     surface->source_id = surface->base.unique_id;
     surface->depth = 0;
 
-    surface->content = content;
-
     surface->width = width;
     surface->height = height;
     surface->surface_bounded = bounded;
@@ -887,7 +888,7 @@ _cairo_svg_surface_create_for_document (cairo_svg_document_t *document,
 
 
     paginated = _cairo_paginated_surface_create (&surface->base,
-						 surface->content,
+						 surface->base.content,
 						 &cairo_svg_surface_paginated_backend);
     status = paginated->status;
     if (status == CAIRO_STATUS_SUCCESS) {
@@ -1996,6 +1997,9 @@ _cairo_svg_surface_emit_recording_surface (cairo_svg_surface_t *surface,
 					   document->owner->x_fallback_resolution,
 					   document->owner->y_fallback_resolution);
 
+    if (source->base.content == CAIRO_CONTENT_COLOR) {
+	_cairo_svg_surface_emit_paint (svg_surface->xml_node, svg_surface, &_cairo_pattern_black.base);
+    }
     status = _cairo_recording_surface_replay (&source->base, paginated_surface);
     if (unlikely (status)) {
 	cairo_surface_destroy (paginated_surface);
@@ -2683,7 +2687,7 @@ _cairo_svg_surface_emit_fill_style (cairo_output_stream_t *output,
 				    const cairo_matrix_t *parent_matrix)
 {
     _cairo_output_stream_printf (output,
-				 " fill-rule=\"%s\" ",
+				 " fill-rule=\"%s\"",
 				 fill_rule == CAIRO_FILL_RULE_EVEN_ODD ? "evenodd" : "nonzero");
     return _cairo_svg_surface_emit_pattern (surface, source, output, FALSE, parent_matrix);
 }
@@ -2822,6 +2826,19 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 {
     cairo_status_t status;
     cairo_svg_document_t *document = surface->document;
+
+    // For operators that do not always produce opaque output, we first need to emit a black paint
+    // if the content does not have alpha
+    if (surface->base.content == CAIRO_CONTENT_COLOR && (op == CAIRO_OPERATOR_CLEAR ||
+							 op == CAIRO_OPERATOR_SOURCE ||
+							 op == CAIRO_OPERATOR_IN ||
+							 op == CAIRO_OPERATOR_OUT ||
+							 op == CAIRO_OPERATOR_DEST_IN ||
+							 op == CAIRO_OPERATOR_DEST_OUT ||
+							 op == CAIRO_OPERATOR_DEST_ATOP ||
+							 op == CAIRO_OPERATOR_XOR)) {
+	_cairo_svg_surface_emit_paint (output, surface, &_cairo_pattern_black.base);
+    }
 
     if (op == CAIRO_OPERATOR_CLEAR) {
 	/*

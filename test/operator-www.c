@@ -32,7 +32,7 @@ void
 example (cairo_t *cr, char *name)
 {
     cairo_save (cr);
-    cairo_push_group (cr);
+    cairo_push_group_with_content (cr, cairo_surface_get_content (cairo_get_target (cr)));
 
     cairo_rectangle (cr, 0, 0, WIDTH, HEIGHT);
     cairo_clip (cr);
@@ -107,14 +107,23 @@ example (cairo_t *cr, char *name)
     cairo_set_source_rgba (cr, 0, 0, 0.9, 0.4);
     cairo_fill (cr);
 
-    cairo_pop_group_to_source (cr);
+    cairo_pattern_t *pattern = cairo_pop_group (cr);
+    cairo_rectangle (cr, 0, 0, WIDTH, HEIGHT);
+    cairo_clip (cr);
+    // Make problems with CAIRO_CONTENT_COLOR visible
+    if (cairo_surface_get_content (cairo_get_target (cr)) == CAIRO_CONTENT_COLOR) {
+	cairo_set_source_rgb (cr, 1, 1, 1);
+	cairo_paint (cr);
+    }
+    cairo_set_source (cr, pattern);
+    cairo_pattern_destroy (pattern);
     cairo_paint (cr);
     cairo_restore (cr);
 
     cairo_select_font_face (cr, CAIRO_TEST_FONT_FAMILY " Sans",
 			    CAIRO_FONT_SLANT_NORMAL,
 			    CAIRO_FONT_WEIGHT_NORMAL);
-    cairo_set_font_size(cr, 17);
+    cairo_set_font_size (cr, 17);
     cairo_move_to (cr, WIDTH + 20, 70);
     cairo_set_source_rgb (cr, 1, 1, 0);
     cairo_show_text (cr, name);

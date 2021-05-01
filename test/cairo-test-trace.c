@@ -52,8 +52,6 @@
  *     scope of this test.
  */
 
-#define _GNU_SOURCE 1	/* getline() */
-
 #include "cairo-test.h"
 #include "buffer-diff.h"
 

@@ -25,8 +25,6 @@
  *         Chris Wilson <chris@chris-wilson.co.uk>
  */
 
-#define _GNU_SOURCE 1	/* for feenableexcept() et al */
-
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif

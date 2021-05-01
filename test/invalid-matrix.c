@@ -25,8 +25,8 @@
  */
 
 #define _ISOC99_SOURCE	/* for INFINITY */
-#define _GNU_SOURCE 1	/* for fedisableeexcept() et al */
 
+#include "config.h"
 #include "cairo-test.h"
 
 #if !defined(INFINITY)

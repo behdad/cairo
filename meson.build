@@ -45,6 +45,9 @@ endif
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
 
+# Autotools compatibility
+add_project_arguments('-DHAVE_CONFIG_H', language: 'c')
+
 # Make sure source directory hasn't been configured with autotools
 if meson.version().version_compare('>= 0.53')
   fs = import('fs')

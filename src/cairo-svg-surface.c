@@ -2866,6 +2866,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
 	_cairo_output_stream_printf (document->xml_node_defs,
 				     "<g id=\"compositing-group-%d\">\n",
 				     lerp_compositing_group_id);
+	_cairo_svg_surface_emit_paint (document->xml_node_defs, surface, &_cairo_pattern_clear.base);
 	status = _cairo_svg_surface_set_clip (surface, document->xml_node_defs, clip);
 	if (unlikely (status)) {
 	    (void) _cairo_output_stream_destroy (destination_stream);
@@ -2993,6 +2994,7 @@ _cairo_svg_surface_do_operator (cairo_output_stream_t *output,
     _cairo_output_stream_printf (document->xml_node_defs,
 				 "<g id=\"compositing-group-%d\">\n",
 				 lerp_compositing_group_id);
+    _cairo_svg_surface_emit_paint (document->xml_node_defs, surface, &_cairo_pattern_clear.base);
     status = _cairo_svg_surface_set_clip (surface, document->xml_node_defs, clip);
     if (unlikely (status)) {
 	(void) _cairo_output_stream_destroy (destination_stream);

@@ -1368,6 +1368,22 @@ _cairo_svg_surface_are_operation_and_pattern_supported (cairo_svg_surface_t *sur
         return FALSE;
     }
 
+    /* SVG 1.1 does not support these operators. We already have code for them for SVG 2
+     * that can be enabled when SVG 2 becomes widespread.  */
+    if (op == CAIRO_OPERATOR_OVERLAY ||
+	op == CAIRO_OPERATOR_COLOR_DODGE ||
+	op == CAIRO_OPERATOR_COLOR_BURN ||
+	op == CAIRO_OPERATOR_HARD_LIGHT ||
+	op == CAIRO_OPERATOR_SOFT_LIGHT ||
+	op == CAIRO_OPERATOR_DIFFERENCE ||
+	op == CAIRO_OPERATOR_EXCLUSION ||
+	op == CAIRO_OPERATOR_HSL_HUE ||
+	op == CAIRO_OPERATOR_HSL_SATURATION ||
+	op == CAIRO_OPERATOR_HSL_COLOR ||
+	op == CAIRO_OPERATOR_HSL_LUMINOSITY) {
+	return FALSE;
+    }
+
     if (pattern->type == CAIRO_PATTERN_TYPE_SURFACE) {
         /* Do not cause stack overflow because of too deep or infinite recording surfaces. */
 	if (((cairo_surface_pattern_t *) pattern)->surface->type == CAIRO_SURFACE_TYPE_RECORDING &&
@@ -1555,7 +1571,7 @@ _cairo_svg_surface_emit_parametric_filter (cairo_svg_document_t *document,
 	_CAIRO_SVG_SURFACE_OUTPUT_FE_COMPOSITE_FILTER ("xor");
 	break;
     case CAIRO_SVG_FILTER_ADD:
-	// This can also be done with <feComposite operator="lighter"/>, but it is not from SVG 1.1
+	// This can also be done with <feComposite operator="lighter"/>, but it is not in SVG 1.1
 	_cairo_output_stream_printf (document->xml_node_filters,
 				     "<filter id=\"filter-%d\" "
 				     "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"

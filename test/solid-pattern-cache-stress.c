@@ -23,9 +23,7 @@
  * Author: Chris Wilson <chris at chris-wilson.co.uk>
  */
 
-#if HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include "cairo-test.h"
 #include <stdlib.h> /* drand48() */

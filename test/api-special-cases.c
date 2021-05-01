@@ -56,9 +56,7 @@
  * enough to just add a new check to the function it complained about.
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <assert.h>
 #include <limits.h>

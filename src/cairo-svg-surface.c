@@ -1471,7 +1471,7 @@ _cairo_svg_document_emit_glyph (cairo_svg_document_t	*document,
     cairo_int_status_t	     status;
 
     _cairo_svg_stream_printf (&document->xml_node_glyphs,
-			      "<symbol overflow=\"visible\" id=\"glyph-%d-%d\">\n",
+			      "<g overflow=\"visible\" id=\"glyph-%d-%d\">\n",
 			      font_id,
 			      subset_glyph_index);
 
@@ -1485,7 +1485,7 @@ _cairo_svg_document_emit_glyph (cairo_svg_document_t	*document,
     if (unlikely (status))
 	return status;
 
-    _cairo_svg_stream_printf (&document->xml_node_glyphs, "</symbol>\n");
+    _cairo_svg_stream_printf (&document->xml_node_glyphs, "</g>\n");
 
     return CAIRO_INT_STATUS_SUCCESS;
 }

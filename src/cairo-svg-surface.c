@@ -3654,20 +3654,7 @@ _cairo_svg_surface_fill_stroke (void *abstract_surface,
 	_cairo_svg_surface_svg_clip_or_svg_mask_should_be_used (stroke_source) ||
 	fill_op != CAIRO_OPERATOR_OVER ||
 	stroke_op != CAIRO_OPERATOR_OVER) {
-	status = _cairo_svg_surface_fill (abstract_surface, fill_op, fill_source, path,
-					  fill_rule, fill_tolerance, fill_antialias,
-					  clip);
-	if (unlikely (status)) {
-	    return status;
-	}
-
-	status = _cairo_svg_surface_stroke (abstract_surface, stroke_op, stroke_source, path,
-					    stroke_style, stroke_ctm, stroke_ctm_inverse,
-					    stroke_tolerance, stroke_antialias,
-					    clip);
-	if (unlikely (status)) {
-	    return status;
-	}
+	return CAIRO_INT_STATUS_UNSUPPORTED;
     }
 
     if (surface->paginated_mode == CAIRO_PAGINATED_MODE_ANALYZE) {

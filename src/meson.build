@@ -296,8 +296,8 @@ incsrc = include_directories('.')
 
 libcairo = library('cairo', cairo_sources,
   dependencies: deps,
-  c_args: cairo_no_warn_c_args + pthread_c_args + ['-DHAVE_CONFIG_H'],
-  cpp_args: cairo_no_warn_c_args + pthread_c_args + ['-DHAVE_CONFIG_H'],
+  c_args: cairo_no_warn_c_args + pthread_c_args,
+  cpp_args: cairo_no_warn_c_args + pthread_c_args,
   link_args: extra_link_args,
   soversion: cairo_version_sonum,
   version: cairo_libversion,

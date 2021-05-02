@@ -35,9 +35,7 @@
 #ifndef CAIRO_SCRIPT_PRIVATE_H
 #define CAIRO_SCRIPT_PRIVATE_H
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include "cairo-script-interpreter.h"
 

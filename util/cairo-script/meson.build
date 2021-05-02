@@ -26,7 +26,6 @@ csi_trace_sources = [
 
 libcairoscript = library('cairo-script-interpreter',
   cairoscript_interpreter_sources,
-  c_args: ['-DHAVE_CONFIG_H'],
   include_directories: [incbase, incsrc],
   dependencies: deps,
   link_with: [libcairo],
@@ -50,14 +49,12 @@ pkgmod.generate(libcairoscript,
 meson.override_dependency('cairo-script-interpreter', libcairoscript_dep)
 
 csi_replay_exe = executable('csi-replay', csi_replay_sources,
-  c_args: ['-DHAVE_CONFIG_H'],
   include_directories: [incbase, incsrc],
   link_with: [libcairo, libcairoscript],
   dependencies: deps,
 )
 
 csi_exec_exe = executable('csi-exec', csi_exec_sources,
-  c_args: ['-DHAVE_CONFIG_H'],
   include_directories: [incbase, incsrc],
   link_with: [libcairo, libcairoscript],
   dependencies: deps,
@@ -65,7 +62,6 @@ csi_exec_exe = executable('csi-exec', csi_exec_sources,
 
 if feature_conf.get('CAIRO_HAS_SCRIPT_SURFACE', 0) == 1 and conf.get('HAVE_LIBGEN_H', 0) == 1
   csi_trace_exe = executable('csi-trace', csi_trace_sources,
-    c_args: ['-DHAVE_CONFIG_H'],
     include_directories: [incbase, incsrc],
     link_with: [libcairo, libcairoscript],
     dependencies: deps,

@@ -1,4 +1,5 @@
-#define _GNU_SOURCE
+#include "config.h"
+
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <stdio.h>

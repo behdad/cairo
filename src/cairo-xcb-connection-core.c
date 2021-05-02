@@ -42,7 +42,7 @@ _cairo_xcb_connection_create_pixmap (cairo_xcb_connection_t *connection,
 				     uint16_t width,
 				     uint16_t height)
 {
-    xcb_pixmap_t pixmap = _cairo_xcb_connection_get_xid (connection);
+    xcb_pixmap_t pixmap = xcb_generate_id (connection->xcb_connection);
 
     assert (width > 0);
     assert (height > 0);
@@ -57,7 +57,6 @@ _cairo_xcb_connection_free_pixmap (cairo_xcb_connection_t *connection,
 				   xcb_pixmap_t pixmap)
 {
     xcb_free_pixmap (connection->xcb_connection, pixmap);
-    _cairo_xcb_connection_put_xid (connection, pixmap);
 }
 
 xcb_gcontext_t
@@ -66,7 +65,7 @@ _cairo_xcb_connection_create_gc (cairo_xcb_connection_t *connection,
 				 uint32_t value_mask,
 				 uint32_t *values)
 {
-    xcb_gcontext_t gc = _cairo_xcb_connection_get_xid (connection);
+    xcb_gcontext_t gc = xcb_generate_id (connection->xcb_connection);
     xcb_create_gc (connection->xcb_connection, gc, drawable,
 		   value_mask, values);
     return gc;
@@ -77,7 +76,6 @@ _cairo_xcb_connection_free_gc (cairo_xcb_connection_t *connection,
 			       xcb_gcontext_t gc)
 {
     xcb_free_gc (connection->xcb_connection, gc);
-    _cairo_xcb_connection_put_xid (connection, gc);
 }
 
 void

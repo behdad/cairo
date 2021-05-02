@@ -128,7 +128,7 @@ _cairo_xcb_picture_create (cairo_xcb_screen_t *screen,
     cairo_list_add (&surface->link, &screen->pictures);
 
     surface->screen = screen;
-    surface->picture = _cairo_xcb_connection_get_xid (screen->connection);
+    surface->picture = xcb_generate_id (screen->connection->xcb_connection);
     surface->pixman_format = pixman_format;
     surface->xrender_format = xrender_format;
 
@@ -308,7 +308,7 @@ _cairo_xcb_surface_ensure_picture (cairo_xcb_surface_t *surface)
 	    values[0] = surface->precision;
 	}
 
-	surface->picture = _cairo_xcb_connection_get_xid (surface->connection);
+	surface->picture = xcb_generate_id (surface->connection->xcb_connection);
 	_cairo_xcb_connection_render_create_picture (surface->connection,
 						     surface->picture,
 						     surface->drawable,
@@ -4232,7 +4232,7 @@ _cairo_xcb_scaled_font_get_glyphset_info_for_format (cairo_xcb_connection_t *c,
 
     info = &priv->glyphset_info[glyphset_index];
     if (info->glyphset == XCB_NONE) {
-	info->glyphset = _cairo_xcb_connection_get_xid (c);
+	info->glyphset = xcb_generate_id (c->xcb_connection);
 	info->xrender_format = c->standard_formats[info->format];
 
 	_cairo_xcb_connection_render_create_glyph_set (c,

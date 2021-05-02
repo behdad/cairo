@@ -382,7 +382,7 @@ _picture_from_image (cairo_xcb_surface_t *target,
 						     0, 0);
     }
 
-    _cairo_xcb_connection_free_pixmap (target->connection, pixmap);
+    xcb_free_pixmap (target->connection->xcb_connection, pixmap);
 
     return picture;
 }
@@ -640,7 +640,7 @@ _solid_picture (cairo_xcb_surface_t *target,
 	    _cairo_xcb_screen_put_gc (target->screen, 32, gc);
 	}
 
-	_cairo_xcb_connection_free_pixmap (target->connection, pixmap);
+	xcb_free_pixmap (target->connection->xcb_connection, pixmap);
     }
 
     return picture;

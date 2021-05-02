@@ -472,19 +472,11 @@ _cairo_xcb_connection_create_pixmap (cairo_xcb_connection_t *connection,
 				     uint16_t width,
 				     uint16_t height);
 
-cairo_private void
-_cairo_xcb_connection_free_pixmap (cairo_xcb_connection_t *connection,
-				   xcb_pixmap_t pixmap);
-
 cairo_private xcb_gcontext_t
 _cairo_xcb_connection_create_gc (cairo_xcb_connection_t *connection,
 				 xcb_drawable_t drawable,
 				 uint32_t value_mask,
 				 uint32_t *values);
-
-cairo_private void
-_cairo_xcb_connection_free_gc (cairo_xcb_connection_t *connection,
-			       xcb_gcontext_t gc);
 
 cairo_private void
 _cairo_xcb_connection_change_gc (cairo_xcb_connection_t *connection,

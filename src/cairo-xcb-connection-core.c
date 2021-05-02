@@ -52,13 +52,6 @@ _cairo_xcb_connection_create_pixmap (cairo_xcb_connection_t *connection,
     return pixmap;
 }
 
-void
-_cairo_xcb_connection_free_pixmap (cairo_xcb_connection_t *connection,
-				   xcb_pixmap_t pixmap)
-{
-    xcb_free_pixmap (connection->xcb_connection, pixmap);
-}
-
 xcb_gcontext_t
 _cairo_xcb_connection_create_gc (cairo_xcb_connection_t *connection,
 				 xcb_drawable_t drawable,
@@ -69,13 +62,6 @@ _cairo_xcb_connection_create_gc (cairo_xcb_connection_t *connection,
     xcb_create_gc (connection->xcb_connection, gc, drawable,
 		   value_mask, values);
     return gc;
-}
-
-void
-_cairo_xcb_connection_free_gc (cairo_xcb_connection_t *connection,
-			       xcb_gcontext_t gc)
-{
-    xcb_free_gc (connection->xcb_connection, gc);
 }
 
 void

@@ -322,6 +322,7 @@ test_sources = [
   'show-text-current-point.c',
   'shape-general-convex.c',
   'shape-sierpinski.c',
+  'shifted-operator.c',
   'simple.c',
   'skew-extreme.c',
   'smask.c',

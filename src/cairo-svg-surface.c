@@ -196,7 +196,7 @@ typedef struct _cairo_svg_stream {
     cairo_array_t elements;
 } cairo_svg_stream_t;
 
-cairo_svg_stream_t
+static cairo_svg_stream_t
 _cairo_svg_stream_create ()
 {
     cairo_svg_stream_t svg_stream;
@@ -205,7 +205,7 @@ _cairo_svg_stream_create ()
     return svg_stream;
 }
 
-void
+static void
 _cairo_svg_stream_write (cairo_svg_stream_t *svg_stream,
 			 const void *data,
 			 size_t length)
@@ -236,7 +236,7 @@ _cairo_svg_stream_write (cairo_svg_stream_t *svg_stream,
     _cairo_output_stream_write (last_element->text.output_stream, data, length);
 }
 
-void CAIRO_PRINTF_FORMAT (2, 0)
+static void CAIRO_PRINTF_FORMAT (2, 0)
 _cairo_svg_stream_printf (cairo_svg_stream_t *svg_stream,
 			  const char *fmt,
 			  ...)
@@ -270,7 +270,7 @@ _cairo_svg_stream_printf (cairo_svg_stream_t *svg_stream,
     va_end (ap);
 }
 
-void
+static void
 _cairo_svg_stream_append_paint_dependent (cairo_svg_stream_t *svg_stream,
 					  unsigned int source_id,
 					  enum cairo_svg_stream_paint_dependent_element_type type)
@@ -287,7 +287,7 @@ _cairo_svg_stream_append_paint_dependent (cairo_svg_stream_t *svg_stream,
     }
 }
 
-void
+static void
 _cairo_svg_stream_copy (cairo_svg_stream_t *from,
 			cairo_svg_stream_t *to)
 {
@@ -320,7 +320,7 @@ _cairo_svg_stream_copy (cairo_svg_stream_t *from,
     }
 }
 
-void
+static void
 _cairo_svg_stream_copy_to_output_stream (cairo_svg_stream_t *from,
 					 cairo_output_stream_t *to,
 					 cairo_hash_table_t *paints)
@@ -378,7 +378,7 @@ _cairo_svg_stream_copy_to_output_stream (cairo_svg_stream_t *from,
     }
 }
 
-cairo_status_t
+static cairo_status_t
 _cairo_svg_stream_destroy (cairo_svg_stream_t *svg_stream)
 {
     cairo_status_t status = svg_stream->status;
@@ -1686,10 +1686,11 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 	    _cairo_svg_stream_printf (&document->xml_node_filters,
 				      "<filter id=\"filter-remove-color\" "
 				      "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
-				      "<feColorMatrix values=\"0 0 0 0 1 "
-				      /*                   */ "0 0 0 0 1 "
-				      /*                   */ "0 0 0 0 1 "
-				      /*                   */ "0 0 0 1 0\"/>\n"
+				      "<feColorMatrix color-interpolation-filters=\"sRGB\" "
+	                              "values=\"0 0 0 0 1 "
+				      /*    */ "0 0 0 0 1 "
+				      /*    */ "0 0 0 0 1 "
+				      /*    */ "0 0 0 1 0\" />\n"
 				      "</filter>\n");
 	    break;
 	case CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA:
@@ -1697,10 +1698,11 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 	    _cairo_svg_stream_printf (&document->xml_node_filters,
 				      "<filter id=\"filter-remove-color-and-invert-alpha\" "
 				      "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
-				      "<feColorMatrix values=\"0 0 0 0 1 "
-				      /*                   */ "0 0 0 0 1 "
-				      /*                   */ "0 0 0 0 1 "
-				      /*                   */ "0 0 0 -1 1\"/>\n"
+				      "<feColorMatrix color-interpolation-filters=\"sRGB\" "
+				      "values=\"0 0 0 0 1 "
+				      /*    */ "0 0 0 0 1 "
+				      /*    */ "0 0 0 0 1 "
+				      /*    */ "0 0 0 -1 1\"/>\n"
 				      "</filter>\n");
 	    break;
 	case CAIRO_SVG_FILTER_COLOR_TO_ALPHA:
@@ -1708,10 +1710,11 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 	    _cairo_svg_stream_printf (&document->xml_node_filters,
 				      "<filter id=\"filter-color-to-alpha\" "
 				      "x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\">\n"
-				      "<feColorMatrix values=\"0 0 0 0 1 "
-				      /*                   */ "0 0 0 0 1 "
-				      /*                   */ "0 0 0 0 1 "
-				      /*                   */ "0.2126 0.7152 0.0722 0 0\"/>\n"
+				      "<feColorMatrix color-interpolation-filters=\"sRGB\" "
+				      "values=\"0 0 0 0 1 "
+				      /*    */ "0 0 0 0 1 "
+				      /*    */ "0 0 0 0 1 "
+				      /*    */ "0.2126 0.7152 0.0722 0 0\"/>\n"
 				      "</filter>\n");
 	    break;
 	default:

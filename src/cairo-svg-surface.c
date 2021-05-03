@@ -1410,10 +1410,11 @@ _cairo_svg_document_emit_bitmap_glyph_data (cairo_svg_document_t *document,
 
     svg_surface->transitive_paint_used = TRUE;
 
+    _cairo_svg_stream_printf (&document->xml_node_glyphs, "<rect");
+    _cairo_svg_stream_append_rectangle (&document->xml_node_glyphs, source_id);
     _cairo_svg_stream_printf (&document->xml_node_glyphs,
-				 "<use xlink:href=\"#paint-%d\" mask=\"url(#mask-%d)\"",
-				 source_id,
-				 mask_id);
+			      " mask=\"url(#mask-%d)\"",
+			      mask_id);
     if (!use_recording_surface) {
 	_cairo_svg_surface_emit_transform (&document->xml_node_glyphs,
 					   "transform",
@@ -1469,7 +1470,7 @@ _cairo_svg_document_emit_glyph (cairo_svg_document_t	*document,
     cairo_int_status_t	     status;
 
     _cairo_svg_stream_printf (&document->xml_node_glyphs,
-			      "<g overflow=\"visible\" id=\"glyph-%d-%d\">\n",
+			      "<g id=\"glyph-%d-%d\">\n",
 			      font_id,
 			      subset_glyph_index);
 

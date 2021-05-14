@@ -14,13 +14,15 @@ test -z "$srcdir" && srcdir=.
 test -z "$MAKE" && MAKE=make
 stat=0
 
-$MAKE check-has-hidden-symbols.i > /dev/null || exit 1
-if tail -1 check-has-hidden-symbols.i | grep CAIRO_HAS_HIDDEN_SYMBOLS >/dev/null; then
-	echo "Compiler doesn't support symbol visibility; skipping test"
-	exit 0
+if [ "x$CAIRO_HAS_HIDDEN_SYMBOLS" = x ]; then
+	$MAKE check-has-hidden-symbols.i > /dev/null || exit 1
+	if tail -1 check-has-hidden-symbols.i | grep CAIRO_HAS_HIDDEN_SYMBOLS >/dev/null; then
+		echo "Compiler doesn't support symbol visibility; skipping test"
+		exit 0
+	fi
 fi
 
-for so in .libs/lib*.so; do
+for so in .libs/lib*.so "$@"; do
 	echo Checking "$so" for local PLT entries
 	readelf -W -r "$so" | grep 'JU\?MP_SLO' | grep 'cairo' >&2 && stat=1
 done

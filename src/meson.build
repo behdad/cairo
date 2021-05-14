@@ -319,3 +319,30 @@ pkgmod.generate(libcairo,
 meson.override_dependency('cairo', libcairo_dep)
 
 install_headers(cairo_headers, subdir: 'cairo')
+
+shell = find_program('sh', required: false)
+if shell.found()
+  test_scripts = [
+    # This script calls back into make to generate cairo.def
+    # TODO: Make this work, somehow
+    #'check-def.sh',
+    'check-doc-syntax.sh',
+    'check-headers.sh',
+    'check-preprocessor-syntax.sh',
+  ]
+
+  foreach test_script: test_scripts
+    test(test_script, shell,
+      args: [test_script],
+      workdir: meson.current_source_dir())
+  endforeach
+
+  env = environment()
+  env.set('CAIRO_HAS_HIDDEN_SYMBOLS', '1')
+
+  test('check-plt.sh', shell,
+    args: ['check-plt.sh', libcairo ],
+    env: env,
+    workdir: meson.current_source_dir())
+
+endif

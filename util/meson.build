@@ -6,7 +6,7 @@ if feature_conf.get('CAIRO_HAS_GOBJECT_FUNCTIONS', 0) == 1
   subdir('cairo-gobject')
 endif
 
-if feature_conf.get('CAIRO_HAS_INTERPRETER', 0) == 1
+if conf.get('CAIRO_HAS_INTERPRETER', 0) == 1
   subdir('cairo-script')
 endif
 

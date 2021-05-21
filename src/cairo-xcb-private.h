@@ -226,9 +226,6 @@ struct _cairo_xcb_connection {
     const xcb_query_extension_reply_t *shm;
     xcb_render_sub_pixel_t *subpixel_orders;
 
-    cairo_list_t free_xids;
-    cairo_freepool_t xid_pool;
-
     cairo_mutex_t shm_mutex;
     cairo_list_t shm_pools;
     cairo_list_t shm_pending;
@@ -322,13 +319,6 @@ _cairo_xcb_connection_acquire (cairo_xcb_connection_t *connection)
 {
     return cairo_device_acquire (&connection->device);
 }
-
-cairo_private uint32_t
-_cairo_xcb_connection_get_xid (cairo_xcb_connection_t *connection);
-
-cairo_private void
-_cairo_xcb_connection_put_xid (cairo_xcb_connection_t *connection,
-			       uint32_t xid);
 
 static inline void
 _cairo_xcb_connection_release (cairo_xcb_connection_t *connection)
@@ -482,19 +472,11 @@ _cairo_xcb_connection_create_pixmap (cairo_xcb_connection_t *connection,
 				     uint16_t width,
 				     uint16_t height);
 
-cairo_private void
-_cairo_xcb_connection_free_pixmap (cairo_xcb_connection_t *connection,
-				   xcb_pixmap_t pixmap);
-
 cairo_private xcb_gcontext_t
 _cairo_xcb_connection_create_gc (cairo_xcb_connection_t *connection,
 				 xcb_drawable_t drawable,
 				 uint32_t value_mask,
 				 uint32_t *values);
-
-cairo_private void
-_cairo_xcb_connection_free_gc (cairo_xcb_connection_t *connection,
-			       xcb_gcontext_t gc);
 
 cairo_private void
 _cairo_xcb_connection_change_gc (cairo_xcb_connection_t *connection,

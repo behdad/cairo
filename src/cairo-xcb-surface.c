@@ -155,7 +155,7 @@ _cairo_xcb_surface_create_similar (void			*abstract_other,
     }
 
     if (unlikely (surface->base.status))
-	_cairo_xcb_connection_free_pixmap (connection, pixmap);
+	xcb_free_pixmap (connection->xcb_connection, pixmap);
 
     _cairo_xcb_connection_release (connection);
 
@@ -220,7 +220,7 @@ _cairo_xcb_surface_finish (void *abstract_surface)
 	}
 
 	if (surface->owns_pixmap)
-	    _cairo_xcb_connection_free_pixmap (surface->connection, surface->drawable);
+	    xcb_free_pixmap (surface->connection->xcb_connection, surface->drawable);
 	_cairo_xcb_connection_release (surface->connection);
     }
 
@@ -423,7 +423,7 @@ _get_image (cairo_xcb_surface_t		 *surface,
 						 pixmap,
 						 0, 0,
 						 width, height);
-	_cairo_xcb_connection_free_pixmap (connection, pixmap);
+	xcb_free_pixmap (connection->xcb_connection, pixmap);
     }
 
     if (unlikely (reply == NULL)) {

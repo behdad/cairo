@@ -309,7 +309,8 @@ cairo_headers += [configure_file(output: 'cairo-features.h', configuration: feat
 
 libcairo_dep = declare_dependency(link_with: libcairo,
   dependencies: deps,
-  include_directories: incsrc)
+  include_directories: incsrc
+)
 
 pkgmod.generate(libcairo,
   description: 'Multi-platform 2D graphics library',

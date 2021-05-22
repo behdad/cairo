@@ -52,9 +52,8 @@ foreach util : cairo_utils
   exe_name = util[0].split('.')[0]
   util_deps = util.get(1, {}).get('deps', [])
   executable(exe_name, util[0],
-    include_directories: [incbase, incsrc, inccairoscript],
-    dependencies: deps + util_deps,
-    link_with: [libcairo, libcairoscript],
+    include_directories: [incbase],
+    dependencies: deps + util_deps + [libcairo_dep, libcairoscript_dep],
   )
 endforeach
 

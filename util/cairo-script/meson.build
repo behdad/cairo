@@ -26,18 +26,15 @@ csi_trace_sources = [
 
 libcairoscript = library('cairo-script-interpreter',
   cairoscript_interpreter_sources,
-  include_directories: [incbase, incsrc],
-  dependencies: deps,
-  link_with: [libcairo],
+  include_directories: [incbase],
+  dependencies: deps + [libcairo_dep],
   soversion: cairo_version_sonum,
   version: cairo_libversion,
   install: true,
 )
 
-inccairoscript = include_directories('.')
-
 libcairoscript_dep = declare_dependency(link_with: libcairoscript,
-  include_directories: [inccairoscript],
+  include_directories: include_directories('.'),
   dependencies: libcairo_dep)
 
 pkgmod.generate(libcairoscript,
@@ -49,22 +46,19 @@ pkgmod.generate(libcairoscript,
 meson.override_dependency('cairo-script-interpreter', libcairoscript_dep)
 
 csi_replay_exe = executable('csi-replay', csi_replay_sources,
-  include_directories: [incbase, incsrc],
-  link_with: [libcairo, libcairoscript],
-  dependencies: deps,
+  include_directories: [incbase],
+  dependencies: deps + [libcairo_dep, libcairoscript_dep],
 )
 
 csi_exec_exe = executable('csi-exec', csi_exec_sources,
-  include_directories: [incbase, incsrc],
-  link_with: [libcairo, libcairoscript],
-  dependencies: deps,
+  include_directories: [incbase],
+  dependencies: deps + [libcairo_dep, libcairoscript_dep],
 )
 
 if feature_conf.get('CAIRO_HAS_SCRIPT_SURFACE', 0) == 1 and conf.get('HAVE_LIBGEN_H', 0) == 1
   csi_trace_exe = executable('csi-trace', csi_trace_sources,
-    include_directories: [incbase, incsrc],
-    link_with: [libcairo, libcairoscript],
-    dependencies: deps,
+    include_directories: [incbase],
+    dependencies: deps + [libcairo_dep, libcairoscript_dep],
   )
 endif
 

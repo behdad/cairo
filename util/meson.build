@@ -8,6 +8,8 @@ endif
 
 if conf.get('CAIRO_HAS_INTERPRETER', 0) == 1
   subdir('cairo-script')
+else
+  libcairoscript_dep = dependency('', required: false)
 endif
 
 if conf.get('CAIRO_HAS_TRACE', 0) == 1

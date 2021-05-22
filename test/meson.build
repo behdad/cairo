@@ -602,7 +602,7 @@ if build_any2ppm
   test_depends += [any2ppm_exe]
 endif
 
-if have_shm
+if have_shm and conf.get('CAIRO_HAS_INTERPRETER', 0) == 1
   cairo_test_trace_exe = executable('cairo-test-trace', cairo_test_trace_sources,
   include_directories: [incbase],
   c_args: pthread_c_args,

@@ -554,7 +554,7 @@ cff_index_append_copy (cairo_array_t *index,
     element.length = length;
     element.is_copy = TRUE;
     element.data = _cairo_malloc (element.length);
-    if (unlikely (element.data == NULL))
+    if (unlikely (element.data == NULL && length != 0))
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
     memcpy (element.data, object, element.length);

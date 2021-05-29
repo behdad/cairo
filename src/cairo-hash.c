@@ -576,17 +576,3 @@ _cairo_hash_table_foreach (cairo_hash_table_t	      *hash_table,
 	_cairo_hash_table_manage (hash_table);
     }
 }
-
-/**
- * _cairo_hash_table_size:
- * @hash_table: a hash table
- *
- * Gets the size of the hash table.
- *
- * Return value: the size of the hash table.
- **/
-unsigned long
-_cairo_hash_table_size (cairo_hash_table_t *hash_table)
-{
-    return hash_table->live_entries;
-}

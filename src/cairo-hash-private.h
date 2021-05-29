@@ -84,7 +84,4 @@ _cairo_hash_table_foreach (cairo_hash_table_t	      *hash_table,
 			   cairo_hash_callback_func_t  hash_callback,
 			   void			      *closure);
 
-cairo_private unsigned long
-_cairo_hash_table_size (cairo_hash_table_t *hash_table);
-
 #endif

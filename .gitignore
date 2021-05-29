@@ -38,4 +38,4 @@ compile_commands.json
 *-uninstalled.pc
 .vimrc
 gtk-doc.m4
-/build
+/builddir

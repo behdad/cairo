@@ -45,6 +45,9 @@ endif
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
 
+# Autotools compatibility
+add_project_arguments('-DHAVE_CONFIG_H', language: 'c')
+
 # Make sure source directory hasn't been configured with autotools
 if meson.version().version_compare('>= 0.53')
   fs = import('fs')
@@ -683,7 +686,7 @@ if zlib_dep.found()
 endif
 
 if zlib_dep.found()
-  feature_conf.set('CAIRO_HAS_INTERPRETER', 1)
+  conf.set('CAIRO_HAS_INTERPRETER', 1)
 endif
 
 # TODO: add xml option and disable by default
@@ -967,6 +970,6 @@ if meson.version().version_compare('>= 0.53')
 
   summary({
           'cairo-trace:': conf.get('CAIRO_HAS_TRACE', 0) == 1,
-          'cairo-script-interpreter': feature_conf.get('CAIRO_HAS_INTERPRETER', 0) == 1,
+          'cairo-script-interpreter': conf.get('CAIRO_HAS_INTERPRETER', 0) == 1,
           }, section: 'Features and Utilities', bool_yn: true)
 endif

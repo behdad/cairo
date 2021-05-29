@@ -24,9 +24,7 @@
  *         Behdad Esfahbod <behdad@behdad.org>
  */
 
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include "cairo-test.h"
 

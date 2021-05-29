@@ -26,7 +26,7 @@
  *	    Carl Worth <cworth@cworth.org>
  */
 
-#define _GNU_SOURCE 1	/* for sched_getaffinity() */
+#include "config.h"
 
 #include "cairo-perf.h"
 #include "cairo-stats.h"

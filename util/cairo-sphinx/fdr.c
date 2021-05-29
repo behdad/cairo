@@ -16,11 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE
-
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <cairo.h>
 #include <cairo-script.h>

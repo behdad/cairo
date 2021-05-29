@@ -283,6 +283,7 @@ test_sources = [
   'record-mesh.c',
   'record-replay-extend.c',
   'record-transform-paint.c',
+  'record-write-png.c',
   'recording-ink-extents.c',
   'recording-surface-pattern.c',
   'recording-surface-extend.c',
@@ -602,7 +603,6 @@ endif
 
 if build_any2ppm
   any2ppm_exe = executable('any2ppm', 'any2ppm.c',
-    c_args: ['-DHAVE_CONFIG_H'],
     include_directories: [incbase, incsrc, inccairoscript],
     link_with: [libcairo, libcairoscript],
     dependencies: deps + test_deps,
@@ -613,7 +613,7 @@ endif
 if have_shm
   cairo_test_trace_exe = executable('cairo-test-trace', cairo_test_trace_sources,
   include_directories: [incbase, incsrc, incboilerplate, incpdiff, inccairoscript, inccairomissing],
-  c_args: ['-DHAVE_CONFIG_H'] + pthread_c_args,
+  c_args: pthread_c_args,
   link_with: [libcairo, libcairoboilerplate, libpdiff, libcairoscript, libcairomissing],
   link_args: extra_link_args,
   dependencies: deps + test_deps + [rt_dep])
@@ -621,7 +621,6 @@ endif
 
 exe = executable('cairo-test-suite', [cairo_test_suite_sources, test_sources, cairo_test_constructors],
   include_directories: [incbase, incsrc, incboilerplate, incpdiff],
-  c_args: ['-DHAVE_CONFIG_H'],
   link_with: [libcairo, libcairoboilerplate, libpdiff],
   link_args: extra_link_args,
   dependencies: deps + test_deps,

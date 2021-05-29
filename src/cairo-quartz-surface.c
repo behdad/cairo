@@ -34,7 +34,6 @@
  *	Vladimir Vukicevic <vladimir@mozilla.com>
  */
 
-#define _GNU_SOURCE /* required for RTLD_DEFAULT */
 #include "cairoint.h"
 
 #include "cairo-quartz-private.h"

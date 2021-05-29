@@ -283,6 +283,7 @@ test_sources = \
 	record-mesh.c					\
 	record-replay-extend.c                          \
 	record-transform-paint.c                          \
+	record-write-png.c					\
 	recording-ink-extents.c                         \
 	recording-surface-pattern.c			\
 	recording-surface-extend.c			\

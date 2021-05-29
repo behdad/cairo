@@ -45,11 +45,7 @@
    This file was part of GNU Binutils.
    */
 
-#define _GNU_SOURCE
-
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #define true 1
 #define false 0

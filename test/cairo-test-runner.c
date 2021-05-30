@@ -638,8 +638,8 @@ expect_fail_due_to_env_var (cairo_test_context_t *ctx,
 
     /* Look for the test name in the env var (comma separated) */
     if (env) {
-	while (1) {
-	   char *match = strstr (env, ctx->test_name);
+	for (size_t start = 0;; start += strlen (ctx->test_name)) {
+	   char *match = strstr (env + start, ctx->test_name);
 	   if (!match)
 	       break;
 
@@ -653,7 +653,6 @@ expect_fail_due_to_env_var (cairo_test_context_t *ctx,
 		   break;
 	       }
 	   }
-	   env = match + strlen (ctx->test_name);
 	}
     }
     if (result)
@@ -951,19 +950,7 @@ main (int argc, char **argv)
 		    status = CAIRO_TEST_XFAILURE;
 		} else {
 		    fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
-		    fprintf (stderr, "Please remove the hack to ignore fallback-resolution failures.\n");
-		    status = CAIRO_TEST_ERROR;
-		}
-	    }
-	    if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_FALLBACK_RESOLUTION") && strcmp (ctx.test_name, "fallback-resolution") == 0) {
-		if (status == CAIRO_TEST_FAILURE) {
-		    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
-		    fprintf (stderr, "Turning FAIL into XFAIL due to env\n");
-		    runner.num_ignored_via_env++;
-		    status = CAIRO_TEST_XFAILURE;
-		} else {
-		    fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
-		    fprintf (stderr, "Please remove the hack to ignore fallback-resolution failures.\n");
+		    fprintf (stderr, "Please remove the hack to ignore create-for-stream failures.\n");
 		    status = CAIRO_TEST_ERROR;
 		}
 	    }
@@ -1045,48 +1032,20 @@ main (int argc, char **argv)
 				status = CAIRO_TEST_ERROR;
 			    }
 			}
-			if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_SVG_ARGB32_SELF_COPIES")) {
-			    if ((strcmp (target->name, "svg11") == 0 || strcmp (target->name, "svg12") == 0) &&
-					target->content == CAIRO_CONTENT_COLOR_ALPHA &&
-					(strcmp (ctx.test_name, "self-copy") == 0 || strcmp (ctx.test_name, "self-copy-overlap") == 0)) {
-				if (status == CAIRO_TEST_CRASHED) {
-				    cairo_test_log (&ctx, "Turning CRASH into XFAIL due to env\n");
-				    fprintf (stderr, "Turning CRASH into XFAIL due to env\n");
-				    runner.num_ignored_via_env++;
-				    status = CAIRO_TEST_XFAILURE;
-				} else {
-				    fprintf (stderr, "Test was expected to crash due to an environment variable, but did not!\n");
-				    fprintf (stderr, "Please remove the hack to ignore self-copy* crashes for the svg backend.\n");
-				    status = CAIRO_TEST_ERROR;
-				}
-			    }
-			}
-			if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_SCRIPT_XCB_HUGE_IMAGE_SHM")) {
+			if (getenv ("CAIRO_TEST_UGLY_HACK_TO_SOMETIMES_IGNORE_SCRIPT_XCB_HUGE_IMAGE_SHM")) {
 			    if (strcmp (target->name, "script") == 0 && strcmp (ctx.test_name, "xcb-huge-image-shm") == 0) {
 				if (status == CAIRO_TEST_FAILURE) {
+				    fprintf (stderr, "This time the xcb-huge-image-shm test on script surface failed.\n");
 				    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
 				    fprintf (stderr, "Turning FAIL into XFAIL due to env\n");
 				    runner.num_ignored_via_env++;
-				    status = CAIRO_TEST_XFAILURE;
 				} else {
-				    fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
-				    fprintf (stderr, "Please remove the hack to ignore xcb-huge-image-shm errors for the script backend.\n");
-				    status = CAIRO_TEST_ERROR;
+				    fprintf (stderr, "This time the xcb-huge-image-shm test on script surface did not fail.\n");
+				    cairo_test_log (&ctx, "Turning the status into XFAIL due to env\n");
+				    fprintf (stderr, "Turning the status into XFAIL due to env\n");
 				}
-			    }
-			}
-			if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_QUARTZ_COVERAGE_COLUMN_TRIANGLES")) {
-			    if (strcmp (target->name, "quartz") == 0 && target->content == CAIRO_CONTENT_COLOR_ALPHA && strcmp (ctx.test_name, "coverage-column-triangles") == 0) {
-				if (status == CAIRO_TEST_FAILURE) {
-				    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
-				    fprintf (stderr, "Turning FAIL into XFAIL due to env\n");
-				    runner.num_ignored_via_env++;
-				    status = CAIRO_TEST_XFAILURE;
-				} else {
-				    fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
-				    fprintf (stderr, "Please remove the hack to ignore xcb-huge-image-shm errors for the script backend.\n");
-				    status = CAIRO_TEST_ERROR;
-				}
+				status = CAIRO_TEST_XFAILURE;
+				fprintf (stderr, "If you are were getting one of the outcomes for some time, please update this code.\n");
 			    }
 			}
 			switch (status) {

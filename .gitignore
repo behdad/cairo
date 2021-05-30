@@ -1,6 +1,7 @@
 .deps
 .libs
 .perf
+.idea
 cairo-*.*.*
 manual-*.*.*
 ChangeLog*
@@ -26,6 +27,7 @@ releases
 stamp-h
 stamp-h1
 stamp-h.in
+compile_commands.json
 *~
 .*.sw?
 *.la
@@ -36,3 +38,4 @@ stamp-h.in
 *-uninstalled.pc
 .vimrc
 gtk-doc.m4
+/builddir

@@ -117,7 +117,7 @@ fedora autotools build:
     - export CAIRO_TEST_IGNORE_xcb_argb32=$(cat .gitlab-ci/ignore-xcb-argb32.txt)
     - export CAIRO_TEST_IGNORE_xcb_rgb24=$(cat .gitlab-ci/ignore-xcb-rgb24.txt)
     - export CAIRO_TEST_IGNORE_xcb_window_rgb24=$(cat .gitlab-ci/ignore-xcb-window-rgb24.txt)
-    - export CAIRO_TEST_IGNORE_xcb_window__rgb24=$(cat .gitlab-ci/ignore-xcb-window--rgb24.txt)
+    - export CAIRO_TEST_IGNORE_xcb_window__rgb24=$(cat '.gitlab-ci/ignore-xcb-window&-rgb24.txt')
     - export CAIRO_TEST_IGNORE_xcb_render_0_0_argb32=$(cat .gitlab-ci/ignore-xcb-render-0-0-argb32.txt)
     - export CAIRO_TEST_IGNORE_xcb_render_0_0_rgb24=$(cat .gitlab-ci/ignore-xcb-render-0-0-rgb24.txt)
     - export CAIRO_TEST_IGNORE_xcb_fallback_rgb24=$(cat .gitlab-ci/ignore-xcb-fallback-rgb24.txt)

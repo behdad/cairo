@@ -35,9 +35,13 @@ cairo_boilerplate_constructors = custom_target('cairo-boilerplate-constructors.c
   command: [python3, files('make-cairo-boilerplate-constructors.py')[0], '@OUTPUT@', '@INPUT@'])
 
 libcairoboilerplate = static_library('cairoboilerplate', cairo_boilerplate_sources + [cairo_boilerplate_constructors],
-  include_directories: [incbase, incsrc],
-  dependencies: deps,
-  link_with: [libcairo],
+  include_directories: [incbase],
+  dependencies: deps + [libcairo_dep],
   install: false,
   build_by_default: false,
+)
+
+cairoboilerplate_dep = declare_dependency(
+  link_with: [libcairoboilerplate],
+  include_directories: include_directories('.'),
 )

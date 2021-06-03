@@ -577,8 +577,6 @@ cairo_test_constructors = custom_target('cairo-test-constructors.c',
   output: 'cairo-test-constructors.c',
   command: [python3, files('make-cairo-test-constructors.py')[0], '@OUTPUT@', '@INPUT@'])
 
-incpdiff = include_directories('pdiff')
-
 test_depends = []
 
 subdir('pdiff')
@@ -603,27 +601,25 @@ endif
 
 if build_any2ppm
   any2ppm_exe = executable('any2ppm', 'any2ppm.c',
-    include_directories: [incbase, incsrc, inccairoscript],
-    link_with: [libcairo, libcairoscript],
-    dependencies: deps + test_deps,
+    include_directories: [incbase],
+    dependencies: deps + test_deps + [libcairo_dep, libcairoscript_dep],
   )
   test_depends += [any2ppm_exe]
 endif
 
-if have_shm
+if have_shm and conf.get('CAIRO_HAS_INTERPRETER', 0) == 1
   cairo_test_trace_exe = executable('cairo-test-trace', cairo_test_trace_sources,
-  include_directories: [incbase, incsrc, incboilerplate, incpdiff, inccairoscript, inccairomissing],
+  include_directories: [incbase],
   c_args: pthread_c_args,
-  link_with: [libcairo, libcairoboilerplate, libpdiff, libcairoscript, libcairomissing],
   link_args: extra_link_args,
-  dependencies: deps + test_deps + [rt_dep])
+  dependencies: deps + test_deps + [rt_dep, libcairo_dep, cairoboilerplate_dep, libpdiff_dep, libcairomissing_dep, libcairoscript_dep])
 endif
 
 exe = executable('cairo-test-suite', [cairo_test_suite_sources, test_sources, cairo_test_constructors],
-  include_directories: [incbase, incsrc, incboilerplate, incpdiff],
-  link_with: [libcairo, libcairoboilerplate, libpdiff],
+  include_directories: [incbase],
   link_args: extra_link_args,
-  dependencies: deps + test_deps,
+  dependencies: deps + test_deps + [libcairo_dep, cairoboilerplate_dep,
+    libpdiff_dep],
 )
 
 env = environment()

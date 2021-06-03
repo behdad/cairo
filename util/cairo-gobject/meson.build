@@ -8,18 +8,15 @@ cairo_gobject_headers = [
 ]
 
 libcairogobject = library('cairo-gobject', cairo_gobject_sources,
-  include_directories: [incbase, incsrc],
-  dependencies: [glib_dep, gobject_dep],
-  link_with: [libcairo],
+  include_directories: [incbase],
+  dependencies: [glib_dep, gobject_dep, libcairo_dep],
   soversion: cairo_version_sonum,
   version: cairo_libversion,
   install: true,
 )
 
-incgobject = include_directories('.')
-
 libcairogobject_dep = declare_dependency(link_with: libcairogobject,
-  include_directories: [incgobject],
+  include_directories: include_directories('.'),
   dependencies: libcairo_dep)
 
 pkgmod.generate(libcairogobject,

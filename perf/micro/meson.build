@@ -52,6 +52,9 @@ perf_micro_headers = [
 
 libcairoperfmicro = static_library('cairo-perf-micro',
   perf_micro_sources + perf_micro_headers,
-  include_directories: [incbase, incsrc, incboilerplate, incmicro],
-  dependencies: [pixman_dep],
+  include_directories: [incbase, incsrc, incmicro],
+  dependencies: [pixman_dep, cairoboilerplate_dep],
+)
+libcairoperfmicro_dep = declare_dependency(
+  link_with: libcairoperfmicro,
 )

@@ -900,6 +900,7 @@ subdir('util')
 
 if not get_option('tests').disabled() and feature_conf.get('CAIRO_HAS_PNG_FUNCTIONS', 0) == 1
   subdir('test')
+  subdir('perf')
 endif
 
 configure_file(output: 'config.h', configuration: conf)

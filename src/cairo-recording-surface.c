@@ -1095,15 +1095,12 @@ _cairo_recording_surface_tag (void			 *abstract_surface,
     cairo_status_t status;
     cairo_recording_surface_t *surface = abstract_surface;
     cairo_command_tag_t *command;
-    cairo_composite_rectangles_t composite;
 
     TRACE ((stderr, "%s: surface=%d\n", __FUNCTION__, surface->base.unique_id));
 
-
     command = calloc (1, sizeof (cairo_command_tag_t));
     if (unlikely (command == NULL)) {
-	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
-	goto CLEANUP_COMPOSITE;
+	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
     }
 
     status = _command_init (surface,
@@ -1134,7 +1131,6 @@ _cairo_recording_surface_tag (void			 *abstract_surface,
 
     _cairo_recording_surface_destroy_bbtree (surface);
 
-    _cairo_composite_rectangles_fini (&composite);
     return CAIRO_STATUS_SUCCESS;
 
   CLEANUP_STRINGS:
@@ -1143,8 +1139,6 @@ _cairo_recording_surface_tag (void			 *abstract_surface,
   CLEANUP_COMMAND:
     _cairo_clip_destroy (command->header.clip);
     free (command);
-  CLEANUP_COMPOSITE:
-    _cairo_composite_rectangles_fini (&composite);
     return status;
 }
 

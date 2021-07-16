@@ -226,9 +226,8 @@ _cairo_boilerplate_ps_surface_write_to_png (cairo_surface_t *surface,
     char    command[4096];
     int exitstatus;
 
-    sprintf (command, "gs -q -r72 -g%dx%d -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pngalpha -sOutputFile=%s %s %s",
+    sprintf (command, "gs -q -r72 -g%dx%d -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pngalpha -sOutputFile=%s %s",
 	     ptc->width, ptc->height, filename,
-	     ptc->level == CAIRO_PS_LEVEL_2 ? "-c 2 .setlanguagelevel -f" : "",
 	     ptc->filename);
     exitstatus = system (command);
 #if _XOPEN_SOURCE && HAVE_SIGNAL_H

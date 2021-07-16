@@ -288,7 +288,7 @@ struct _cairo_pdf_surface {
     cairo_pdf_resource_t struct_tree_root;
 
     cairo_pdf_version_t pdf_version;
-    cairo_bool_t compress_content;
+    cairo_bool_t compress_streams;
 
     cairo_pdf_resource_t content;
     cairo_pdf_resource_t content_resources;

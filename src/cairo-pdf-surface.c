@@ -286,6 +286,13 @@ static long
 _cairo_pdf_surface_write_xref (cairo_pdf_surface_t *surface);
 
 static cairo_int_status_t
+_cairo_pdf_surface_write_xref_stream (cairo_pdf_surface_t  *surface,
+				      cairo_pdf_resource_t  xref_res,
+				      cairo_pdf_resource_t  root_res,
+				      cairo_pdf_resource_t  info_res,
+				      long                 *xref_offset);
+
+static cairo_int_status_t
 _cairo_pdf_surface_write_patterns_and_smask_groups (cairo_pdf_surface_t *surface,
 						    cairo_bool_t         finish);
 
@@ -459,7 +466,7 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
 
     surface->struct_tree_root.id = 0;
     surface->pdf_version = CAIRO_PDF_VERSION_1_5;
-    surface->compress_content = TRUE;
+    surface->compress_streams = TRUE;
     surface->pdf_stream.active = FALSE;
     surface->pdf_stream.old_output = NULL;
     surface->group_stream.active = FALSE;
@@ -506,7 +513,7 @@ _cairo_pdf_surface_create_for_stream_internal (cairo_output_stream_t	*output,
     surface->thumbnail_image = NULL;
 
     if (getenv ("CAIRO_DEBUG_PDF") != NULL)
-	surface->compress_content = FALSE;
+	surface->compress_streams = FALSE;
 
     surface->paginated_surface =  _cairo_paginated_surface_create (
 	                                  &surface->base,
@@ -1954,7 +1961,7 @@ _cairo_pdf_surface_write_memory_stream (cairo_pdf_surface_t         *surface,
 				 resource.id,
 				 _cairo_memory_stream_length (mem_stream));
 
-    if (surface->compress_content) {
+    if (surface->compress_streams) {
 	_cairo_output_stream_printf (surface->output,
 				     "   /Filter /FlateDecode\n");
     }
@@ -2003,7 +2010,7 @@ _cairo_pdf_surface_open_group (cairo_pdf_surface_t         *surface,
 
     surface->group_stream.mem_stream = _cairo_memory_stream_create ();
 
-    if (surface->compress_content) {
+    if (surface->compress_streams) {
 	surface->group_stream.stream =
 	    _cairo_deflate_stream_create (surface->group_stream.mem_stream);
     } else {
@@ -2057,7 +2064,7 @@ _cairo_pdf_surface_close_group (cairo_pdf_surface_t *surface,
     if (unlikely (status))
 	return status;
 
-    if (surface->compress_content) {
+    if (surface->compress_streams) {
 	status = _cairo_output_stream_destroy (surface->group_stream.stream);
 	surface->group_stream.stream = NULL;
 
@@ -2109,7 +2116,7 @@ _cairo_pdf_surface_open_content_stream (cairo_pdf_surface_t       *surface,
 	    status =
 		_cairo_pdf_surface_open_stream (surface,
 						resource,
-						surface->compress_content,
+						surface->compress_streams,
 						"   /Type /XObject\n"
 						"   /Subtype /Form\n"
 						"   /BBox [ %f %f %f %f ]\n"
@@ -2129,7 +2136,7 @@ _cairo_pdf_surface_open_content_stream (cairo_pdf_surface_t       *surface,
 	    status =
 		_cairo_pdf_surface_open_stream (surface,
 						resource,
-						surface->compress_content,
+						surface->compress_streams,
 						"   /Type /XObject\n"
 						"   /Subtype /Form\n"
 						"   /BBox [ %f %f %f %f ]\n"
@@ -2144,7 +2151,7 @@ _cairo_pdf_surface_open_content_stream (cairo_pdf_surface_t       *surface,
 	status =
 	    _cairo_pdf_surface_open_stream (surface,
 					    resource,
-					    surface->compress_content,
+					    surface->compress_streams,
 					    NULL);
 	_cairo_output_stream_printf (surface->output,
 				     "1 0 0 -1 0 %f cm\n",
@@ -2212,6 +2219,7 @@ _cairo_pdf_surface_finish (void *abstract_surface)
     cairo_pdf_source_surface_t doc_surface;
     cairo_pdf_jbig2_global_t *global;
     char *label;
+    cairo_pdf_resource_t xref_res;
 
     _cairo_pdf_surface_clear (surface);
 
@@ -2232,18 +2240,26 @@ _cairo_pdf_surface_finish (void *abstract_surface)
     if (catalog.id == 0 && status == CAIRO_STATUS_SUCCESS)
 	status = _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
-    offset = _cairo_pdf_surface_write_xref (surface);
-
-    _cairo_output_stream_printf (surface->output,
-				 "trailer\n"
-				 "<< /Size %d\n"
-				 "   /Root %d 0 R\n"
-				 "   /Info %d 0 R\n"
-				 ">>\n",
-				 surface->next_available_resource.id,
-				 catalog.id,
-				 surface->docinfo_res.id);
-
+    if (surface->pdf_version >= CAIRO_PDF_VERSION_1_5)
+    {
+	xref_res = _cairo_pdf_surface_new_object (surface);
+	status = _cairo_pdf_surface_write_xref_stream (surface,
+						       xref_res,
+						       catalog,
+						       surface->docinfo_res,
+						       &offset);
+    } else {
+	offset = _cairo_pdf_surface_write_xref (surface);
+	_cairo_output_stream_printf (surface->output,
+				     "trailer\n"
+				     "<< /Size %d\n"
+				     "   /Root %d 0 R\n"
+				     "   /Info %d 0 R\n"
+				     ">>\n",
+				     surface->next_available_resource.id,
+				     catalog.id,
+				     surface->docinfo_res.id);
+    }
     _cairo_output_stream_printf (surface->output,
 				 "startxref\n"
 				 "%ld\n"
@@ -4223,7 +4239,7 @@ cairo_pdf_surface_emit_transparency_group (cairo_pdf_surface_t  *surface,
     }
     status = _cairo_pdf_surface_open_stream (surface,
 					     NULL,
-					     surface->compress_content,
+					     surface->compress_streams,
 					     "   /Type /XObject\n"
 					     "   /Subtype /Form\n"
 					     "   /FormType 1\n"
@@ -5338,7 +5354,7 @@ _cairo_pdf_surface_emit_to_unicode_stream (cairo_pdf_surface_t		*surface,
 
     status = _cairo_pdf_surface_open_stream (surface,
 					      NULL,
-					      surface->compress_content,
+					      surface->compress_streams,
 					      NULL);
     if (unlikely (status))
 	return status;
@@ -6221,7 +6237,7 @@ _cairo_pdf_surface_emit_type3_font_subset (cairo_pdf_surface_t		*surface,
     for (i = 0; i < font_subset->num_glyphs; i++) {
 	status = _cairo_pdf_surface_open_stream (surface,
 						 NULL,
-						 surface->compress_content,
+						 surface->compress_streams,
 						 NULL);
 	if (unlikely (status))
 	    break;
@@ -6513,6 +6529,140 @@ _cairo_pdf_surface_write_xref (cairo_pdf_surface_t *surface)
     }
 
     return offset;
+}
+
+static void
+_cairo_write_xref_stream_entry (cairo_output_stream_t *stream,
+				int                    id,
+				int                    type,
+				int                    field2_size,
+				long                   field2,
+				int                    field3,
+				cairo_bool_t           write_as_comments)
+{
+    char buf[20];
+    int i;
+
+    if (write_as_comments) {
+	_cairo_output_stream_printf (stream, "%% %5d %2d %10ld  %d\n", id, type, field2, field3);
+    } else {
+	/* Each field is big endian */
+	buf[0] = type; /* field 1 */
+	for (i = field2_size - 1; i >= 0; i--) {
+	    buf[i + 1] = field2 & 0xff;
+	    field2 >>= 8;
+	}
+	buf[field2_size + 1] = field3 >> 8;
+	buf[field2_size + 2] = field3 & 0xff;
+	_cairo_output_stream_write (stream, buf, field2_size + 3);
+    }
+}
+
+static void
+_cairo_write_xref_stream_entrys (cairo_pdf_surface_t   *surface,
+				 cairo_output_stream_t *stream,
+				 int                    field2_size,
+				 cairo_bool_t           write_as_comments)
+{
+    cairo_pdf_object_t *object;
+    int num_objects, i;
+
+    /* PDF requires this to be first entry */
+    _cairo_write_xref_stream_entry (stream,
+				    0,
+				    0, /* type 0 == free */
+				    field2_size,
+				    0, /* next free object number */
+				    0xffff, /* next generation number */
+				    write_as_comments);
+
+    num_objects = _cairo_array_num_elements (&surface->objects);
+    for (i = 0; i < num_objects; i++) {
+	object = _cairo_array_index (&surface->objects, i);
+	_cairo_write_xref_stream_entry (stream,
+					i + 1,
+					1, /* type 1 == in use, not in obj stream */
+					field2_size,
+					object->offset,
+					0, /* generation number */
+					write_as_comments);
+    }
+}
+
+static cairo_int_status_t
+_cairo_pdf_surface_write_xref_stream (cairo_pdf_surface_t  *surface,
+				      cairo_pdf_resource_t  xref_res,
+				      cairo_pdf_resource_t  root_res,
+				      cairo_pdf_resource_t  info_res,
+				      long                 *xref_offset)
+{
+    cairo_output_stream_t *mem_stream;
+    cairo_output_stream_t *xref_stream;
+    long offset;
+    int offset_bytes;
+    cairo_status_t status;
+
+    *xref_offset = _cairo_output_stream_get_position (surface->output);
+
+    /* Find the minimum number of bytes required to represent offsets in the generated file (up to this point). */
+    offset_bytes = 0;
+    offset = *xref_offset;
+    while (offset > 0) {
+	offset >>= 8;
+	offset_bytes++;
+    }
+
+    mem_stream = _cairo_memory_stream_create ();
+    xref_stream = _cairo_deflate_stream_create (mem_stream);
+
+    _cairo_write_xref_stream_entrys (surface, xref_stream, offset_bytes, FALSE);
+
+    status = _cairo_output_stream_destroy (xref_stream);
+    if (unlikely (status))
+	return status;
+
+    _cairo_pdf_surface_update_object (surface, xref_res);
+    _cairo_output_stream_printf (surface->output,
+				 "%d 0 obj\n"
+				 "<< /Type /XRef\n"
+				 "   /Length %d\n"
+				 "   /Filter /FlateDecode\n"
+				 "   /Size %d\n"
+				 "   /W [1 %d 2]\n"
+				 "   /Root %d 0 R\n"
+				 "   /Info %d 0 R\n"
+				 ">>\n",
+				 xref_res.id,
+				 _cairo_memory_stream_length (mem_stream),
+				 surface->next_available_resource.id,
+				 offset_bytes,
+				 root_res.id,
+				 info_res.id);
+
+    if (!surface->compress_streams) {
+	/* Adobe Reader requires xref streams to be flate encoded (PDF
+	 * Reference 1.7, implemenation note 20). This means
+	 * compression must always be enabled on this stream. To
+	 * facilitate debugging when compress_stream is disabled, emit
+	 * a human readable format of the xref stream as PDF comments.
+	 */
+	_cairo_output_stream_printf (surface->output,
+				     "%%   id   type  offset  gen\n");
+	_cairo_write_xref_stream_entrys (surface, surface->output, offset_bytes, TRUE);
+    }
+
+    _cairo_output_stream_printf (surface->output,
+				 "stream\n");
+    _cairo_memory_stream_copy (mem_stream, surface->output);
+    status = _cairo_output_stream_destroy (mem_stream);
+    if (unlikely (status))
+	return status;
+
+    _cairo_output_stream_printf (surface->output,
+				 "\nendstream\n"
+				 "endobj\n");
+
+    return _cairo_output_stream_get_status (surface->output);
 }
 
 static cairo_int_status_t

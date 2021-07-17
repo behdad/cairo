@@ -2170,6 +2170,7 @@ _cairo_pdf_surface_object_begin (cairo_pdf_surface_t *surface,
 	object->u.compressed_obj.index = _cairo_array_num_elements (&surface->object_stream.objects) - 1;
 
     } else {
+	_cairo_pdf_surface_update_object (surface, resource);
 	_cairo_output_stream_printf (surface->output,
 				     "%d 0 obj\n",
 				     resource.id);
@@ -6886,7 +6887,7 @@ _cairo_pdf_surface_write_xref_stream (cairo_pdf_surface_t  *surface,
 
     if (!surface->compress_streams) {
 	/* Adobe Reader requires xref streams to be flate encoded (PDF
-	 * Reference 1.7, implemenation note 20). This means
+	 * Reference 1.7, implementation note 20). This means
 	 * compression must always be enabled on this stream. To
 	 * facilitate debugging when compress_stream is disabled, emit
 	 * a human readable format of the xref stream as PDF comments.

@@ -191,6 +191,7 @@ draw_page_num (cairo_surface_t *surface, cairo_t *cr, const char *prefix, int nu
     cairo_save (cr);
     cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, 12);
+    cairo_set_source_rgb (cr, 0, 0, 0);
     cairo_move_to (cr, PAGE_WIDTH/2, PAGE_HEIGHT - MARGIN);
     cairo_show_text (cr, buf);
     cairo_restore (cr);
@@ -311,12 +312,36 @@ draw_section (cairo_surface_t *surface, cairo_t *cr, const struct section *secti
 static void
 draw_cover (cairo_surface_t *surface, cairo_t *cr)
 {
+    cairo_text_extents_t text_extents;
+    char buf[200];
+    cairo_rectangle_t url_box;
+    const char *cairo_url = "https://www.cairographics.org/";
+    const double url_box_margin = 20.0;
+
     cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_font_size(cr, 16);
-    cairo_move_to (cr, PAGE_WIDTH/3, PAGE_HEIGHT/2);
+    cairo_move_to (cr, PAGE_WIDTH/3, PAGE_HEIGHT/3);
     cairo_tag_begin (cr, "Span", NULL);
     cairo_show_text (cr, "PDF Features Test");
     cairo_tag_end (cr, "Span");
+
+    /* Test URL link using "rect" attribute. The entire rectangle surrounding the URL should be a clickable link.  */
+    cairo_move_to (cr, PAGE_WIDTH/3, 2*PAGE_HEIGHT/3);
+    cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(cr, TEXT_SIZE);
+    cairo_set_source_rgb (cr, 0, 0, 1);
+    cairo_show_text (cr, cairo_url);
+    cairo_text_extents (cr, cairo_url, &text_extents);
+    url_box.x = PAGE_WIDTH/3 - url_box_margin;
+    url_box.y = 2*PAGE_HEIGHT/3 - url_box_margin;
+    url_box.width = text_extents.width + 2*url_box_margin;
+    url_box.height = -text_extents.height + 2*url_box_margin;
+    cairo_rectangle(cr, url_box.x, url_box.y, url_box.width, url_box.height);
+    cairo_stroke(cr);
+    snprintf(buf, sizeof(buf), "rect=[%f %f %f %f] uri=\'%s\'",
+             url_box.x, url_box.y, url_box.width, url_box.height, cairo_url);
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, buf);
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
 
     draw_page_num (surface, cr, "cover", 0);
 }

@@ -1583,7 +1583,7 @@ cairo_ps_surface_set_size (cairo_surface_t	*surface,
  * beyond these two conditions, this function will not enforce
  * conformance of the comment with any particular specification.
  *
- * The comment string should not have a trailing newline.
+ * The comment string must not contain any newline characters.
  *
  * The DSC specifies different sections in which particular comments
  * can appear. This function provides for comments to be emitted

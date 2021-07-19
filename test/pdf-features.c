@@ -128,15 +128,16 @@ preamble (cairo_test_context_t *ctx)
 
     cairo_destroy (cr);
     cairo_surface_destroy (surface);
-    free (filename);
 
     if (status) {
 	cairo_test_log (ctx, "Failed to create pdf surface for file %s: %s\n",
 			filename, cairo_status_to_string (status));
+	free (filename);
 	return CAIRO_TEST_FAILURE;
     }
 
     printf ("pdf-features: Please check %s to ensure it looks/prints correctly.\n", filename);
+    free (filename);
     return CAIRO_TEST_SUCCESS;
 }
 

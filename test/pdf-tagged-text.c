@@ -369,6 +369,22 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
 				   CAIRO_PDF_OUTLINE_ROOT,
 				   "Cover", "page=1",
                                    CAIRO_PDF_OUTLINE_FLAG_BOLD);
+
+    /* Create a simple link annotation. */
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "uri='http://example.org' rect=[10 10 20 20]");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
+    /* Try to create a link annotation while the clip is empty;
+     * it will still be emitted.
+     */
+    cairo_save (cr);
+    cairo_new_path (cr);
+    cairo_rectangle (cr, 100, 100, 50, 0);
+    cairo_clip (cr);
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "uri='http://example.com' rect=[100 100 20 20]");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+    cairo_restore (cr);
+
     cairo_show_page (cr);
 
     page_num = 0;
@@ -453,6 +469,10 @@ check_created_pdf(cairo_test_context_t *ctx, const char* filename)
     result |= check_contains_string(ctx, contents, st.st_size, "/Creator (pdf-features)");
     result |= check_contains_string(ctx, contents, st.st_size, "/CreationDate (20160101123456+10'30')");
     result |= check_contains_string(ctx, contents, st.st_size, "/ModDate (20160621054321Z)");
+
+    /* check that both the example.org and example.com links were generated */
+    result |= check_contains_string(ctx, contents, st.st_size, "http://example.org");
+    result |= check_contains_string(ctx, contents, st.st_size, "http://example.com");
 
     // TODO: add more checks
 

@@ -385,6 +385,10 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
     cairo_tag_end (cr, CAIRO_TAG_LINK);
     cairo_restore (cr);
 
+    /* An annotation whose rect has a negative coordinate. */
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "uri='http://127.0.0.1/' rect=[10.0 -10.0 100.0 100.0]");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
     cairo_show_page (cr);
 
     page_num = 0;

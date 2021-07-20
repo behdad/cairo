@@ -105,7 +105,7 @@ typedef struct _cairo_type1_font_subset {
     } *subrs;
 
     /* Indexed by subset_index this maps to the glyph order in the
-     * glyph_names and glyphs arrays. Has font->num_golyphs
+     * glyph_names and glyphs arrays. Has font->num_glyphs
      * elements. */
     int *subset_index_to_glyphs;
 
@@ -470,6 +470,7 @@ cairo_type1_font_subset_write_header (cairo_type1_font_subset_t *font,
 {
     const char *start, *end, *segment_end;
     unsigned int i;
+    int glyph;
 
     /* FIXME:
      * This function assumes that /FontName always appears
@@ -550,13 +551,12 @@ cairo_type1_font_subset_write_header (cairo_type1_font_subset_t *font,
 	    }
 	}
     } else {
-	for (i = 0; i < font->base.num_glyphs; i++) {
-	    if (font->glyphs[i].subset_index <= 0)
-		continue;
+	for (i = 1; i < font->scaled_font_subset->num_glyphs; i++) {
+	    glyph = font->scaled_font_subset->glyphs[i];
 	    _cairo_output_stream_printf (font->output,
 					 "dup %d /%s put\n",
-					 font->glyphs[i].subset_index,
-					 font->glyph_names[i]);
+					 i,
+					 font->glyph_names[glyph]);
 	}
     }
     _cairo_output_stream_printf (font->output, "readonly def");
@@ -1730,6 +1730,7 @@ _cairo_type1_subset_init (cairo_type1_subset_t		*type1_subset,
     unsigned long length;
     unsigned int i;
     char buf[30];
+    int glyph;
 
     /* We need to use a fallback font if this font differs from the type1 outlines. */
     if (scaled_font_subset->scaled_font->backend->is_synthetic) {
@@ -1759,14 +1760,13 @@ _cairo_type1_subset_init (cairo_type1_subset_t		*type1_subset,
     if (unlikely (type1_subset->base_font == NULL))
 	goto fail1;
 
-    type1_subset->widths = calloc (sizeof (double), font.num_glyphs);
+    type1_subset->widths = calloc (sizeof (double), scaled_font_subset->num_glyphs);
     if (unlikely (type1_subset->widths == NULL))
 	goto fail2;
-    for (i = 0; i < font.base.num_glyphs; i++) {
-	if (font.glyphs[i].subset_index < 0)
-	    continue;
-	type1_subset->widths[font.glyphs[i].subset_index] =
-	    font.glyphs[i].width;
+
+    for (i = 0; i < font.scaled_font_subset->num_glyphs; i++) {
+	glyph = font.scaled_font_subset->glyphs[i];
+	type1_subset->widths[i] = font.glyphs[glyph].width;
     }
 
     type1_subset->x_min = font.base.x_min;

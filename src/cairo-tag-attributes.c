@@ -232,7 +232,7 @@ parse_float (const char *p, double *d)
     if (has_decimal_point) {
 	char *end;
 	*d = _cairo_strtod (start, &end);
-	if (end)
+	if (end && end != start)
 	    return end;
 
     } else {

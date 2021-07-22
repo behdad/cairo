@@ -247,10 +247,10 @@ static unsigned char *
 decode_integer (unsigned char *p, int *integer)
 {
     if (*p == 28) {
-        *integer = (int)(p[1]<<8 | p[2]);
+        *integer = (int16_t)(p[1]<<8 | p[2]);
         p += 3;
     } else if (*p == 29) {
-        *integer = (int)(((uint32_t)p[1] << 24) | (p[2] << 16) | (p[3] << 8) | p[4]);
+        *integer = (int32_t)(((uint32_t)p[1] << 24) | (p[2] << 16) | (p[3] << 8) | p[4]);
         p += 5;
     } else if (*p >= 32 && *p <= 246) {
         *integer = *p++ - 139;

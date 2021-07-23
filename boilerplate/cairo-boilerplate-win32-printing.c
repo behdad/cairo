@@ -35,6 +35,7 @@
 #endif
 
 #include "cairo-boilerplate-private.h"
+#include "cairo-malloc-private.h"
 
 #if CAIRO_CAN_TEST_WIN32_PRINTING_SURFACE
 
@@ -131,7 +132,7 @@ create_printer_dc (win32_target_closure_t *ptc)
 
     ptc->dc = NULL;
     GetDefaultPrinter (NULL, &size);
-    printer_name = malloc (size);
+    printer_name = _cairo_malloc (size);
 
     if (printer_name == NULL)
 	return;

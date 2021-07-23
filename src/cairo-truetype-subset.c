@@ -1297,6 +1297,10 @@ _cairo_truetype_reverse_cmap (cairo_scaled_font_t *scaled_font,
 	return CAIRO_INT_STATUS_UNSUPPORTED;
 
     size = be16_to_cpu (map_header.length);
+    /* minimum table size is 24 bytes */
+    if (size < 24)
+	return CAIRO_INT_STATUS_UNSUPPORTED;
+
     map = _cairo_malloc (size);
     if (unlikely (map == NULL))
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);

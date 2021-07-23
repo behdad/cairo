@@ -25,6 +25,7 @@
  */
 
 #include "cairo-boilerplate-private.h"
+#include "cairo-malloc-private.h"
 
 #include <cairo-xcb.h>
 
@@ -207,7 +208,7 @@ _cairo_boilerplate_xcb_create_similar (cairo_surface_t *other,
     xcb_render_pictforminfo_t *render_format;
     int depth;
 
-    similar = malloc (sizeof (*similar));
+    similar = _cairo_malloc (sizeof (*similar));
 
     switch (content) {
     default:

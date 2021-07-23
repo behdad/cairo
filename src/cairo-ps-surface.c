@@ -497,17 +497,6 @@ _cairo_ps_surface_emit_header (cairo_ps_surface_t *surface)
 
     _cairo_output_stream_printf (surface->final_stream,
 				 "%%%%EndProlog\n");
-
-    num_comments = _cairo_array_num_elements (&surface->dsc_setup_comments);
-    if (num_comments) {
-	comments = _cairo_array_index (&surface->dsc_setup_comments, 0);
-	for (i = 0; i < num_comments; i++) {
-	    _cairo_output_stream_printf (surface->final_stream,
-					 "%s\n", comments[i]);
-	    free (comments[i]);
-	    comments[i] = NULL;
-	}
-    }
 }
 
 static cairo_status_t
@@ -1763,6 +1752,17 @@ _cairo_ps_surface_finish (void *abstract_surface)
 
     _cairo_output_stream_printf (surface->final_stream,
 				 "%%%%BeginSetup\n");
+
+    num_comments = _cairo_array_num_elements (&surface->dsc_setup_comments);
+    if (num_comments) {
+	comments = _cairo_array_index (&surface->dsc_setup_comments, 0);
+	for (i = 0; i < num_comments; i++) {
+	    _cairo_output_stream_printf (surface->final_stream,
+					 "%s\n", comments[i]);
+	    free (comments[i]);
+	    comments[i] = NULL;
+	}
+    }
 
     status = _cairo_ps_surface_emit_font_subsets (surface);
     if (unlikely (status))

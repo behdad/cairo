@@ -2329,7 +2329,9 @@ _cairo_pdf_surface_finish (void *abstract_surface)
 
     _cairo_surface_clipper_reset (&surface->clipper);
 
-    return _cairo_pdf_interchange_fini (surface);
+    _cairo_pdf_interchange_fini (surface);
+
+    return status;
 }
 
 static cairo_int_status_t

@@ -28,7 +28,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #if CAIRO_HAS_PS_SURFACE
 #include <cairo-ps.h>
@@ -172,6 +175,7 @@ test_surface (const cairo_test_context_t *ctx,
     }
 
     /* test propagation of file errors - for now this is unix-only */
+#ifndef _WIN32
     if (access("/dev/full", W_OK) == 0) {
 	surface = file_constructor ("/dev/full", WIDTH_IN_POINTS, HEIGHT_IN_POINTS);
 	cairo_surface_finish (surface);
@@ -188,6 +192,7 @@ test_surface (const cairo_test_context_t *ctx,
 	cairo_test_log (ctx,
 			"/dev/full does not exist; skipping write test.\n");
     }
+#endif
 
     /* construct the real surface */
     wc.ctx = ctx;

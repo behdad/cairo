@@ -1515,7 +1515,7 @@ _cairo_pdf_interchange_free_outlines (cairo_pdf_surface_t *surface)
     _cairo_array_fini (&ic->outline);
 }
 
-cairo_int_status_t
+void
 _cairo_pdf_interchange_fini (cairo_pdf_surface_t *surface)
 {
     cairo_pdf_interchange_t *ic = &surface->interchange;
@@ -1539,8 +1539,6 @@ _cairo_pdf_interchange_fini (cairo_pdf_surface_t *surface)
     free (ic->docinfo.creator);
     free (ic->docinfo.create_date);
     free (ic->docinfo.mod_date);
-
-    return CAIRO_STATUS_SUCCESS;
 }
 
 cairo_int_status_t

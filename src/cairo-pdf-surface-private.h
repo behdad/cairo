@@ -355,7 +355,7 @@ _cairo_utf8_to_pdf_string (const char *utf8, char **str_out);
 cairo_private cairo_int_status_t
 _cairo_pdf_interchange_init (cairo_pdf_surface_t *surface);
 
-cairo_private cairo_int_status_t
+cairo_private void
 _cairo_pdf_interchange_fini (cairo_pdf_surface_t *surface);
 
 cairo_private cairo_int_status_t

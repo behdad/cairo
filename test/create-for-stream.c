@@ -29,6 +29,10 @@
 #include <string.h>
 #include <errno.h>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #if CAIRO_HAS_PS_SURFACE
 #include <cairo-ps.h>
 #endif
@@ -165,10 +169,30 @@ test_surface (const cairo_test_context_t *ctx,
 
     if (status != CAIRO_STATUS_WRITE_ERROR) {
 	cairo_test_log (ctx,
-			"%s: Error: expected \"write error\", but received \"%s\".\n",
+			"%s: Error: expected \"write error\" from bad_write(), but received \"%s\".\n",
 			backend, cairo_status_to_string (status));
 	return CAIRO_TEST_FAILURE;
     }
+
+    /* test propagation of file errors - for now this is unix-only */
+#ifndef _WIN32
+    if (access("/dev/full", W_OK) == 0) {
+	surface = file_constructor ("/dev/full", WIDTH_IN_POINTS, HEIGHT_IN_POINTS);
+	cairo_surface_finish (surface);
+	status = cairo_surface_status (surface);
+	cairo_surface_destroy (surface);
+
+	if (status != CAIRO_STATUS_WRITE_ERROR) {
+	    cairo_test_log (ctx,
+			    "%s: Error: expected \"write error\" from /dev/full, but received \"%s\".\n",
+			    backend, cairo_status_to_string (status));
+	    return CAIRO_TEST_FAILURE;
+	}
+    } else {
+	cairo_test_log (ctx,
+			"/dev/full does not exist; skipping write test.\n");
+    }
+#endif
 
     /* construct the real surface */
     wc.ctx = ctx;

@@ -1126,7 +1126,7 @@ intel_snapshot_cache_insert (intel_device_t *device,
     if (device->snapshot_cache.freeze_count == 0)
 	_cairo_cache_freeze (&device->snapshot_cache);
 
-    surface->snapshot_cache_entry.hash = (unsigned long) surface;
+    surface->snapshot_cache_entry.hash = (uintptr_t) surface;
     status = _cairo_cache_insert (&device->snapshot_cache,
 	                          &surface->snapshot_cache_entry);
     if (unlikely (status)) {

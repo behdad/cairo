@@ -172,10 +172,10 @@ _cairo_path_fixed_init_copy (cairo_path_fixed_t *path,
     return CAIRO_STATUS_SUCCESS;
 }
 
-unsigned long
+uintptr_t
 _cairo_path_fixed_hash (const cairo_path_fixed_t *path)
 {
-    unsigned long hash = _CAIRO_HASH_INIT_VALUE;
+    uintptr_t hash = _CAIRO_HASH_INIT_VALUE;
     const cairo_path_buf_t *buf;
     unsigned int count;
 

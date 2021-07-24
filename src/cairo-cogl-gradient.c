@@ -39,7 +39,7 @@
 
 //#define DUMP_GRADIENTS_TO_PNG
 
-static unsigned long
+static uintptr_t
 _cairo_cogl_linear_gradient_hash (unsigned int                  n_stops,
 				  const cairo_gradient_stop_t  *stops)
 {
@@ -49,7 +49,7 @@ _cairo_cogl_linear_gradient_hash (unsigned int                  n_stops,
 
 static cairo_cogl_linear_gradient_t *
 _cairo_cogl_linear_gradient_lookup (cairo_cogl_device_t          *ctx,
-				    unsigned long                 hash,
+				    uintptr_t                     hash,
 				    unsigned int                  n_stops,
 				    const cairo_gradient_stop_t  *stops)
 {
@@ -359,7 +359,7 @@ _cairo_cogl_get_linear_gradient (cairo_cogl_device_t           *device,
 				 const cairo_bool_t             need_mirrored_gradient,
 				 cairo_cogl_linear_gradient_t **gradient_out)
 {
-    unsigned long hash;
+    uintptr_t hash;
     cairo_cogl_linear_gradient_t *gradient;
     cairo_cogl_linear_texture_entry_t *entry;
     cairo_gradient_stop_t *internal_stops;

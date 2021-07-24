@@ -188,7 +188,7 @@ _cairo_gl_gradient_render (const cairo_gl_context_t    *ctx,
     return CAIRO_STATUS_SUCCESS;
 }
 
-static unsigned long
+static uintptr_t
 _cairo_gl_gradient_hash (unsigned int                  n_stops,
 			 const cairo_gradient_stop_t  *stops)
 {
@@ -199,7 +199,7 @@ _cairo_gl_gradient_hash (unsigned int                  n_stops,
 
 static cairo_gl_gradient_t *
 _cairo_gl_gradient_lookup (cairo_gl_context_t           *ctx,
-			   unsigned long                 hash,
+			   uintptr_t                     hash,
 			   unsigned int                  n_stops,
 			   const cairo_gradient_stop_t  *stops)
 {
@@ -230,7 +230,7 @@ _cairo_gl_gradient_create (cairo_gl_context_t           *ctx,
 			   const cairo_gradient_stop_t  *stops,
 			   cairo_gl_gradient_t         **gradient_out)
 {
-    unsigned long hash;
+    uintptr_t hash;
     cairo_gl_gradient_t *gradient;
     cairo_status_t status;
     int tex_width;

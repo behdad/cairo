@@ -898,7 +898,7 @@ composite_glyphs (void				*_dst,
 
 	index = index | (xphase << 24) | (yphase << 26);
 
-	glyph = pixman_glyph_cache_lookup (glyph_cache, info->font, (void *)index);
+	glyph = pixman_glyph_cache_lookup (glyph_cache, info->font, (void *)(uintptr_t)index);
 	if (!glyph) {
 	    cairo_scaled_glyph_t *scaled_glyph;
 	    cairo_image_surface_t *glyph_surface;
@@ -916,7 +916,7 @@ composite_glyphs (void				*_dst,
 		goto out_thaw;
 
 	    glyph_surface = scaled_glyph->surface;
-	    glyph = pixman_glyph_cache_insert (glyph_cache, info->font, (void *)index,
+	    glyph = pixman_glyph_cache_insert (glyph_cache, info->font, (void *)(uintptr_t)index,
 					       glyph_surface->base.device_transform.x0,
 					       glyph_surface->base.device_transform.y0,
 					       glyph_surface->pixman_image);

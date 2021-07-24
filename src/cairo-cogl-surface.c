@@ -700,7 +700,7 @@ _cairo_cogl_fill_to_primitive (cairo_cogl_surface_t	*surface,
     cairo_cogl_path_fill_meta_t *acquired_meta;
     cairo_cogl_path_fill_meta_t *insert_meta = NULL;
     cairo_cogl_device_t *dev = to_device (surface->base.device);
-    unsigned long hash;
+    uintptr_t hash;
 
     *primitive = NULL;
 
@@ -842,8 +842,8 @@ _cairo_cogl_path_stroke_meta_destroy (cairo_cogl_path_stroke_meta_t *meta)
     _cairo_freelist_free (meta->freelist, meta);
 }
 
-static unsigned long
-_cairo_cogl_stroke_style_hash (unsigned long               hash,
+static uintptr_t
+_cairo_cogl_stroke_style_hash (uintptr_t                   hash,
 			       const cairo_stroke_style_t *style)
 {
     unsigned int i;
@@ -874,7 +874,7 @@ _cairo_cogl_stroke_to_primitive (cairo_cogl_surface_t	    *surface,
     cairo_cogl_path_stroke_meta_t *insert_meta = NULL;
     cairo_matrix_t identity;
     cairo_cogl_device_t *dev = to_device (surface->base.device);
-    unsigned long hash;
+    uintptr_t hash;
 
     *primitive = NULL;
 

@@ -942,18 +942,6 @@ main (int argc, char **argv)
 
 	if (ctx.test->preamble != NULL) {
 	    status = _cairo_test_runner_preamble (&runner, &ctx);
-	    if (getenv ("CAIRO_TEST_UGLY_HACK_TO_IGNORE_CREATE_FOR_STREAM") && strcmp (ctx.test_name, "create-for-stream") == 0) {
-		if (status == CAIRO_TEST_FAILURE) {
-		    cairo_test_log (&ctx, "Turning FAIL into XFAIL due to env\n");
-		    fprintf (stderr, "Turning FAIL into XFAIL due to env\n");
-		    runner.num_ignored_via_env++;
-		    status = CAIRO_TEST_XFAILURE;
-		} else {
-		    fprintf (stderr, "Test was expected to fail due to an environment variable, but did not!\n");
-		    fprintf (stderr, "Please remove the hack to ignore create-for-stream failures.\n");
-		    status = CAIRO_TEST_ERROR;
-		}
-	    }
 	    switch (status) {
 	    case CAIRO_TEST_SUCCESS:
 		in_preamble = TRUE;

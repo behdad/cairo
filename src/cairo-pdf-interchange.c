@@ -335,20 +335,17 @@ cairo_pdf_interchange_write_explicit_dest (cairo_pdf_surface_t *surface,
     cairo_pdf_resource_t res;
     double height;
 
-    if (page < 1 || page > (int)_cairo_array_num_elements (&surface->pages))
-       return CAIRO_INT_STATUS_TAG_ERROR;
-
     _cairo_array_copy_element (&surface->page_heights, page - 1, &height);
     _cairo_array_copy_element (&surface->pages, page - 1, &res);
     if (has_pos) {
        _cairo_output_stream_printf (surface->output,
-                                    "   /Dest [%d 0 R /XYZ %f %f 0]\n",
+                                    "[%d 0 R /XYZ %f %f 0]\n",
                                     res.id,
                                     x,
                                     height - y);
     } else {
        _cairo_output_stream_printf (surface->output,
-                                    "   /Dest [%d 0 R /XYZ null null 0]\n",
+                                    "[%d 0 R /XYZ null null 0]\n",
                                     res.id);
     }
 
@@ -362,6 +359,8 @@ cairo_pdf_interchange_write_dest (cairo_pdf_surface_t *surface,
     cairo_int_status_t status;
     cairo_pdf_interchange_t *ic = &surface->interchange;
     char *dest = NULL;
+    cairo_pdf_forward_link_t *link;
+    cairo_pdf_resource_t link_res;
 
     if (link_attrs->dest) {
 	cairo_pdf_named_dest_t key;
@@ -388,10 +387,11 @@ cairo_pdf_interchange_write_dest (cairo_pdf_surface_t *surface,
 	    if (named_dest->attrs.y_valid)
 		y = named_dest->attrs.y;
 
+	    _cairo_output_stream_printf (surface->output, "   /Dest ");
 	    status = cairo_pdf_interchange_write_explicit_dest (surface,
-								named_dest->page,
-								TRUE,
-								x, y);
+                                                                named_dest->page,
+                                                                TRUE,
+                                                                x, y);
 	    return status;
 	}
     }
@@ -406,14 +406,41 @@ cairo_pdf_interchange_write_dest (cairo_pdf_surface_t *surface,
 				     dest);
 	free (dest);
     } else {
-	status = cairo_pdf_interchange_write_explicit_dest (surface,
-							    link_attrs->page,
-							    link_attrs->has_pos,
-							    link_attrs->pos.x,
-							    link_attrs->pos.y);
+	if (link_attrs->page < 1)
+	    return CAIRO_INT_STATUS_TAG_ERROR;
+
+	if (link_attrs->page <= (int)_cairo_array_num_elements (&surface->pages)) {
+	    _cairo_output_stream_printf (surface->output, "   /Dest ");
+	    status = cairo_pdf_interchange_write_explicit_dest (surface,
+								link_attrs->page,
+								link_attrs->has_pos,
+								link_attrs->pos.x,
+								link_attrs->pos.y);
+	} else {
+	    /* Link refers to a future page. Use an indirect object and
+	     * write the link at the end of the document */
+
+	    link = _cairo_malloc (sizeof (cairo_pdf_forward_link_t));
+	    if (unlikely (link == NULL))
+		return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+	    link_res = _cairo_pdf_surface_new_object (surface);
+	    if (link_res.id == 0)
+		return _cairo_error (CAIRO_STATUS_NO_MEMORY);
+
+	    _cairo_output_stream_printf (surface->output,
+					 "   /Dest %d 0 R\n",
+					 link_res.id);
+
+	    link->res = link_res;
+	    link->page = link_attrs->page;
+	    link->has_pos = link_attrs->has_pos;
+	    link->pos = link_attrs->pos;
+	    status = _cairo_array_append (&surface->forward_links, link);
+	}
     }
 
-    return CAIRO_STATUS_SUCCESS;
+    return status;
 }
 
 static cairo_int_status_t
@@ -853,6 +880,36 @@ strcmp_null (const char *s1, const char *s2)
 	return TRUE;
 
     return FALSE;
+}
+
+static cairo_int_status_t
+cairo_pdf_interchange_write_forward_links (cairo_pdf_surface_t *surface)
+{
+    int num_elems, i;
+    cairo_pdf_forward_link_t *link;
+
+    num_elems = _cairo_array_num_elements (&surface->forward_links);
+    for (i = 0; i < num_elems; i++) {
+	link = _cairo_array_index (&surface->forward_links, i);
+	if (link->page > (int)_cairo_array_num_elements (&surface->pages))
+	    return CAIRO_INT_STATUS_TAG_ERROR;
+
+	_cairo_pdf_surface_update_object (surface, link->res);
+	_cairo_output_stream_printf (surface->output,
+				     "%d 0 obj\n",
+				     link->res.id);
+
+	cairo_pdf_interchange_write_explicit_dest (surface,
+						   link->page,
+						   link->has_pos,
+						   link->pos.x,
+						   link->pos.y);
+
+	_cairo_output_stream_printf (surface->output,
+				     "endobj\n");
+    }
+
+    return CAIRO_STATUS_SUCCESS;
 }
 
 static cairo_int_status_t
@@ -1364,10 +1421,10 @@ _cairo_pdf_interchange_write_page_objects (cairo_pdf_surface_t *surface)
     cairo_int_status_t status;
 
     status = cairo_pdf_interchange_write_page_annots (surface);
-     if (unlikely (status))
+    if (unlikely (status))
 	return status;
 
-     cairo_pdf_interchange_clear_annotations (surface);
+    cairo_pdf_interchange_clear_annotations (surface);
 
     return cairo_pdf_interchange_write_page_parent_elems (surface);
 }
@@ -1400,6 +1457,10 @@ _cairo_pdf_interchange_write_document_objects (cairo_pdf_surface_t *surface)
 	return status;
 
     status = cairo_pdf_interchange_write_page_labels (surface);
+    if (unlikely (status))
+	return status;
+
+    status = cairo_pdf_interchange_write_forward_links (surface);
     if (unlikely (status))
 	return status;
 

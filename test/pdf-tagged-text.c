@@ -318,6 +318,9 @@ draw_cover (cairo_surface_t *surface, cairo_t *cr)
     const char *cairo_url = "https://www.cairographics.org/";
     const double url_box_margin = 20.0;
 
+    cairo_tag_begin (cr, CAIRO_TAG_DEST, "name='cover'  internal");
+    cairo_tag_end (cr, CAIRO_TAG_DEST);
+
     cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_font_size(cr, 16);
     cairo_move_to (cr, PAGE_WIDTH/3, PAGE_HEIGHT/3);
@@ -341,6 +344,12 @@ draw_cover (cairo_surface_t *surface, cairo_t *cr)
     snprintf(buf, sizeof(buf), "rect=[%f %f %f %f] uri=\'%s\'",
              url_box.x, url_box.y, url_box.width, url_box.height, cairo_url);
     cairo_tag_begin (cr, CAIRO_TAG_LINK, buf);
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
+    /* Create link to not yet emmited page number */
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "page=5");
+    cairo_move_to (cr, PAGE_WIDTH/3, 4*PAGE_HEIGHT/5);
+    cairo_show_text (cr, "link to page 5");
     cairo_tag_end (cr, CAIRO_TAG_LINK);
 
     draw_page_num (surface, cr, "cover", 0);
@@ -416,6 +425,18 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
 	draw_section (surface, cr, sect);
 	sect++;
     }
+
+    cairo_show_page (cr);
+
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "dest='cover'");
+    cairo_move_to (cr, PAGE_WIDTH/3, 2*PAGE_HEIGHT/5);
+    cairo_show_text (cr, "link to cover");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "page=3");
+    cairo_move_to (cr, PAGE_WIDTH/3, 3*PAGE_HEIGHT/5);
+    cairo_show_text (cr, "link to page 3");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
 
     cairo_tag_end (cr, "Document");
 }
@@ -511,7 +532,7 @@ preamble (cairo_test_context_t *ctx)
     cairo_destroy (cr);
     cairo_surface_finish (surface);
     status2 = cairo_surface_status (surface);
-    if (status != CAIRO_STATUS_SUCCESS)
+    if (status == CAIRO_STATUS_SUCCESS)
 	status = status2;
 
     cairo_surface_destroy (surface);

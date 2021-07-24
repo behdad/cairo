@@ -208,6 +208,13 @@ typedef struct _cairo_pdf_outline_entry {
     int count;
 } cairo_pdf_outline_entry_t;
 
+typedef struct _cairo_pdf_forward_link {
+    cairo_pdf_resource_t res;
+    int page;
+    cairo_bool_t has_pos;
+    cairo_point_double_t pos;
+} cairo_pdf_forward_link_t;
+
 struct docinfo {
     char *title;
     char *author;
@@ -327,6 +334,7 @@ struct _cairo_pdf_surface {
     cairo_pdf_interchange_t interchange;
     int page_parent_tree; /* -1 if not used */
     cairo_array_t page_annots;
+    cairo_array_t forward_links;
     cairo_bool_t tagged;
     char *current_page_label;
     cairo_array_t page_labels;

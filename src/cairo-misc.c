@@ -404,6 +404,7 @@ _cairo_operator_bounded_by_mask (cairo_operator_t op)
 	return FALSE;
     default:
 	ASSERT_NOT_REACHED;
+	return FALSE; /* squelch warning */
     }
 }
 
@@ -458,6 +459,7 @@ _cairo_operator_bounded_by_source (cairo_operator_t op)
 	return FALSE;
     default:
 	ASSERT_NOT_REACHED;
+	return FALSE; /* squelch warning */
     }
 }
 
@@ -499,6 +501,7 @@ _cairo_operator_bounded_by_either (cairo_operator_t op)
 	return 0;
     default:
 	ASSERT_NOT_REACHED;
+	return FALSE; /* squelch warning */
     }
 
 }

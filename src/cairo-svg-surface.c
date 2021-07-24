@@ -1731,6 +1731,7 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 	return "color-to-alpha";
     default:
 	ASSERT_NOT_REACHED;
+	return FALSE; /* squelch warning */
     }
 }
 

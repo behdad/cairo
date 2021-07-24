@@ -45,10 +45,12 @@
 #endif
 
 #ifdef _MSC_VER
+#if _MSC_VER < 1800
 static long long
 strtoll (const char  *nptr,
 	 char	    **endptr,
 	 int	      base);
+#endif
 
 static char *
 basename (char *path);
@@ -221,6 +223,8 @@ test_report_parse (test_report_t *report,
  * The basename function is fully compliant to its GNU specs.
  */
 #ifdef _MSC_VER
+
+#if _MSC_VER < 1800
 long long
 strtoll (const char  *nptr,
 	 char	    **endptr,
@@ -228,6 +232,7 @@ strtoll (const char  *nptr,
 {
     return _atoi64(nptr);
 }
+#endif
 
 static char *
 basename (char *path)

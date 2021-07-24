@@ -69,7 +69,7 @@
 
 #if HAVE_UNISTD_H
 #include <unistd.h>
-#else
+#elif !defined(access)
 #define access(p, m) 0
 #endif
 

@@ -140,6 +140,22 @@ extra_link_args = []
 
 conf = configuration_data()
 
+if host_machine.endian() == 'big'
+  conf.set('WORDS_BIGENDIAN', 1)
+endif
+
+float_order = cc.get_define('__FLOAT_WORD_ORDER__')
+if float_order != ''
+  if float_order == cc.get_define('__ORDER_BIG_ENDIAN__')
+    conf.set('FLOAT_WORDS_BIGENDIAN', 1)
+  endif
+else
+  # Assume same as platform endian
+  if host_machine.endian() == 'big'
+    conf.set('FLOAT_WORDS_BIGENDIAN', 1)
+  endif
+endif
+
 lzo_dep = dependency('lzo2', required: false)
 if lzo_dep.found()
   deps += [lzo_dep]

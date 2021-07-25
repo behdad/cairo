@@ -166,7 +166,6 @@ test fedora autotools recording:
 test fedora autotools svg:
   extends: '.test fedora autotools'
   script:
-    - export CAIRO_TEST_UGLY_HACK_TO_IGNORE_CREATE_FOR_STREAM=1
     - export CAIRO_TEST_IGNORE_svg11_argb32=$(tr '\n' ',' < .gitlab-ci/ignore-svg11-argb32.txt)
     - export CAIRO_TEST_IGNORE_svg11_rgb24=$(tr '\n' ',' < .gitlab-ci/ignore-svg11-rgb24.txt)
     - export CAIRO_TEST_TARGET=svg11

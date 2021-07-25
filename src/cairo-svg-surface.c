@@ -4387,7 +4387,7 @@ _cairo_svg_document_finish (cairo_svg_document_t *document)
 	final_status = status;
     }
 
-    return CAIRO_STATUS_SUCCESS;
+    return final_status;
 }
 
 static cairo_int_status_t

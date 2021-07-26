@@ -13,7 +13,8 @@ Basic Installation
   ninja -C $builddir
   ninja -C $builddir install
 
-where $builddir is the name directory where the build artifacts will be written to.
+where $builddir is the name of the directory where the build artifacts
+will be written to.
 
 Some of the common options that can be used with "meson setup" include:
 

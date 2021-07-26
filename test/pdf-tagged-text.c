@@ -525,6 +525,9 @@ preamble (cairo_test_context_t *ctx)
     xasprintf (&filename, "%s/%s.pdf", path, BASENAME);
     surface = cairo_pdf_surface_create (filename, PAGE_WIDTH, PAGE_HEIGHT);
 
+    /* Disable object stream compression as this prevents check_created_pdf() from working */
+    cairo_pdf_surface_restrict_to_version (surface, CAIRO_PDF_VERSION_1_4);
+
     cr = cairo_create (surface);
     create_document (surface, cr);
 

@@ -432,6 +432,7 @@ quartz_surface_test_sources = quartz-surface-source.c
 pdf_surface_test_sources = \
 	pdf-features.c \
 	pdf-mime-data.c \
+	pdf-operators-text.c \
 	pdf-surface-source.c \
 	pdf-tagged-text.c
 

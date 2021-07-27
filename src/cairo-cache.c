@@ -315,18 +315,18 @@ _cairo_cache_foreach (cairo_cache_t		      *cache,
 			       closure);
 }
 
-unsigned long
+uintptr_t
 _cairo_hash_string (const char *c)
 {
     /* This is the djb2 hash. */
-    unsigned long hash = _CAIRO_HASH_INIT_VALUE;
+    uintptr_t hash = _CAIRO_HASH_INIT_VALUE;
     while (c && *c)
 	hash = ((hash << 5) + hash) + *c++;
     return hash;
 }
 
-unsigned long
-_cairo_hash_bytes (unsigned long hash,
+uintptr_t
+_cairo_hash_bytes (uintptr_t hash,
 		   const void *ptr,
 		   unsigned int length)
 {

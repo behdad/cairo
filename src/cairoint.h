@@ -424,11 +424,11 @@ _cairo_user_data_array_foreach (cairo_user_data_array_t     *array,
 
 #define _CAIRO_HASH_INIT_VALUE 5381
 
-cairo_private unsigned long
+cairo_private uintptr_t
 _cairo_hash_string (const char *c);
 
-cairo_private unsigned long
-_cairo_hash_bytes (unsigned long hash,
+cairo_private uintptr_t
+_cairo_hash_bytes (uintptr_t hash,
 		   const void *bytes,
 		   unsigned int length);
 

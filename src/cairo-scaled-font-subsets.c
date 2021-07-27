@@ -255,12 +255,12 @@ _cairo_sub_font_init_key (cairo_sub_font_t	*sub_font,
 {
     if (sub_font->is_scaled)
     {
-        sub_font->base.hash = (unsigned long) scaled_font;
+        sub_font->base.hash = (uintptr_t) scaled_font;
         sub_font->scaled_font = scaled_font;
     }
     else
     {
-        sub_font->base.hash = (unsigned long) scaled_font->font_face;
+        sub_font->base.hash = (uintptr_t) scaled_font->font_face;
         sub_font->scaled_font = scaled_font;
     }
 }

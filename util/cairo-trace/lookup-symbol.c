@@ -262,7 +262,7 @@ lookup_symbol (char *buf, int buflen, const void *ptr)
     int bucket;
     int len;
 
-    bucket = (unsigned long) ptr % (sizeof (symbol_cache_hash) / sizeof (symbol_cache_hash[0]));
+    bucket = (uintptr_t) ptr % (sizeof (symbol_cache_hash) / sizeof (symbol_cache_hash[0]));
     pthread_mutex_lock (&symbol_cache_mutex);
     for (cache = symbol_cache_hash[bucket];
 	 cache != NULL;

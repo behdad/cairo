@@ -135,7 +135,7 @@ _cairo_toy_font_face_init_key (cairo_toy_font_face_t *key,
 			       cairo_font_slant_t     slant,
 			       cairo_font_weight_t    weight)
 {
-    unsigned long hash;
+    uintptr_t hash;
 
     key->family = family;
     key->owns_family = FALSE;
@@ -145,8 +145,8 @@ _cairo_toy_font_face_init_key (cairo_toy_font_face_t *key,
 
     /* 1607 and 1451 are just a couple of arbitrary primes. */
     hash = _cairo_hash_string (family);
-    hash += ((unsigned long) slant) * 1607;
-    hash += ((unsigned long) weight) * 1451;
+    hash += ((uintptr_t) slant) * 1607;
+    hash += ((uintptr_t) weight) * 1451;
 
     key->base.hash_entry.hash = hash;
 }

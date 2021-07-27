@@ -67,7 +67,7 @@ struct _cairo_vg_context {
     cairo_status_t status;
     cairo_reference_count_t ref_count;
 
-    unsigned long target_id;
+    uintptr_t           target_id;
 
     VGPaint		paint;
     cairo_vg_surface_t *source;
@@ -100,7 +100,7 @@ struct _cairo_vg_surface {
 
     cairo_surface_clipper_t clipper;
 
-    unsigned long target_id;
+    uintptr_t target_id;
 };
 
 static const cairo_surface_backend_t cairo_vg_surface_backend;
@@ -1782,7 +1782,7 @@ egl_create_target (cairo_vg_context_t *context,
 					  (EGLClientBuffer) surface->image,
 					  config,
 					  NULL);
-    surface->target_id = (unsigned long) egl_surface;
+    surface->target_id = (uintptr_t) egl_surface;
 
     return CAIRO_STATUS_SUCCESS;
 }

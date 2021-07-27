@@ -147,7 +147,7 @@ struct _cairo_observer {
  * the entry need not be initialized if so desired.
  **/
 struct _cairo_hash_entry {
-    unsigned long hash;
+    uintptr_t hash;
 };
 
 struct _cairo_array {

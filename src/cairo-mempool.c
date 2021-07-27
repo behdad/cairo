@@ -284,19 +284,19 @@ _cairo_mempool_init (cairo_mempool_t *pool,
 		      void *base, size_t bytes,
 		      int min_bits, int num_sizes)
 {
-    unsigned long tmp;
+    uintptr_t tmp;
     int num_blocks;
     int i;
 
     /* Align the start to an integral chunk */
-    tmp = ((unsigned long) base) & ((1 << min_bits) - 1);
+    tmp = ((uintptr_t) base) & ((1 << min_bits) - 1);
     if (tmp) {
 	tmp = (1 << min_bits) - tmp;
 	base = (char *)base + tmp;
 	bytes -= tmp;
     }
 
-    assert ((((unsigned long) base) & ((1 << min_bits) - 1)) == 0);
+    assert ((((uintptr_t) base) & ((1 << min_bits) - 1)) == 0);
     assert (num_sizes < ARRAY_LENGTH (pool->free));
 
     pool->base = base;

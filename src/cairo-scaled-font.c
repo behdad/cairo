@@ -56,7 +56,7 @@
  * size and transformation and a certain set of font options.
  **/
 
-static uint32_t
+static uintptr_t
 _cairo_scaled_font_compute_hash (cairo_scaled_font_t *scaled_font);
 
 /* Global Glyph Cache
@@ -598,25 +598,25 @@ _cairo_scaled_font_placeholder_wait_for_creation_to_finish (cairo_scaled_font_t 
  * well tested with binary data.
  */
 
-#define FNV_32_PRIME ((uint32_t)0x01000193)
-#define FNV1_32_INIT ((uint32_t)0x811c9dc5)
+#define FNV_64_PRIME ((uint64_t)0x00000100000001B3)
+#define FNV1_64_INIT ((uint64_t)0xcbf29ce484222325)
 
-static uint32_t
+static uint64_t
 _hash_matrix_fnv (const cairo_matrix_t	*matrix,
-		  uint32_t		 hval)
+		  uint64_t		 hval)
 {
     const uint8_t *buffer = (const uint8_t *) matrix;
     int len = sizeof (cairo_matrix_t);
     do {
-	hval *= FNV_32_PRIME;
+	hval *= FNV_64_PRIME;
 	hval ^= *buffer++;
     } while (--len);
 
     return hval;
 }
 
-static uint32_t
-_hash_mix_bits (uint32_t hash)
+static uint64_t
+_hash_mix_bits (uint64_t hash)
 {
     hash += hash << 12;
     hash ^= hash >> 7;
@@ -626,17 +626,17 @@ _hash_mix_bits (uint32_t hash)
     return hash;
 }
 
-static uint32_t
+static uintptr_t
 _cairo_scaled_font_compute_hash (cairo_scaled_font_t *scaled_font)
 {
-    uint32_t hash = FNV1_32_INIT;
+    uintptr_t hash = FNV1_64_INIT;
 
     /* We do a bytewise hash on the font matrices */
     hash = _hash_matrix_fnv (&scaled_font->font_matrix, hash);
     hash = _hash_matrix_fnv (&scaled_font->ctm, hash);
     hash = _hash_mix_bits (hash);
 
-    hash ^= (unsigned long) scaled_font->original_font_face;
+    hash ^= (uintptr_t) scaled_font->original_font_face;
     hash ^= cairo_font_options_hash (&scaled_font->options);
 
     /* final mixing of bits */
@@ -2879,7 +2879,7 @@ _cairo_scaled_font_allocate_glyph (cairo_scaled_font_t *scaled_font,
     if (unlikely (page == NULL))
 	return _cairo_error (CAIRO_STATUS_NO_MEMORY);
 
-    page->cache_entry.hash = (unsigned long) scaled_font;
+    page->cache_entry.hash = (uintptr_t) scaled_font;
     page->scaled_font = scaled_font;
     page->cache_entry.size = 1; /* XXX occupancy weighting? */
     page->num_glyphs = 0;

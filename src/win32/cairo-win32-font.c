@@ -1960,7 +1960,7 @@ _cairo_win32_font_face_init_key (cairo_win32_font_face_t *key,
 				 LOGFONTW                *logfont,
 				 HFONT                    font)
 {
-    unsigned long hash = _CAIRO_HASH_INIT_VALUE;
+    uintptr_t hash = _CAIRO_HASH_INIT_VALUE;
 
     key->logfont = *logfont;
     key->hfont = font;

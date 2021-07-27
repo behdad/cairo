@@ -134,7 +134,7 @@ static void *_dlhandle = RTLD_NEXT;
 #else
 #error Unexpected pointer size
 #endif
-#define BUCKET(b, ptr) (((unsigned long) (ptr) >> PTR_SHIFT) % ARRAY_LENGTH (b))
+#define BUCKET(b, ptr) (((uintptr_t) (ptr) >> PTR_SHIFT) % ARRAY_LENGTH (b))
 
 #if defined(__GNUC__) && (__GNUC__ > 2) && defined(__OPTIMIZE__)
 #define _BOOLEAN_EXPR(expr)                   \

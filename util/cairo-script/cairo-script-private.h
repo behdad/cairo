@@ -284,7 +284,7 @@ typedef cairo_bool_t csi_boolean_t;
 typedef csi_status_t (*csi_operator_t) (csi_t *);
 typedef float csi_real_t;
 typedef long csi_integer_t;
-typedef long csi_name_t;
+typedef intptr_t csi_name_t;
 typedef struct _csi_array csi_array_t;
 typedef struct _csi_buffer csi_buffer_t;
 typedef struct _csi_compound_object csi_compound_object_t;

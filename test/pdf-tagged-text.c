@@ -352,6 +352,12 @@ draw_cover (cairo_surface_t *surface, cairo_t *cr)
     cairo_show_text (cr, "link to page 5");
     cairo_tag_end (cr, CAIRO_TAG_LINK);
 
+    /* Create link to not yet emmited destination */
+    cairo_tag_begin (cr, CAIRO_TAG_LINK, "dest='Section 3.3'");
+    cairo_move_to (cr, PAGE_WIDTH/3, 4.2*PAGE_HEIGHT/5);
+    cairo_show_text (cr, "link to page section 3.3");
+    cairo_tag_end (cr, CAIRO_TAG_LINK);
+
     draw_page_num (surface, cr, "cover", 0);
 }
 
@@ -561,12 +567,7 @@ create_pdf (cairo_test_context_t *ctx, cairo_bool_t check_output)
 static cairo_test_status_t
 preamble (cairo_test_context_t *ctx)
 {
-    cairo_surface_t *surface;
-    cairo_t *cr;
-    cairo_status_t status, status2;
     cairo_test_status_t result;
-    char *filename;
-    const char *path = cairo_test_mkdir (CAIRO_TEST_OUTPUT_DIR) ? CAIRO_TEST_OUTPUT_DIR : ".";
 
     if (! cairo_test_is_target_enabled (ctx, "pdf"))
 	return CAIRO_TEST_UNTESTED;

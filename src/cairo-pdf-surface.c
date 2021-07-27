@@ -5557,8 +5557,8 @@ _cairo_pdf_surface_emit_cff_font (cairo_pdf_surface_t		*surface,
 	    int glyph = font_subset->latin_to_subset_glyph_index[i];
 	    if (glyph > 0) {
 		_cairo_output_stream_printf (surface->output,
-					     " %ld",
-					     (long)(subset->widths[glyph]*PDF_UNITS_PER_EM));
+					     " %f",
+					     (subset->widths[glyph]*PDF_UNITS_PER_EM));
 	    } else {
 		_cairo_output_stream_printf (surface->output, " 0");
 	    }
@@ -5599,8 +5599,8 @@ _cairo_pdf_surface_emit_cff_font (cairo_pdf_surface_t		*surface,
 
 	for (i = 0; i < font_subset->num_glyphs; i++)
 	    _cairo_output_stream_printf (surface->output,
-					 " %ld",
-					 (long)(subset->widths[i]*PDF_UNITS_PER_EM));
+					 " %f",
+					 (subset->widths[i]*PDF_UNITS_PER_EM));
 
 	_cairo_output_stream_printf (surface->output,
 				     " ]]\n"
@@ -5796,8 +5796,8 @@ _cairo_pdf_surface_emit_type1_font (cairo_pdf_surface_t		*surface,
 	    int glyph = font_subset->latin_to_subset_glyph_index[i];
 	    if (glyph > 0) {
 		_cairo_output_stream_printf (surface->output,
-					     " %ld",
-					     (long)(subset->widths[glyph]*PDF_UNITS_PER_EM));
+					     " %f",
+					     (subset->widths[glyph]*PDF_UNITS_PER_EM));
 	    } else {
 		_cairo_output_stream_printf (surface->output, " 0");
 	    }
@@ -5805,8 +5805,8 @@ _cairo_pdf_surface_emit_type1_font (cairo_pdf_surface_t		*surface,
     } else {
 	for (i = 0; i < font_subset->num_glyphs; i++)
 	    _cairo_output_stream_printf (surface->output,
-					 " %ld",
-					 (long)(subset->widths[i]*PDF_UNITS_PER_EM));
+					 " %f",
+					 (subset->widths[i]*PDF_UNITS_PER_EM));
     }
 
     _cairo_output_stream_printf (surface->output,
@@ -6004,8 +6004,8 @@ _cairo_pdf_surface_emit_truetype_font_subset (cairo_pdf_surface_t		*surface,
 	    int glyph = font_subset->latin_to_subset_glyph_index[i];
 	    if (glyph > 0) {
 		_cairo_output_stream_printf (surface->output,
-					     " %ld",
-					     (long)(subset.widths[glyph]*PDF_UNITS_PER_EM));
+					     " %f",
+					     (subset.widths[glyph]*PDF_UNITS_PER_EM));
 	    } else {
 		_cairo_output_stream_printf (surface->output, " 0");
 	    }
@@ -6048,8 +6048,8 @@ _cairo_pdf_surface_emit_truetype_font_subset (cairo_pdf_surface_t		*surface,
 
 	for (i = 0; i < font_subset->num_glyphs; i++)
 	    _cairo_output_stream_printf (surface->output,
-					 " %ld",
-					 (long)(subset.widths[i]*PDF_UNITS_PER_EM));
+					 " %f",
+					 (subset.widths[i]*PDF_UNITS_PER_EM));
 
 	_cairo_output_stream_printf (surface->output,
 				     " ]]\n"

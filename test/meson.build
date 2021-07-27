@@ -438,6 +438,7 @@ test_quartz_sources = [
 test_pdf_sources = [
   'pdf-features.c',
   'pdf-mime-data.c',
+  'pdf-operators-text.c',
   'pdf-surface-source.c',
   'pdf-tagged-text.c',
 ]

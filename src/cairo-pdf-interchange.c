@@ -410,7 +410,7 @@ cairo_pdf_interchange_write_dest (cairo_pdf_surface_t *surface,
 	free (dest);
     } else {
 	if (link_attrs->page < 1)
-	    return CAIRO_INT_STATUS_TAG_ERROR;
+	    return _cairo_tag_error ("Link attribute: \"page=%d\" page must be >= 1", link_attrs->page);
 
 	if (link_attrs->page <= (int)_cairo_array_num_elements (&surface->pages)) {
 	    _cairo_output_stream_printf (surface->object_stream.stream, "   /Dest ");
@@ -924,7 +924,9 @@ cairo_pdf_interchange_write_forward_links (cairo_pdf_surface_t *surface)
     for (i = 0; i < num_elems; i++) {
 	link = _cairo_array_index (&surface->forward_links, i);
 	if (link->page > (int)_cairo_array_num_elements (&surface->pages))
-	    return CAIRO_INT_STATUS_TAG_ERROR;
+	    return _cairo_tag_error ("Link attribute: \"page=%d\" page exceeds page count (%d)",
+				     link->page, _cairo_array_num_elements (&surface->pages));
+
 
 	status = _cairo_pdf_surface_object_begin (surface, link->res);
 	if (unlikely (status))

@@ -510,20 +510,27 @@ check_created_pdf(cairo_test_context_t *ctx, const char* filename)
 }
 
 static cairo_test_status_t
-preamble (cairo_test_context_t *ctx)
+create_pdf (cairo_test_context_t *ctx, cairo_bool_t check_output)
 {
     cairo_surface_t *surface;
     cairo_t *cr;
     cairo_status_t status, status2;
     cairo_test_status_t result;
+    cairo_pdf_version_t version;
     char *filename;
     const char *path = cairo_test_mkdir (CAIRO_TEST_OUTPUT_DIR) ? CAIRO_TEST_OUTPUT_DIR : ".";
 
-    if (! cairo_test_is_target_enabled (ctx, "pdf"))
-	return CAIRO_TEST_UNTESTED;
+    /* check_created_pdf() only works with version 1.4. In version 1.5
+     * the text that is searched for is compressed. */
+    version = check_output ? CAIRO_PDF_VERSION_1_4 : CAIRO_PDF_VERSION_1_5;
 
-    xasprintf (&filename, "%s/%s.pdf", path, BASENAME);
+    xasprintf (&filename, "%s/%s-%s.pdf",
+               path,
+               BASENAME,
+               check_output ? "1.4" : "1.5");
     surface = cairo_pdf_surface_create (filename, PAGE_WIDTH, PAGE_HEIGHT);
+
+    cairo_pdf_surface_restrict_to_version (surface, version);
 
     cr = cairo_create (surface);
     create_document (surface, cr);
@@ -542,9 +549,34 @@ preamble (cairo_test_context_t *ctx)
 	return CAIRO_TEST_FAILURE;
     }
 
-    result = check_created_pdf(ctx, filename);
+    result = CAIRO_TEST_SUCCESS;
+    if (check_output)
+        result = check_created_pdf(ctx, filename);
 
     free (filename);
+
+    return result;
+}
+
+static cairo_test_status_t
+preamble (cairo_test_context_t *ctx)
+{
+    cairo_surface_t *surface;
+    cairo_t *cr;
+    cairo_status_t status, status2;
+    cairo_test_status_t result;
+    char *filename;
+    const char *path = cairo_test_mkdir (CAIRO_TEST_OUTPUT_DIR) ? CAIRO_TEST_OUTPUT_DIR : ".";
+
+    if (! cairo_test_is_target_enabled (ctx, "pdf"))
+	return CAIRO_TEST_UNTESTED;
+
+    /* Create version 1.5 PDF. This can only be manually checked */
+    create_pdf (ctx, FALSE);
+
+    /* Create version 1.4 PDF and checkout output */
+    result = create_pdf (ctx, TRUE);
+
 
     return result;
 }

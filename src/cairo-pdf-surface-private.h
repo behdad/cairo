@@ -55,6 +55,7 @@ typedef struct _cairo_pdf_resource {
     unsigned int id;
 } cairo_pdf_resource_t;
 
+
 #define CAIRO_NUM_OPERATORS (CAIRO_OPERATOR_HSL_LUMINOSITY + 1)
 
 typedef struct _cairo_pdf_group_resources {
@@ -288,7 +289,7 @@ struct _cairo_pdf_surface {
     cairo_pdf_resource_t struct_tree_root;
 
     cairo_pdf_version_t pdf_version;
-    cairo_bool_t compress_content;
+    cairo_bool_t compress_streams;
 
     cairo_pdf_resource_t content;
     cairo_pdf_resource_t content_resources;
@@ -314,6 +315,13 @@ struct _cairo_pdf_surface {
 	cairo_box_double_t     bbox;
 	cairo_bool_t is_knockout;
     } group_stream;
+
+    struct {
+	cairo_bool_t active;
+	cairo_output_stream_t *stream;
+	cairo_pdf_resource_t resource;
+	cairo_array_t objects;
+    } object_stream;
 
     cairo_surface_clipper_t clipper;
 
@@ -376,6 +384,13 @@ cairo_private cairo_int_status_t
 _cairo_pdf_interchange_tag_begin (cairo_pdf_surface_t    *surface,
 				  const char             *name,
 				  const char             *attributes);
+
+cairo_private cairo_int_status_t
+_cairo_pdf_surface_object_begin (cairo_pdf_surface_t *surface,
+				 cairo_pdf_resource_t resource);
+
+cairo_private void
+_cairo_pdf_surface_object_end (cairo_pdf_surface_t *surface);
 
 cairo_private cairo_int_status_t
 _cairo_pdf_interchange_tag_end (cairo_pdf_surface_t *surface,

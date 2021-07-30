@@ -411,6 +411,7 @@ ft_font_test_sources = \
 
 fc_font_test_sources = \
 	bitmap-font.c \
+	ft-color-font.c \
 	ft-font-create-for-ft-face.c \
 	ft-show-glyphs-positioning.c \
 	ft-show-glyphs-table.c \

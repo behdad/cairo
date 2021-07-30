@@ -473,20 +473,6 @@ _cairo_composite_rectangles_init_for_glyphs (cairo_composite_rectangles_t *exten
 	return CAIRO_INT_STATUS_NOTHING_TO_DO;
     }
 
-    /* Computing the exact bbox and the overlap is expensive.
-     * First perform a cheap test to see if the glyphs are all clipped out.
-     */
-    if (extents->is_bounded & CAIRO_OPERATOR_BOUND_BY_MASK &&
-	_cairo_scaled_font_glyph_approximate_extents (scaled_font,
-						      glyphs, num_glyphs,
-						      &extents->mask))
-    {
-	if (! _cairo_rectangle_intersect (&extents->bounded, &extents->mask)) {
-	    _cairo_composite_rectangles_fini(extents);
-	    return CAIRO_INT_STATUS_NOTHING_TO_DO;
-	}
-    }
-
     status = _cairo_scaled_font_glyph_device_extents (scaled_font,
 						      glyphs, num_glyphs,
 						      &extents->mask,

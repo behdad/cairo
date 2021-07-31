@@ -412,6 +412,7 @@ test_pthread_sources = [
 test_ft_font_sources = [
   'font-variations.c',
   'bitmap-font.c',
+  'ft-color-font.c',
   'ft-font-create-for-ft-face.c',
   'ft-show-glyphs-positioning.c',
   'ft-show-glyphs-table.c',

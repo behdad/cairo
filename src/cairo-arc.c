@@ -90,16 +90,18 @@ _arc_max_angle_for_tolerance_normalized (double tolerance)
 	{ M_PI / 11.0,  9.81410988043554039085e-09 },
     };
     int table_size = ARRAY_LENGTH (table);
+    const int max_segments = 1000; /* this value is chosen arbitrarily. this gives an error of about 1.74909e-20 */
 
     for (i = 0; i < table_size; i++)
 	if (table[i].error < tolerance)
 	    return table[i].angle;
 
     ++i;
+
     do {
 	angle = M_PI / i++;
 	error = _arc_error_normalized (angle);
-    } while (error > tolerance);
+    } while (error > tolerance && i < max_segments);
 
     return angle;
 }

@@ -447,6 +447,7 @@ create_document (cairo_surface_t *surface, cairo_t *cr)
     cairo_tag_end (cr, "Document");
 }
 
+#ifdef HAVE_MMAP
 static cairo_test_status_t
 check_contains_string(cairo_test_context_t *ctx, const void *hay, size_t size, const char *needle)
 {
@@ -456,6 +457,7 @@ check_contains_string(cairo_test_context_t *ctx, const void *hay, size_t size, c
     cairo_test_log (ctx, "Failed to find expected string in generated PDF: %s\n", needle);
     return CAIRO_TEST_FAILURE;
 }
+#endif
 
 static cairo_test_status_t
 check_created_pdf(cairo_test_context_t *ctx, const char* filename)

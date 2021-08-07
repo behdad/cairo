@@ -115,7 +115,6 @@ check_funcs = [
   'funlockfile',
   'getline',
   'link',
-  'strndup',
   'fork',
   'waitpid',
   'raise',
@@ -819,6 +818,8 @@ foreach name : check_funcs
     conf.set('HAVE_@0@'.format(name.to_upper()), 1)
   endif
 endforeach
+
+conf.set('HAVE_STRNDUP', cc.has_function('strndup', prefix : '#include <string.h>'))
 
 pthread_c_args = []
 pthread_link_args = []

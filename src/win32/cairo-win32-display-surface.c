@@ -129,6 +129,8 @@ _create_dc_and_bitmap (cairo_win32_display_surface_t *surface,
     case CAIRO_FORMAT_INVALID:
     case CAIRO_FORMAT_RGB16_565:
     case CAIRO_FORMAT_RGB30:
+    case CAIRO_FORMAT_RGB96F:
+    case CAIRO_FORMAT_RGBA128F:
 	return _cairo_error (CAIRO_STATUS_INVALID_FORMAT);
     case CAIRO_FORMAT_ARGB32:
     case CAIRO_FORMAT_RGB24:
@@ -164,7 +166,9 @@ _create_dc_and_bitmap (cairo_win32_display_surface_t *surface,
     case CAIRO_FORMAT_INVALID:
     case CAIRO_FORMAT_RGB16_565:
     case CAIRO_FORMAT_RGB30:
-	ASSERT_NOT_REACHED;
+    case CAIRO_FORMAT_RGB96F:
+    case CAIRO_FORMAT_RGBA128F:
+    ASSERT_NOT_REACHED;
     /* We can't create real RGB24 bitmaps because something seems to
      * break if we do, especially if we don't set up an image
      * fallback.  It could be a bug with using a 24bpp pixman image
@@ -242,6 +246,8 @@ _create_dc_and_bitmap (cairo_win32_display_surface_t *surface,
 	case CAIRO_FORMAT_INVALID:
 	case CAIRO_FORMAT_RGB16_565:
 	case CAIRO_FORMAT_RGB30:
+	case CAIRO_FORMAT_RGB96F:
+	case CAIRO_FORMAT_RGBA128F:
 	    ASSERT_NOT_REACHED;
 	case CAIRO_FORMAT_ARGB32:
 	case CAIRO_FORMAT_RGB24:

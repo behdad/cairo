@@ -102,7 +102,11 @@
 #endif
 
 #ifndef HAVE_CTIME_R
-#define ctime_r(T, BUF) ctime (T)
+static char *ctime_r(const time_t *timep, char *buf)
+{
+    (void)buf;
+    return ctime(timep);
+}
 #endif
 
 /**

@@ -195,7 +195,9 @@
 
 #if (defined(__WIN32__) && !defined(__WINE__)) || defined(_MSC_VER)
 #define access _access
-#define R_OK 0
+#ifndef R_OK
+#define R_OK 4
+#endif
 #define fdopen _fdopen
 #define hypot _hypot
 #define pclose _pclose

@@ -1749,10 +1749,16 @@ typedef cairo_status_t (*cairo_user_scaled_font_init_func_t) (cairo_scaled_font_
  * font space.  That is, the matrix set on @cr is the scale matrix of @scaled_font,
  * The @extents argument is where the user font sets the font extents for
  * @scaled_font.  However, if user prefers to draw in user space, they can
- * achieve that by changing the matrix on @cr.  All cairo rendering operations
- * to @cr are permitted, however, the result is undefined if any source other
- * than the default source on @cr is used.  That means, glyph bitmaps should
- * be rendered using cairo_mask() instead of cairo_paint().
+ * achieve that by changing the matrix on @cr.
+ *
+ * All cairo rendering operations to @cr are permitted. However, when
+ * this callback set with
+ * cairo_user_font_face_set_render_glyph_func(), the result is
+ * undefined if any source other than the default source on @cr is
+ * used.  That means, glyph bitmaps should be rendered using
+ * cairo_mask() instead of cairo_paint(). When this callback set with
+ * cairo_user_font_face_set_render_color_glyph_func(), setting the
+ * source is a valid operation.
  *
  * Other non-default settings on @cr include a font size of 1.0 (given that
  * it is set up to be in font space), and font options corresponding to
@@ -1772,8 +1778,17 @@ typedef cairo_status_t (*cairo_user_scaled_font_init_func_t) (cairo_scaled_font_
  * extents, it must be ink extents, and include the extents of all drawing
  * done to @cr in the callback.
  *
- * Returns: %CAIRO_STATUS_SUCCESS upon success, or
- * %CAIRO_STATUS_USER_FONT_ERROR or any other error status on error.
+ * Where both color and non-color callbacks has been set using
+ * cairo_user_font_face_set_render_color_glyph_func(), and
+ * cairo_user_font_face_set_render_glyph_func(), the color glyph
+ * callback may return %CAIRO_STATUS_USER_FONT_NOT_IMPLEMENTED if the
+ * glyph is not a color glyph. This is the only case in which the
+ * %CAIRO_STATUS_USER_FONT_NOT_IMPLEMENTED may be returned from a
+ * render callback.
+ *
+ * Returns: %CAIRO_STATUS_SUCCESS upon success,
+ * %CAIRO_STATUS_USER_FONT_NOT_IMPLEMENTED if fallback options should be tried,
+ * or %CAIRO_STATUS_USER_FONT_ERROR or any other error status on error.
  *
  * Since: 1.8
  **/
@@ -1907,6 +1922,10 @@ cairo_user_font_face_set_init_func (cairo_font_face_t                  *font_fac
 cairo_public void
 cairo_user_font_face_set_render_glyph_func (cairo_font_face_t                          *font_face,
 					    cairo_user_scaled_font_render_glyph_func_t  render_glyph_func);
+
+cairo_public void
+cairo_user_font_face_set_render_color_glyph_func (cairo_font_face_t                          *font_face,
+                                                  cairo_user_scaled_font_render_glyph_func_t  render_glyph_func);
 
 cairo_public void
 cairo_user_font_face_set_text_to_glyphs_func (cairo_font_face_t                            *font_face,

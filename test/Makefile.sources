@@ -386,6 +386,7 @@ test_sources = \
 	unclosed-strokes.c				\
 	user-data.c					\
 	user-font.c					\
+	user-font-color.c				\
 	user-font-mask.c				\
 	user-font-proxy.c				\
 	user-font-rescale.c				\

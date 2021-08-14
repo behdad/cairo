@@ -2475,6 +2475,76 @@ _cairo_ft_scaled_glyph_load_glyph (cairo_ft_scaled_font_t *scaled_font,
 }
 
 static cairo_int_status_t
+_cairo_ft_scaled_glyph_init_surface (cairo_ft_scaled_font_t     *scaled_font,
+				     cairo_scaled_glyph_t	*scaled_glyph,
+				     cairo_scaled_glyph_info_t	 info,
+				     FT_Face face,
+				     cairo_bool_t vertical_layout,
+				     int load_flags)
+{
+    cairo_ft_unscaled_font_t *unscaled = scaled_font->unscaled;
+    FT_GlyphSlot glyph;
+    cairo_status_t status;
+    cairo_image_surface_t	*surface;
+
+    if (info == CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE) {
+	if (!unscaled->have_color)
+	    return CAIRO_INT_STATUS_UNSUPPORTED;
+
+        load_flags &= ~FT_LOAD_MONOCHROME;
+	/* clear load target mode */
+	load_flags &= ~(FT_LOAD_TARGET_(FT_LOAD_TARGET_MODE(load_flags)));
+	load_flags |= FT_LOAD_TARGET_NORMAL;
+#ifdef FT_LOAD_COLOR
+	load_flags |= FT_LOAD_COLOR;
+#endif
+    } else {
+#ifdef FT_LOAD_COLOR
+        load_flags &= ~FT_LOAD_COLOR;
+#endif
+    }
+
+    status = _cairo_ft_scaled_glyph_load_glyph (scaled_font,
+						scaled_glyph,
+						face,
+						load_flags,
+						FALSE,
+						vertical_layout);
+    if (unlikely (status))
+	return status;
+
+    glyph = face->glyph;
+
+    if (glyph->format == FT_GLYPH_FORMAT_OUTLINE) {
+	status = _render_glyph_outline (face, &scaled_font->ft_options.base,
+					    &surface);
+    } else {
+	status = _render_glyph_bitmap (face, &scaled_font->ft_options.base,
+					   &surface);
+	if (likely (status == CAIRO_STATUS_SUCCESS) && unscaled->have_shape) {
+	    status = _transform_glyph_bitmap (&unscaled->current_shape,
+					      &surface);
+	    if (unlikely (status))
+		cairo_surface_destroy (&surface->base);
+	}
+	if (unlikely (status))
+	    return status;
+    }
+    if (pixman_image_get_format (surface->pixman_image) == PIXMAN_a8r8g8b8 &&
+	!pixman_image_get_component_alpha (surface->pixman_image)) {
+	_cairo_scaled_glyph_set_color_surface (scaled_glyph,
+					       &scaled_font->base,
+					       surface);
+    } else {
+	_cairo_scaled_glyph_set_surface (scaled_glyph,
+					 &scaled_font->base,
+					 surface);
+    }
+
+    return status;
+}
+
+static cairo_int_status_t
 _cairo_ft_scaled_glyph_init (void			*abstract_font,
 			     cairo_scaled_glyph_t	*scaled_glyph,
 			     cairo_scaled_glyph_info_t	 info)
@@ -2512,11 +2582,6 @@ _cairo_ft_scaled_glyph_init (void			*abstract_font,
 	load_flags &= ~FT_LOAD_VERTICAL_LAYOUT;
 	vertical_layout = TRUE;
     }
-
-#ifdef FT_LOAD_COLOR
-    load_flags |= FT_LOAD_COLOR;
-#endif
-
 
     if (info & CAIRO_SCALED_GLYPH_INFO_METRICS) {
 
@@ -2628,66 +2693,26 @@ _cairo_ft_scaled_glyph_init (void			*abstract_font,
 					 &fs_metrics);
     }
 
-LOAD:
-    if (info & (CAIRO_SCALED_GLYPH_INFO_SURFACE | CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE)) {
-	cairo_image_surface_t	*surface;
-
-	if (!scaled_glyph_loaded) {
-	    status = _cairo_ft_scaled_glyph_load_glyph (scaled_font,
-							scaled_glyph,
-							face,
-							load_flags,
-							FALSE,
-							vertical_layout);
-	    if (unlikely (status))
-		goto FAIL;
-
-	    glyph = face->glyph;
-	    scaled_glyph_loaded = TRUE;
-	}
-
-	if (glyph->format == FT_GLYPH_FORMAT_OUTLINE) {
-	    status = _render_glyph_outline (face, &scaled_font->ft_options.base,
-					    &surface);
-	} else {
-	    status = _render_glyph_bitmap (face, &scaled_font->ft_options.base,
-					   &surface);
-	    if (likely (status == CAIRO_STATUS_SUCCESS) &&
-		unscaled->have_shape)
-	    {
-		status = _transform_glyph_bitmap (&unscaled->current_shape,
-						  &surface);
-                if (unlikely (status))
-                    cairo_surface_destroy (&surface->base);
-            }
-	}
+    if (info & CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE) {
+	status = _cairo_ft_scaled_glyph_init_surface (scaled_font,
+						      scaled_glyph,
+						      CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE,
+						      face,
+						      vertical_layout,
+						      load_flags);
 	if (unlikely (status))
 	    goto FAIL;
-
-        if (pixman_image_get_format (surface->pixman_image) == PIXMAN_a8r8g8b8 &&
-            !pixman_image_get_component_alpha (surface->pixman_image)) {
-            _cairo_scaled_glyph_set_color_surface (scaled_glyph,
-                                                   &scaled_font->base,
-                                                   surface);
-        } else {
-            _cairo_scaled_glyph_set_surface (scaled_glyph,
-                                             &scaled_font->base,
-                                             surface);
-        }
     }
 
-    if (((info & (CAIRO_SCALED_GLYPH_INFO_SURFACE | CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE)) != 0) &&
-        ((scaled_glyph->has_info & CAIRO_SCALED_GLYPH_INFO_SURFACE) == 0)) {
-        /*
-         * A kludge -- load again, without color.
-         * No need to load the metrics again, though
-         */
-	scaled_glyph_loaded = FALSE;
-        info &= ~CAIRO_SCALED_GLYPH_INFO_METRICS;
-#ifdef FT_LOAD_COLOR
-        load_flags &= ~FT_LOAD_COLOR;
-#endif
-        goto LOAD;
+    if (info & CAIRO_SCALED_GLYPH_INFO_SURFACE) {
+	status = _cairo_ft_scaled_glyph_init_surface (scaled_font,
+						      scaled_glyph,
+						      CAIRO_SCALED_GLYPH_INFO_SURFACE,
+						      face,
+						      vertical_layout,
+						      load_flags);
+	if (unlikely (status))
+	    goto FAIL;
     }
 
     if (info & CAIRO_SCALED_GLYPH_INFO_PATH) {

@@ -33,7 +33,60 @@ else
   cairo_libversion = '@0@.@1@.@2@'.format(cairo_version_sonum, cairo_version, cairo_version_micro)
 endif
 
+conf = configuration_data()
+
 cc = meson.get_compiler('c')
+
+# Compiler flags
+cflags = []
+if cc.get_id() != 'msvc'
+  cflags += [
+    '-Wall',
+    '-Wextra',
+    '-Wmissing-declarations',
+    '-Werror-implicit-function-declaration',
+    '-Wpointer-arith',
+    '-Wwrite-strings',
+    '-Wsign-compare',
+    '-Wpacked',
+    '-Wswitch-enum',
+    '-Wmissing-format-attribute',
+    '-Wvolatile-register-var',
+    '-Wstrict-aliasing=2',
+    '-Winit-self',
+    '-Wunsafe-loop-optimizations',
+    '-Wno-missing-field-initializers',
+    '-Wno-unused-parameter',
+    '-Wno-attributes',
+    '-Wno-long-long',
+    '-Winline'
+  ]
+
+  cflags += ['-Wno-unused-but-set-variable',
+             '-Wno-enum-conversion'
+  ]
+
+  cflags += [
+    '-fno-strict-aliasing',
+    '-fno-common'
+  ]
+
+  cflags += '-Wp,-D_FORTIFY_SOURCE=2'
+
+  supported_cflags = cc.get_supported_arguments(cflags)
+  add_project_arguments(supported_cflags, language: 'c')
+
+  # We only wish to enable attribute(warn_unused_result) if we can prevent
+  # gcc from generating thousands of warnings about the misapplication of the
+  # attribute to void functions and variables.
+  warn_unused_result = ''
+  if supported_cflags.contains('-Wno-attributes')
+    if cc.compiles(files('meson-cc-tests/check-unused-result.c'), args : ['-Wno-attributes', '-Werror'])
+      warn_unused_result = '__attribute__((__warn_unused_result__))'
+    endif
+  endif
+  conf.set('WARN_UNUSED_RESULT', warn_unused_result)
+endif
 
 if cc.get_id() == 'msvc'
   # Basic usage in the cairo type system that causes spammy and useless warnings
@@ -136,8 +189,6 @@ deps = [m_dep]
 test_deps = []
 internal_deps = []
 extra_link_args = []
-
-conf = configuration_data()
 
 if host_machine.endian() == 'big'
   conf.set('WORDS_BIGENDIAN', 1)

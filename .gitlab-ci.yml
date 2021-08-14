@@ -256,6 +256,7 @@ fedora meson build:
     # Environment variables substitutions is done by PowerShell before calling
     # cmd.exe, that's why we use $env:FOO instead of %FOO%
     - cmd.exe /C "C:\BuildTools\Common7\Tools\VsDevCmd.bat -host_arch=amd64 -arch=$env:ARCH &&
+        meson subprojects update --reset &&
         meson build $env:MESON_ARGS &&
         ninja -C build"
 

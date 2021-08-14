@@ -2623,7 +2623,6 @@ ensure_scaled_glyph (cairo_scaled_font_t   *scaled_font,
 						 CAIRO_SCALED_GLYPH_INFO_METRICS,
 						 scaled_glyph);
 	}
-
         if (unlikely (status))
             status = _cairo_scaled_font_set_error (scaled_font, status);
 

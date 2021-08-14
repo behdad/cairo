@@ -146,6 +146,8 @@ struct _cairo_scaled_glyph {
     const void		   *dev_private_key;
     void		   *dev_private;
     cairo_list_t            dev_privates;
+
+    cairo_bool_t            has_color;
 };
 
 struct _cairo_scaled_glyph_private {

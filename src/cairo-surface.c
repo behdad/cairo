@@ -2614,8 +2614,16 @@ ensure_scaled_glyph (cairo_scaled_font_t   *scaled_font,
     if (*scaled_glyph == NULL || _cairo_scaled_glyph_index (*scaled_glyph) != glyph->index) {
         status = _cairo_scaled_glyph_lookup (scaled_font,
                                              glyph->index,
-                                             CAIRO_SCALED_GLYPH_INFO_SURFACE,
+                                             CAIRO_SCALED_GLYPH_INFO_COLOR_SURFACE,
                                              scaled_glyph);
+	if (status == CAIRO_INT_STATUS_UNSUPPORTED) {
+	    /* If the color surface not available, ensure scaled_glyph is not NULL. */
+	    status = _cairo_scaled_glyph_lookup (scaled_font,
+						 glyph->index,
+						 CAIRO_SCALED_GLYPH_INFO_METRICS,
+						 scaled_glyph);
+	}
+
         if (unlikely (status))
             status = _cairo_scaled_font_set_error (scaled_font, status);
 

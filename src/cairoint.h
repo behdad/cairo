@@ -2069,6 +2069,7 @@ slim_hidden_proto (cairo_translate);
 slim_hidden_proto (cairo_transform);
 slim_hidden_proto (cairo_user_font_face_create);
 slim_hidden_proto (cairo_user_font_face_set_init_func);
+slim_hidden_proto (cairo_user_font_face_set_render_color_glyph_func);
 slim_hidden_proto (cairo_user_font_face_set_render_glyph_func);
 slim_hidden_proto (cairo_user_font_face_set_unicode_to_glyph_func);
 slim_hidden_proto (cairo_device_to_user);

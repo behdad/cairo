@@ -871,6 +871,34 @@ cairo_user_font_face_get_init_func (cairo_font_face_t *font_face)
 }
 
 /**
+ * cairo_user_font_face_get_render_color_glyph_func:
+ * @font_face: A user font face
+ *
+ * Gets the color glyph rendering function of a user-font.
+ *
+ * Return value: The render_glyph callback of @font_face
+ * or %NULL if none set or an error has occurred.
+ *
+ * Since: 1.18
+ **/
+cairo_user_scaled_font_render_glyph_func_t
+cairo_user_font_face_get_render_color_glyph_func (cairo_font_face_t *font_face)
+{
+    cairo_user_font_face_t *user_font_face;
+
+    if (font_face->status)
+	return NULL;
+
+    if (! _cairo_font_face_is_user (font_face)) {
+	if (_cairo_font_face_set_error (font_face, CAIRO_STATUS_FONT_TYPE_MISMATCH))
+	    return NULL;
+    }
+
+    user_font_face = (cairo_user_font_face_t *) font_face;
+    return user_font_face->scaled_font_methods.render_color_glyph;
+}
+
+/**
  * cairo_user_font_face_get_render_glyph_func:
  * @font_face: A user font face
  *

@@ -2854,8 +2854,6 @@ _cairo_surface_show_text_glyphs (cairo_surface_t	    *surface,
     if (unlikely (status))
 	return status;
 
-    status = CAIRO_INT_STATUS_UNSUPPORTED;
-
     if (_cairo_scaled_font_has_color_glyphs (scaled_font)) {
         utf8_copy = malloc (sizeof (char) * utf8_len);
         memcpy (utf8_copy, utf8, sizeof (char) * utf8_len);
@@ -2881,6 +2879,7 @@ _cairo_surface_show_text_glyphs (cairo_surface_t	    *surface,
     /* The logic here is duplicated in _cairo_analysis_surface show_glyphs and
      * show_text_glyphs.  Keep in synch. */
     if (clusters) {
+        status = CAIRO_INT_STATUS_UNSUPPORTED;
 	/* A real show_text_glyphs call.  Try show_text_glyphs backend
 	 * method first */
 	if (surface->backend->show_text_glyphs != NULL) {

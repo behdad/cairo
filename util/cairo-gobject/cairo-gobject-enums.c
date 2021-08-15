@@ -8,8 +8,8 @@
 GType
 cairo_gobject_status_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_STATUS_SUCCESS, "CAIRO_STATUS_SUCCESS", "success" },
           { CAIRO_STATUS_NO_MEMORY, "CAIRO_STATUS_NO_MEMORY", "no-memory" },
@@ -58,16 +58,16 @@ cairo_gobject_status_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_status_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_content_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_CONTENT_COLOR, "CAIRO_CONTENT_COLOR", "color" },
           { CAIRO_CONTENT_ALPHA, "CAIRO_CONTENT_ALPHA", "alpha" },
@@ -76,16 +76,16 @@ cairo_gobject_content_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_content_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_operator_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_OPERATOR_CLEAR, "CAIRO_OPERATOR_CLEAR", "clear" },
           { CAIRO_OPERATOR_SOURCE, "CAIRO_OPERATOR_SOURCE", "source" },
@@ -120,16 +120,16 @@ cairo_gobject_operator_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_operator_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_antialias_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_ANTIALIAS_DEFAULT, "CAIRO_ANTIALIAS_DEFAULT", "default" },
 
@@ -145,16 +145,16 @@ cairo_gobject_antialias_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_antialias_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_fill_rule_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_FILL_RULE_WINDING, "CAIRO_FILL_RULE_WINDING", "winding" },
           { CAIRO_FILL_RULE_EVEN_ODD, "CAIRO_FILL_RULE_EVEN_ODD", "even-odd" },
@@ -162,16 +162,16 @@ cairo_gobject_fill_rule_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_fill_rule_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_line_cap_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_LINE_CAP_BUTT, "CAIRO_LINE_CAP_BUTT", "butt" },
           { CAIRO_LINE_CAP_ROUND, "CAIRO_LINE_CAP_ROUND", "round" },
@@ -180,16 +180,16 @@ cairo_gobject_line_cap_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_line_cap_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_line_join_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_LINE_JOIN_MITER, "CAIRO_LINE_JOIN_MITER", "miter" },
           { CAIRO_LINE_JOIN_ROUND, "CAIRO_LINE_JOIN_ROUND", "round" },
@@ -198,32 +198,32 @@ cairo_gobject_line_join_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_line_join_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_text_cluster_flags_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_TEXT_CLUSTER_FLAG_BACKWARD, "CAIRO_TEXT_CLUSTER_FLAG_BACKWARD", "backward" },
           { 0, NULL, NULL }
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_text_cluster_flags_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_font_slant_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_FONT_SLANT_NORMAL, "CAIRO_FONT_SLANT_NORMAL", "normal" },
           { CAIRO_FONT_SLANT_ITALIC, "CAIRO_FONT_SLANT_ITALIC", "italic" },
@@ -232,16 +232,16 @@ cairo_gobject_font_slant_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_font_slant_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_font_weight_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_FONT_WEIGHT_NORMAL, "CAIRO_FONT_WEIGHT_NORMAL", "normal" },
           { CAIRO_FONT_WEIGHT_BOLD, "CAIRO_FONT_WEIGHT_BOLD", "bold" },
@@ -249,16 +249,16 @@ cairo_gobject_font_weight_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_font_weight_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_subpixel_order_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_SUBPIXEL_ORDER_DEFAULT, "CAIRO_SUBPIXEL_ORDER_DEFAULT", "default" },
           { CAIRO_SUBPIXEL_ORDER_RGB, "CAIRO_SUBPIXEL_ORDER_RGB", "rgb" },
@@ -269,16 +269,16 @@ cairo_gobject_subpixel_order_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_subpixel_order_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_hint_style_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_HINT_STYLE_DEFAULT, "CAIRO_HINT_STYLE_DEFAULT", "default" },
           { CAIRO_HINT_STYLE_NONE, "CAIRO_HINT_STYLE_NONE", "none" },
@@ -289,16 +289,16 @@ cairo_gobject_hint_style_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_hint_style_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_hint_metrics_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_HINT_METRICS_DEFAULT, "CAIRO_HINT_METRICS_DEFAULT", "default" },
           { CAIRO_HINT_METRICS_OFF, "CAIRO_HINT_METRICS_OFF", "off" },
@@ -307,16 +307,16 @@ cairo_gobject_hint_metrics_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_hint_metrics_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_font_type_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_FONT_TYPE_TOY, "CAIRO_FONT_TYPE_TOY", "toy" },
           { CAIRO_FONT_TYPE_FT, "CAIRO_FONT_TYPE_FT", "ft" },
@@ -327,16 +327,16 @@ cairo_gobject_font_type_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_font_type_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_path_data_type_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_PATH_MOVE_TO, "CAIRO_PATH_MOVE_TO", "move-to" },
           { CAIRO_PATH_LINE_TO, "CAIRO_PATH_LINE_TO", "line-to" },
@@ -346,16 +346,16 @@ cairo_gobject_path_data_type_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_path_data_type_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_device_type_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_DEVICE_TYPE_DRM, "CAIRO_DEVICE_TYPE_DRM", "drm" },
           { CAIRO_DEVICE_TYPE_GL, "CAIRO_DEVICE_TYPE_GL", "gl" },
@@ -367,16 +367,16 @@ cairo_gobject_device_type_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_device_type_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_surface_type_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_SURFACE_TYPE_IMAGE, "CAIRO_SURFACE_TYPE_IMAGE", "image" },
           { CAIRO_SURFACE_TYPE_PDF, "CAIRO_SURFACE_TYPE_PDF", "pdf" },
@@ -405,16 +405,16 @@ cairo_gobject_surface_type_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_surface_type_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_format_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_FORMAT_INVALID, "CAIRO_FORMAT_INVALID", "invalid" },
           { CAIRO_FORMAT_ARGB32, "CAIRO_FORMAT_ARGB32", "argb32" },
@@ -426,16 +426,16 @@ cairo_gobject_format_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_format_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_pattern_type_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_PATTERN_TYPE_SOLID, "CAIRO_PATTERN_TYPE_SOLID", "solid" },
           { CAIRO_PATTERN_TYPE_SURFACE, "CAIRO_PATTERN_TYPE_SURFACE", "surface" },
@@ -446,16 +446,16 @@ cairo_gobject_pattern_type_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_pattern_type_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_extend_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_EXTEND_NONE, "CAIRO_EXTEND_NONE", "none" },
           { CAIRO_EXTEND_REPEAT, "CAIRO_EXTEND_REPEAT", "repeat" },
@@ -465,16 +465,16 @@ cairo_gobject_extend_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_extend_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_filter_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_FILTER_FAST, "CAIRO_FILTER_FAST", "fast" },
           { CAIRO_FILTER_GOOD, "CAIRO_FILTER_GOOD", "good" },
@@ -486,16 +486,16 @@ cairo_gobject_filter_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_filter_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 GType
 cairo_gobject_region_overlap_get_type (void)
 {
-   static volatile gsize type_volatile = 0;
-   if (g_once_init_enter (&type_volatile)) {
+   static gsize type_ret = 0;
+   if (g_once_init_enter (&type_ret)) {
       static const GEnumValue values[] = {
           { CAIRO_REGION_OVERLAP_IN, "CAIRO_REGION_OVERLAP_IN", "in" },
           { CAIRO_REGION_OVERLAP_OUT, "CAIRO_REGION_OVERLAP_OUT", "out" },
@@ -504,9 +504,9 @@ cairo_gobject_region_overlap_get_type (void)
       };
       GType type = g_enum_register_static (g_intern_static_string ("cairo_region_overlap_t"), values);
 
-      g_once_init_leave (&type_volatile, type);
+      g_once_init_leave (&type_ret, type);
    }
-   return type_volatile;
+   return type_ret;
 }
 
 

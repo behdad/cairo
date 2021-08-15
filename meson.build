@@ -70,7 +70,9 @@ if cc.get_id() != 'msvc'
     '-fno-common'
   ]
 
-  cflags += '-Wp,-D_FORTIFY_SOURCE=2'
+  if get_option('optimization') in ['1', '2', '3']
+    cflags += '-Wp,-D_FORTIFY_SOURCE=2'
+  endif
 
   supported_cflags = cc.get_supported_arguments(cflags)
   add_project_arguments(supported_cflags, language: 'c')

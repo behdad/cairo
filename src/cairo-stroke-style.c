@@ -49,6 +49,8 @@ _cairo_stroke_style_init (cairo_stroke_style_t *style)
     style->dash = NULL;
     style->num_dashes = 0;
     style->dash_offset = 0.0;
+
+    style->is_hairline = FALSE;
 }
 
 cairo_status_t
@@ -79,6 +81,8 @@ _cairo_stroke_style_init_copy (cairo_stroke_style_t *style,
     }
 
     style->dash_offset = other->dash_offset;
+
+    style->is_hairline = other->is_hairline;
 
     return CAIRO_STATUS_SUCCESS;
 }

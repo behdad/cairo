@@ -376,6 +376,8 @@ typedef struct _cairo_stroke_style {
     double		*dash;
     unsigned int	 num_dashes;
     double		 dash_offset;
+    cairo_bool_t	 is_hairline;
+    double      pre_hairline_line_width;
 } cairo_stroke_style_t;
 
 typedef struct _cairo_format_masks {

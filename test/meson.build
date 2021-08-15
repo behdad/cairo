@@ -162,6 +162,7 @@ test_sources = [
   'group-paint.c',
   'group-state.c',
   'group-unaligned.c',
+  'hairline.c',
   'half-coverage.c',
   'halo.c',
   'hatchings.c',

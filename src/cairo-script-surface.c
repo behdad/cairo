@@ -709,6 +709,24 @@ _emit_line_width (cairo_script_surface_t *surface,
 }
 
 static cairo_status_t
+_emit_hairline (cairo_script_surface_t *surface, cairo_bool_t set_hairline)
+{
+    assert (target_is_active (surface));
+
+    if (surface->cr.current_style.is_hairline == set_hairline)
+    {
+	return CAIRO_STATUS_SUCCESS;
+    }
+
+    surface->cr.current_style.is_hairline = set_hairline;
+
+    _cairo_output_stream_printf (to_context (surface)->stream, 
+					"%d set-hairline\n",
+					set_hairline);
+    return CAIRO_STATUS_SUCCESS;
+}
+
+static cairo_status_t
 _emit_line_cap (cairo_script_surface_t *surface,
 		cairo_line_cap_t line_cap)
 {
@@ -855,6 +873,10 @@ _emit_stroke_style (cairo_script_surface_t *surface,
 	return status;
 
     status = _emit_miter_limit (surface, style->miter_limit, force);
+    if (unlikely (status))
+	return status;
+
+    status = _emit_hairline (surface, style->is_hairline);
     if (unlikely (status))
 	return status;
 

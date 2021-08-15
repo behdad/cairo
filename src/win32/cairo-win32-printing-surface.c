@@ -1520,7 +1520,7 @@ _cairo_win32_printing_surface_stroke (void			*abstract_surface,
     cairo_matrix_multiply (&mat, stroke_ctm, &surface->ctm);
     _cairo_matrix_factor_out_scale (&mat, &scale);
 
-    pen_style = PS_GEOMETRIC;
+    pen_style = style->is_hairline ? PS_COSMETIC : PS_GEOMETRIC;
     dash_array = NULL;
     if (style->num_dashes) {
 	pen_style |= PS_USERSTYLE;
@@ -1546,10 +1546,12 @@ _cairo_win32_printing_surface_stroke (void			*abstract_surface,
     brush.lbStyle = BS_SOLID;
     brush.lbColor = color;
     brush.lbHatch = 0;
-    pen_style |= _cairo_win32_line_cap (style->line_cap);
-    pen_style |= _cairo_win32_line_join (style->line_join);
+    if (!style->is_hairline) {
+	pen_style |= _cairo_win32_line_cap (style->line_cap);
+	pen_style |= _cairo_win32_line_join (style->line_join);
+    }
     pen = ExtCreatePen(pen_style,
-		       scale * style->line_width,
+		       style->is_hairline ? 1 : scale * style->line_width,
 		       &brush,
 		       style->num_dashes,
 		       dash_array);

@@ -765,6 +765,9 @@ cairo_set_fill_rule (cairo_t *cr, cairo_fill_rule_t fill_rule);
 cairo_public void
 cairo_set_line_width (cairo_t *cr, double width);
 
+cairo_public void
+cairo_set_hairline (cairo_t *cr, cairo_bool_t set_hairline);
+
 /**
  * cairo_line_cap_t:
  * @CAIRO_LINE_CAP_BUTT: start(stop) the line exactly at the start(end) point (Since 1.0)
@@ -1956,6 +1959,9 @@ cairo_get_fill_rule (cairo_t *cr);
 
 cairo_public double
 cairo_get_line_width (cairo_t *cr);
+
+cairo_public cairo_bool_t
+cairo_get_hairline (cairo_t *cr);
 
 cairo_public cairo_line_cap_t
 cairo_get_line_cap (cairo_t *cr);

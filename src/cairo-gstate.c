@@ -470,7 +470,10 @@ _cairo_gstate_get_fill_rule (cairo_gstate_t *gstate)
 cairo_status_t
 _cairo_gstate_set_line_width (cairo_gstate_t *gstate, double width)
 {
-    gstate->stroke_style.line_width = width;
+    if (gstate->stroke_style.is_hairline)
+	gstate->stroke_style.pre_hairline_line_width = width;
+	else
+	gstate->stroke_style.line_width = width;
 
     return CAIRO_STATUS_SUCCESS;
 }
@@ -479,6 +482,29 @@ double
 _cairo_gstate_get_line_width (cairo_gstate_t *gstate)
 {
     return gstate->stroke_style.line_width;
+}
+
+cairo_status_t
+_cairo_gstate_set_hairline (cairo_gstate_t *gstate, cairo_bool_t set_hairline)
+{
+    if (gstate->stroke_style.is_hairline != set_hairline) {
+        gstate->stroke_style.is_hairline = set_hairline;
+
+        if (set_hairline) {
+            gstate->stroke_style.pre_hairline_line_width = gstate->stroke_style.line_width;
+            gstate->stroke_style.line_width = 0.0;
+        } else {
+            gstate->stroke_style.line_width = gstate->stroke_style.pre_hairline_line_width;
+        }
+    }
+
+    return CAIRO_STATUS_SUCCESS;
+}
+
+cairo_bool_t
+_cairo_gstate_get_hairline (cairo_gstate_t *gstate)
+{
+    return gstate->stroke_style.is_hairline;
 }
 
 cairo_status_t
@@ -1172,7 +1198,7 @@ _cairo_gstate_stroke (cairo_gstate_t *gstate, cairo_path_fixed_t *path)
     if (gstate->op == CAIRO_OPERATOR_DEST)
 	return CAIRO_STATUS_SUCCESS;
 
-    if (gstate->stroke_style.line_width <= 0.0)
+    if (gstate->stroke_style.line_width <= 0.0 && !gstate->stroke_style.is_hairline)
 	return CAIRO_STATUS_SUCCESS;
 
     if (_cairo_clip_is_all_clipped (gstate->clip))

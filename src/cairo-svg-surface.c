@@ -2992,13 +2992,23 @@ _cairo_svg_surface_emit_stroke_style (cairo_svg_stream_t *output,
 	ASSERT_NOT_REACHED;
     }
 
-    _cairo_svg_stream_printf (output,
-			      " stroke-width=\"%f\""
-			      " stroke-linecap=\"%s\""
-			      " stroke-linejoin=\"%s\"",
-			      stroke_style->line_width,
-			      line_cap,
-			      line_join);
+    if (stroke_style->is_hairline) {
+		_cairo_svg_stream_printf (output,
+					" stroke-width=\"1px\""
+					" stroke-linecap=\"%s\""
+					" stroke-linejoin=\"%s\""
+					" style=\"vector-effect: non-scaling-stroke\"",
+					line_cap,
+					line_join);
+	} else {
+		_cairo_svg_stream_printf (output,
+					" stroke-width=\"%f\""
+					" stroke-linecap=\"%s\""
+					" stroke-linejoin=\"%s\"",
+					stroke_style->line_width,
+					line_cap,
+					line_join);
+	}
 
     status = _cairo_svg_surface_emit_pattern (surface, source, output, TRUE, parent_matrix);
     if (unlikely (status)) {

@@ -5162,6 +5162,27 @@ _set_line_width (csi_t *ctx)
 }
 
 static csi_status_t
+_set_hairline (csi_t *ctx)
+{
+    csi_status_t status;
+    cairo_t *cr;
+    cairo_bool_t set_hairline = FALSE; /* silence the compiler */
+
+    check (2);
+
+    status = _csi_ostack_get_boolean (ctx, 0, &set_hairline);
+    if (_csi_unlikely (status))
+	return status;
+    status = _csi_ostack_get_context (ctx, 1, &cr);
+	if (_csi_unlikely (status))
+	return status;
+
+    cairo_set_hairline (cr, set_hairline);
+	pop (1);
+	return CSI_STATUS_SUCCESS;
+}
+
+static csi_status_t
 _set_matrix (csi_t *ctx)
 {
     csi_object_t *obj;
@@ -6625,6 +6646,7 @@ _defs[] = {
     { "set-line-cap", _set_line_cap },
     { "set-line-join", _set_line_join },
     { "set-line-width", _set_line_width },
+    { "set-hairline", _set_hairline },
     { "set-matrix", _set_matrix },
     { "set-miter-limit", _set_miter_limit },
     { "set-mime-data", _set_mime_data },

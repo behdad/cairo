@@ -1749,17 +1749,17 @@ typedef cairo_status_t (*cairo_user_scaled_font_init_func_t) (cairo_scaled_font_
  *
  * The callback is mandatory, and expected to draw the glyph with code @glyph to
  * the cairo context @cr.  @cr is prepared such that the glyph drawing is done in
- * font space.  That is, the matrix set on @cr is the scale matrix of @scaled_font,
+ * font space.  That is, the matrix set on @cr is the scale matrix of @scaled_font.
  * The @extents argument is where the user font sets the font extents for
  * @scaled_font.  However, if user prefers to draw in user space, they can
  * achieve that by changing the matrix on @cr.
  *
  * All cairo rendering operations to @cr are permitted. However, when
- * this callback set with
+ * this callback is set with
  * cairo_user_font_face_set_render_glyph_func(), the result is
  * undefined if any source other than the default source on @cr is
  * used.  That means, glyph bitmaps should be rendered using
- * cairo_mask() instead of cairo_paint(). When this callback set with
+ * cairo_mask() instead of cairo_paint(). When this callback is set with
  * cairo_user_font_face_set_render_color_glyph_func(), setting the
  * source is a valid operation.
  *
@@ -1945,6 +1945,9 @@ cairo_user_font_face_get_init_func (cairo_font_face_t *font_face);
 
 cairo_public cairo_user_scaled_font_render_glyph_func_t
 cairo_user_font_face_get_render_glyph_func (cairo_font_face_t *font_face);
+
+cairo_public cairo_user_scaled_font_render_glyph_func_t
+cairo_user_font_face_get_render_color_glyph_func (cairo_font_face_t *font_face);
 
 cairo_public cairo_user_scaled_font_text_to_glyphs_func_t
 cairo_user_font_face_get_text_to_glyphs_func (cairo_font_face_t *font_face);

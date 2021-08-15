@@ -79,9 +79,15 @@
  * case of malloc() failure or overflow.
  **/
 
-#define _cairo_malloc_ab(a, size) \
-  ((size) != 0 && (size_t) (a) >= SIZE_MAX / (size_t) (size) ? NULL : \
-   _cairo_malloc((size_t) (a) * (size_t) (size)))
+static cairo_always_inline void *
+_cairo_malloc_ab(size_t a, size_t size)
+{
+    size_t c;
+    if (_cairo_mul_size_t_overflow (a, size, &c))
+	return NULL;
+
+    return _cairo_malloc(c);
+}
 
 /**
  * _cairo_realloc_ab:
@@ -101,9 +107,15 @@
  * of memory * is left untouched).
  **/
 
-#define _cairo_realloc_ab(ptr, a, size) \
-  ((size) != 0 && (size_t) (a) >= SIZE_MAX / (size_t) (size) ? NULL : \
-   realloc(ptr, (size_t) (a) * (size_t) (size)))
+static cairo_always_inline void *
+_cairo_realloc_ab(void *ptr, size_t a, size_t size)
+{
+    size_t c;
+    if (_cairo_mul_size_t_overflow (a, size, &c))
+	return NULL;
+
+    return realloc(ptr, c);
+}
 
 /**
  * _cairo_malloc_abc:
@@ -122,10 +134,18 @@
  * case of malloc() failure or overflow.
  **/
 
-#define _cairo_malloc_abc(a, b, size) \
-  ((b) != 0 && (size_t) (a) >= SIZE_MAX / (size_t) (b) ? NULL : \
-   (size) != 0 && (size_t) ((a)*(b)) >= SIZE_MAX / (size_t) (size) ? NULL : \
-   _cairo_malloc((size_t) (a) * (size_t) (b) * (size_t) (size)))
+static cairo_always_inline void *
+_cairo_malloc_abc(size_t a, size_t b, size_t size)
+{
+    size_t c, d;
+    if (_cairo_mul_size_t_overflow (a, b, &c))
+	return NULL;
+
+    if (_cairo_mul_size_t_overflow (c, size, &d))
+	return NULL;
+
+    return _cairo_malloc(d);
+}
 
 /**
  * _cairo_malloc_ab_plus_c:
@@ -141,9 +161,17 @@
  * case of malloc() failure or overflow.
  **/
 
-#define _cairo_malloc_ab_plus_c(a, size, c) \
-  ((size) != 0 && (size_t) (a) >= SIZE_MAX / (size_t) (size) ? NULL : \
-   (size_t) (c) >= SIZE_MAX - (size_t) (a) * (size_t) (size) ? NULL : \
-   _cairo_malloc((size_t) (a) * (size_t) (size) + (size_t) (c)))
+static cairo_always_inline void *
+_cairo_malloc_ab_plus_c(size_t a, size_t size, size_t c)
+{
+    size_t d, e;
+    if (_cairo_mul_size_t_overflow (a, size, &d))
+	return NULL;
+
+    if (_cairo_add_size_t_overflow (d, c, &e))
+	return NULL;
+
+    return _cairo_malloc(e);
+}
 
 #endif /* CAIRO_MALLOC_PRIVATE_H */

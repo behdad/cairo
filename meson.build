@@ -151,6 +151,7 @@ check_headers = [
   ['fenv.h', {'check-funcs': ['feenableexcept', 'fedisableexcept', 'feclearexcept']}],
   ['xlocale.h'],
   ['sys/ioctl.h'],
+  ['intsafe.h'],
 ]
 
 check_types = [

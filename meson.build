@@ -1,6 +1,7 @@
 project('cairo', 'c', 'cpp',
   meson_version: '>= 0.54.0',
   version: run_command(find_program('version.py'), check: true).stdout().strip(),
+  default_options: ['warning_level=2'],
 )
 
 # Keep in sync with configure.ac!
@@ -41,8 +42,6 @@ cc = meson.get_compiler('c')
 cflags = []
 if cc.get_id() != 'msvc'
   cflags += [
-    '-Wall',
-    '-Wextra',
     '-Wmissing-declarations',
     '-Werror-implicit-function-declaration',
     '-Wpointer-arith',
@@ -71,7 +70,9 @@ if cc.get_id() != 'msvc'
     '-fno-common'
   ]
 
-  cflags += '-Wp,-D_FORTIFY_SOURCE=2'
+  if get_option('optimization') in ['1', '2', '3']
+    cflags += '-Wp,-D_FORTIFY_SOURCE=2'
+  endif
 
   supported_cflags = cc.get_supported_arguments(cflags)
   add_project_arguments(supported_cflags, language: 'c')

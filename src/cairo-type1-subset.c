@@ -630,7 +630,7 @@ cairo_type1_font_subset_decrypt_eexec_segment (cairo_type1_font_subset_t *font)
     unsigned char *in, *end;
     char *out;
     int c, p;
-    int i;
+    unsigned int i;
 
     in = (unsigned char *) font->eexec_segment;
     end = (unsigned char *) in + font->eexec_segment_size;

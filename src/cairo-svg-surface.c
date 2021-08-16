@@ -1680,8 +1680,7 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 {
     if (!document->filters_emitted[filter]) {
 	document->filters_emitted[filter] = TRUE;
-	switch (filter) {
-	case CAIRO_SVG_FILTER_REMOVE_COLOR:
+	if (filter == CAIRO_SVG_FILTER_REMOVE_COLOR) {
 	    // (r, g, b, a) -> (1, 1, 1, a)
 	    _cairo_svg_stream_printf (&document->xml_node_filters,
 				      "<filter id=\"filter-remove-color\" "
@@ -1692,8 +1691,7 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 				      /*    */ "0 0 0 0 1 "
 				      /*    */ "0 0 0 1 0\" />\n"
 				      "</filter>\n");
-	    break;
-	case CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA:
+	} else if (filter == CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA) {
 	    // (r, g, b, a) -> (1, 1, 1, 1 - a)
 	    _cairo_svg_stream_printf (&document->xml_node_filters,
 				      "<filter id=\"filter-remove-color-and-invert-alpha\" "
@@ -1704,8 +1702,7 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 				      /*    */ "0 0 0 0 1 "
 				      /*    */ "0 0 0 -1 1\"/>\n"
 				      "</filter>\n");
-	    break;
-	case CAIRO_SVG_FILTER_COLOR_TO_ALPHA:
+	} else if (filter ==  CAIRO_SVG_FILTER_COLOR_TO_ALPHA) {
 	    // (r, g, b, a) -> (1, 1, 1, 0.2126 * r + 0.7152 * g + 0.0722 * b)
 	    _cairo_svg_stream_printf (&document->xml_node_filters,
 				      "<filter id=\"filter-color-to-alpha\" "
@@ -1716,23 +1713,19 @@ _cairo_svg_surface_emit_static_filter (cairo_svg_document_t *document, enum cair
 				      /*    */ "0 0 0 0 1 "
 				      /*    */ "0.2126 0.7152 0.0722 0 0\"/>\n"
 				      "</filter>\n");
-	    break;
-	default:
-	    ASSERT_NOT_REACHED;
 	}
     }
 
-    switch (filter) {
-    case CAIRO_SVG_FILTER_REMOVE_COLOR:
+    if (filter == CAIRO_SVG_FILTER_REMOVE_COLOR) {
 	return "remove-color";
-    case CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA:
+    } else if (filter == CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA) {
 	return "remove-color-and-invert-alpha";
-    case CAIRO_SVG_FILTER_COLOR_TO_ALPHA:
+    } else if (filter ==  CAIRO_SVG_FILTER_COLOR_TO_ALPHA) {
 	return "color-to-alpha";
-    default:
+    } else {
 	ASSERT_NOT_REACHED;
-	return FALSE; /* squelch warning */
     }
+    return FALSE; /* squelch warning */
 }
 
 #define _CAIRO_SVG_SURFACE_OUTPUT_FE_COMPOSITE_FILTER(operation) \
@@ -1882,6 +1875,10 @@ _cairo_svg_surface_emit_parametric_filter (cairo_svg_surface_t *surface,
     case CAIRO_SVG_FILTER_LUMINOSITY:
 	_CAIRO_SVG_SURFACE_OUTPUT_FE_BLEND_FILTER ("luminosity")
 	break;
+    case CAIRO_SVG_FILTER_REMOVE_COLOR:
+    case CAIRO_SVG_FILTER_REMOVE_COLOR_AND_INVERT_ALPHA:
+    case CAIRO_SVG_FILTER_COLOR_TO_ALPHA:
+    case CAIRO_SVG_FILTER_LAST_STATIC_FILTER:
     default:
 	ASSERT_NOT_REACHED;
     }

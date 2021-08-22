@@ -2607,7 +2607,6 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t          *surface,
 	surf = _cairo_image_surface_create_with_content (image->base.content,
 							 image->width,
 							 image->height);
-	image = (cairo_image_surface_t *) surf;
 	if (surf->status) {
 	    status = surf->status;
 	    goto bail0;
@@ -2618,6 +2617,7 @@ _cairo_ps_surface_emit_image (cairo_ps_surface_t          *surface,
 				       CAIRO_OPERATOR_SOURCE, &pattern.base,
 				       NULL);
         _cairo_pattern_fini (&pattern.base);
+	image = (cairo_image_surface_t *) surf;
         if (unlikely (status))
             goto bail0;
     }

@@ -489,8 +489,6 @@ static gboolean
 graph_view_button_release (GtkWidget	  *w,
 			   GdkEventButton *ev)
 {
-    GraphView *self = (GraphView *) w;
-
     return FALSE;
 }
 

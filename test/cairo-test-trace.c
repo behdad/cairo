@@ -791,7 +791,8 @@ matches_reference (struct slave *slave)
 			int channel;
 
 			for (channel = 0; channel < 4; channel++) {
-			    unsigned va, vb, diff;
+			    int va, vb;
+			    unsigned diff;
 
 			    va = (ua[x] >> (channel*8)) & 0xff;
 			    vb = (ub[x] >> (channel*8)) & 0xff;
@@ -815,7 +816,8 @@ matches_reference (struct slave *slave)
 			int channel;
 
 			for (channel = 0; channel < 3; channel++) {
-			    unsigned va, vb, diff;
+			    int va, vb;
+			    unsigned diff;
 
 			    va = (ua[x] >> (channel*8)) & 0xff;
 			    vb = (ub[x] >> (channel*8)) & 0xff;

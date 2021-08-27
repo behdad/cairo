@@ -28,8 +28,8 @@
 #define WIDTH 160
 #define HEIGHT 120
 
-void
-example (cairo_t *cr, char *name)
+static void
+example (cairo_t *cr, const char *name)
 {
     cairo_save (cr);
     cairo_push_group_with_content (cr, cairo_surface_get_content (cairo_get_target (cr)));

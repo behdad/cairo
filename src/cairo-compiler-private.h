@@ -42,6 +42,9 @@
 
 #include "config.h"
 
+#include <stddef.h> /* size_t */
+#include <stdint.h> /* SIZE_MAX */
+
 /* Size in bytes of buffer to use off the stack per functions.
  * Mostly used by text functions.  For larger allocations, they'll
  * malloc(). */
@@ -242,6 +245,57 @@
 #ifdef __STRICT_ANSI__
 #undef inline
 #define inline __inline__
+#endif
+
+/* size_t add/multiply with overflow check.
+ *
+ * These _cairo_fallback_*_size_t_overflow() functions are always defined
+ * to allow them to be tested in the test suite.  They are used
+ * if no compiler builtin is available.
+ */
+static cairo_always_inline cairo_bool_t
+_cairo_fallback_add_size_t_overflow(size_t a, size_t b, size_t *c)
+{
+    if (b > SIZE_MAX - a)
+        return 1;
+
+    *c = a + b;
+    return 0;
+}
+
+static cairo_always_inline cairo_bool_t
+_cairo_fallback_mul_size_t_overflow(size_t a, size_t b, size_t *c)
+{
+    if (b != 0 && a > SIZE_MAX / b)
+        return 1;
+
+    *c = a * b;
+    return 0;
+}
+
+/* Clang defines __GNUC__ so check clang builtins before gcc.
+ * MSVC does not support feature macros so hide the __has_builtin inside the #if __clang__ block
+ */
+#ifdef __clang__
+#if defined(__has_builtin) && __has_builtin(__builtin_add_overflow)
+#define _cairo_add_size_t_overflow(a, b, c)  __builtin_add_overflow((size_t)(a), (size_t)(b), (size_t*)(c))
+#define _cairo_mul_size_t_overflow(a, b, c)  __builtin_mul_overflow((size_t)(a), (size_t)(b), (size_t*)(c))
+#endif
+#elif __GNUC__ >= 8 || (__GNUC__ >= 5 && (INTPTR_MAX == INT64_MAX))
+/* Overflow builtins are available in gcc 5 but the 32-bit version is broken on gcc < 8.
+ *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82274
+ */
+#define _cairo_add_size_t_overflow(a, b, c)  __builtin_add_overflow((size_t)(a), (size_t)(b), (size_t*)(c))
+#define _cairo_mul_size_t_overflow(a, b, c)  __builtin_mul_overflow((size_t)(a), (size_t)(b), (size_t*)(c))
+#elif defined(_MSC_VER) && defined(HAVE_INTSAFE_H)
+#include <intsafe.h>
+#define _cairo_add_size_t_overflow(a,b,c) (SizeTAdd((size_t)(a), (size_t)(b), (size_t*)(c)) != S_OK)
+#define _cairo_mul_size_t_overflow(a,b,c) (SizeTMult((size_t)(a), (size_t)(b), (size_t*)(c)) != S_OK)
+#endif
+
+#ifndef _cairo_add_size_t_overflow
+#define _cairo_add_size_t_overflow _cairo_fallback_add_size_t_overflow
+#define _cairo_mul_size_t_overflow _cairo_fallback_mul_size_t_overflow
 #endif
 
 #endif

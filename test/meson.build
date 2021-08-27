@@ -236,6 +236,7 @@ test_sources = [
   'operator-source.c',
   'operator-www.c',
   'outline-tolerance.c',
+  'overflow.c',
   'over-above-source.c',
   'over-around-source.c',
   'over-below-source.c',

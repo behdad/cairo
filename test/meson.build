@@ -517,7 +517,7 @@ build_any2ppm = false
 has_multipage_surfaces = false
 add_fallback_resolution = false
 
-if conf.get('HAVE_REAL_PTHREAD', 0) == 1
+if conf.get('CAIRO_HAS_REAL_PTHREAD', 0) == 1
   test_sources += test_pthread_sources
 endif
 

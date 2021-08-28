@@ -1,5 +1,5 @@
 project('cairo', 'c', 'cpp',
-  meson_version: '>= 0.54.0',
+  meson_version: '>= 0.56.0',
   version: run_command(find_program('version.py'), check: true).stdout().strip(),
   default_options: ['warning_level=2'],
 )

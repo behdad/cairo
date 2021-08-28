@@ -82,11 +82,8 @@ EXTRA_DIST += \
 	subprojects/fontconfig.wrap \
 	subprojects/freetype2.wrap \
 	subprojects/glib.wrap \
-	subprojects/gperf.wrap \
-	subprojects/libffi.wrap \
 	subprojects/libpng.wrap \
 	subprojects/pixman.wrap \
-	subprojects/proxy-libintl.wrap \
 	subprojects/zlib.wrap \
 	$(NULL)
 

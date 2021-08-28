@@ -8,7 +8,7 @@ include:
 variables:
   FDO_UPSTREAM_REPO: 'cairo/cairo'
   FDO_DISTRIBUTION_VERSION: '34'
-  FDO_DISTRIBUTION_TAG: '2021-07-31.0'
+  FDO_DISTRIBUTION_TAG: '2021-08-26.0'
 
   # TODO: should probably get its own image at some point instead of reusing the GStreamer one.
   WINDOWS_IMAGE:             "registry.freedesktop.org/gstreamer/gst-ci/amd64/windows:v16-master"
@@ -62,7 +62,7 @@ fedora image:
       gcc
       g++
       zlib-devel
-      expat
+      expat-devel
       libpng-devel
       fontconfig-devel
       freetype-devel

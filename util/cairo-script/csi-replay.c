@@ -41,7 +41,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(CAIRO_HAS_XLIB_SURFACE) || defined(CAIRO_HAS_XLIB_XRENDER_SURFACE)
 static const cairo_user_data_key_t _key;
+#endif
 
 #define SINGLE_SURFACE 1
 

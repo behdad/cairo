@@ -1508,9 +1508,13 @@ _cairo_test_context_run_for_target (cairo_test_context_t *ctx,
     if (! RUNNING_ON_VALGRIND) {
 	void (* volatile old_segfault_handler)(int);
 	void (* volatile old_segfpe_handler)(int);
+#ifdef SIGPIPE
 	void (* volatile old_sigpipe_handler)(int);
+#endif
 	void (* volatile old_sigabrt_handler)(int);
+#ifdef SIGALRM
 	void (* volatile old_sigalrm_handler)(int);
+#endif
 
 	/* Set up a checkpoint to get back to in case of segfaults. */
 #ifdef SIGSEGV

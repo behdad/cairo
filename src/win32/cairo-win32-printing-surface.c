@@ -167,8 +167,15 @@ _cairo_win32_printing_surface_init_language_pack (cairo_win32_printing_surface_t
 
     module = GetModuleHandleW (L"GDI32.DLL");
     if (module) {
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
 	gdi_init_lang_pack = (gdi_init_lang_pack_func_t)
 	    GetProcAddress (module, "GdiInitializeLanguagePack");
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 	if (gdi_init_lang_pack)
 	    gdi_init_lang_pack (0);
     }

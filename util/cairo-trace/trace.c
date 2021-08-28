@@ -99,8 +99,13 @@
 #define CAIRO_BITSWAP8(c) ((((c) * 0x0802LU & 0x22110LU) | ((c) * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16)
 
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define CAIRO_PRINTF_FORMAT(fmt_index, va_index) \
+#ifdef __MINGW32__
+#define CAIRO_PRINTF_FORMAT(fmt_index, va_index)                        \
+	__attribute__((__format__(__MINGW_PRINTF_FORMAT, fmt_index, va_index)))
+#else
+#define CAIRO_PRINTF_FORMAT(fmt_index, va_index)                        \
 	__attribute__((__format__(__printf__, fmt_index, va_index)))
+#endif
 #else
 #define CAIRO_PRINTF_FORMAT(fmt_index, va_index)
 #endif

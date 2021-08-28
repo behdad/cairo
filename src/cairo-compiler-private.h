@@ -107,8 +107,13 @@
 #endif
 
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define CAIRO_PRINTF_FORMAT(fmt_index, va_index) \
+#ifdef __MINGW32__
+#define CAIRO_PRINTF_FORMAT(fmt_index, va_index)                        \
+	__attribute__((__format__(__MINGW_PRINTF_FORMAT, fmt_index, va_index)))
+#else
+#define CAIRO_PRINTF_FORMAT(fmt_index, va_index)                        \
 	__attribute__((__format__(__printf__, fmt_index, va_index)))
+#endif
 #else
 #define CAIRO_PRINTF_FORMAT(fmt_index, va_index)
 #endif

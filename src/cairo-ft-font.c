@@ -93,6 +93,11 @@
 #define FT_LCD_FILTER_LEGACY	16
 #endif
 
+/*  FreeType version older than 2.11 does not have the FT_RENDER_MODE_SDF enum value in FT_Render_Mode */
+#if FREETYPE_MAJOR > 2 || (FREETYPE_MAJOR == 2 && FREETYPE_MINOR >= 11)
+#define HAVE_FT_RENDER_MODE_SDF 1
+#endif
+
 #define DOUBLE_FROM_26_6(t) ((double)(t) / 64.0)
 #define DOUBLE_TO_16_16(d) ((FT_Fixed)((d) * 65536.0))
 #define DOUBLE_FROM_16_16(t) ((double)(t) / 65536.0)
@@ -1498,6 +1503,9 @@ _render_glyph_outline (FT_Face                    face,
 	case FT_RENDER_MODE_LIGHT:
 	case FT_RENDER_MODE_NORMAL:
 	case FT_RENDER_MODE_MAX:
+#if HAVE_FT_RENDER_MODE_SDF
+	case FT_RENDER_MODE_SDF:
+#endif
 	default:
 	    format = CAIRO_FORMAT_A8;
 	    break;
@@ -1531,6 +1539,9 @@ _render_glyph_outline (FT_Face                    face,
 	case FT_RENDER_MODE_LIGHT:
 	case FT_RENDER_MODE_NORMAL:
 	case FT_RENDER_MODE_MAX:
+#if HAVE_FT_RENDER_MODE_SDF
+	case FT_RENDER_MODE_SDF:
+#endif
 	default:
 	    break;
 	}
@@ -3241,8 +3252,6 @@ _cairo_ft_font_face_get_implementation (void                     *abstract_face,
 					const cairo_matrix_t       *ctm,
 					const cairo_font_options_t *options)
 {
-    cairo_ft_font_face_t      *font_face = abstract_face;
-
     /* The handling of font options is different depending on how the
      * font face was created. When the user creates a font face with
      * cairo_ft_font_face_create_for_ft_face(), then the load flags
@@ -3254,6 +3263,8 @@ _cairo_ft_font_face_get_implementation (void                     *abstract_face,
      */
 
 #if CAIRO_HAS_FC_FONT
+    cairo_ft_font_face_t      *font_face = abstract_face;
+
     /* If we have an unresolved pattern, resolve it and create
      * unscaled font.  Otherwise, use the ones stored in font_face.
      */

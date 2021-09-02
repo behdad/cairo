@@ -629,7 +629,7 @@ _hash_mix_bits (uint64_t hash)
 static uintptr_t
 _cairo_scaled_font_compute_hash (cairo_scaled_font_t *scaled_font)
 {
-    uintptr_t hash = FNV1_64_INIT;
+    uint64_t hash = FNV1_64_INIT;
 
     /* We do a bytewise hash on the font matrices */
     hash = _hash_matrix_fnv (&scaled_font->font_matrix, hash);

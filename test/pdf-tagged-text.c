@@ -465,7 +465,9 @@ check_created_pdf(cairo_test_context_t *ctx, const char* filename)
     cairo_test_status_t result = CAIRO_TEST_SUCCESS;
     int fd;
     struct stat st;
+#ifdef HAVE_MMAP
     void *contents;
+#endif
 
     fd = open(filename, O_RDONLY, 0);
     if (fd < 0) {

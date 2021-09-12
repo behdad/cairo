@@ -963,7 +963,7 @@ subdir('src')
 if feature_conf.get('CAIRO_HAS_PNG_FUNCTIONS', 0) == 1
   subdir('boilerplate')
 else
-  cairoboilerplate_dep = dependency()
+  cairoboilerplate_dep = dependency('', required: false)
 endif
 
 subdir('util')

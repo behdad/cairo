@@ -2293,50 +2293,6 @@ _cairo_scaled_font_glyph_device_extents (cairo_scaled_font_t	 *scaled_font,
     return CAIRO_STATUS_SUCCESS;
 }
 
-cairo_bool_t
-_cairo_scaled_font_glyph_approximate_extents (cairo_scaled_font_t	 *scaled_font,
-					      const cairo_glyph_t	 *glyphs,
-					      int                      num_glyphs,
-					      cairo_rectangle_int_t   *extents)
-{
-    double x0, x1, y0, y1, pad;
-    int i;
-
-    /* If any of the factors are suspect (i.e. the font is broken), bail */
-    if (scaled_font->fs_extents.max_x_advance == 0 ||
-	scaled_font->fs_extents.height == 0 ||
-	scaled_font->max_scale == 0)
-    {
-	return FALSE;
-    }
-
-    assert (num_glyphs);
-
-    x0 = x1 = glyphs[0].x;
-    y0 = y1 = glyphs[0].y;
-    for (i = 1; i < num_glyphs; i++) {
-	double g;
-
-	g = glyphs[i].x;
-	if (g < x0) x0 = g;
-	if (g > x1) x1 = g;
-
-	g = glyphs[i].y;
-	if (g < y0) y0 = g;
-	if (g > y1) y1 = g;
-    }
-
-    pad = MAX(scaled_font->fs_extents.max_x_advance,
-	      scaled_font->fs_extents.height);
-    pad *= scaled_font->max_scale;
-
-    extents->x = floor (x0 - pad);
-    extents->width = ceil (x1 + pad) - extents->x;
-    extents->y = floor (y0 - pad);
-    extents->height = ceil (y1 + pad) - extents->y;
-    return TRUE;
-}
-
 #if 0
 /* XXX win32 */
 cairo_status_t
